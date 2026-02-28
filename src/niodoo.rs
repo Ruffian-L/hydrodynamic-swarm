@@ -26,10 +26,30 @@ impl NiodooEngine {
 
     /// Core steering: apply physics to LLM residual stream.
     ///
+    /// `baseline_residual` must be shape `(1, D)` — single-batch residual.
+    /// Returns the steered residual with the same shape `(1, D)`.
+    ///
     /// steered = baseline + dt * (grad_force * viscosity + splat_force + goal_force)
     pub fn steer(&self, baseline_residual: &Tensor, goal_pos: &Tensor) -> Result<Tensor> {
-        // Current hidden position (simplified for v1: squeeze batch dim)
-        let pos = baseline_residual.squeeze(0)?; // (1, 512) -> (512,)
+        // Shape validation: require exactly (1, D)
+        let dims = baseline_residual.dims();
+        if dims.len() != 2 {
+            return Err(candle_core::Error::Msg(format!(
+                "steer: baseline_residual must be 2D (batch, dim), got {}D shape {:?}",
+                dims.len(),
+                dims
+            )));
+        }
+        if dims[0] != 1 {
+            return Err(candle_core::Error::Msg(format!(
+                "steer: baseline_residual batch size must be 1, got {} (shape {:?}). \
+                 Multi-batch steering is not supported in v1.",
+                dims[0], dims
+            )));
+        }
+
+        // Extract position vector: (1, D) -> (D,)
+        let pos = baseline_residual.squeeze(0)?;
 
         // 1. Field gradient: ridge-running force
         let grad_force = self
@@ -47,8 +67,8 @@ impl NiodooEngine {
         let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
         let steering = total_force.affine(self.dt as f64, 0.0)?;
 
-        // Apply steering to residual (unsqueeze back to batch dim)
-        let steering_2d = steering.unsqueeze(0)?; // (512,) -> (1, 512)
+        // Restore batch dim: (D,) -> (1, D) and add to baseline
+        let steering_2d = steering.unsqueeze(0)?;
         baseline_residual + &steering_2d
     }
 
