@@ -18,6 +18,7 @@ use dream::DreamEngine;
 use field::ContinuousField;
 use memory::SplatMemory;
 use niodoo::NiodooEngine;
+use splat::Splat;
 use std::io::BufReader;
 use tokenizers::Tokenizer;
 
@@ -75,7 +76,7 @@ fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
-    let engine = NiodooEngine::new(field, memory);
+    let mut engine = NiodooEngine::new(field, memory);
     println!("    ✓ Engine ready");
 
     // =========================================================
@@ -119,6 +120,9 @@ fn main() -> Result<()> {
     // Collect generated tokens
     let mut generated_tokens: Vec<u32> = Vec::new();
 
+    // Track last steered position for splat creation
+    let mut last_steered_pos: Option<Tensor> = None;
+
     println!("\n    === Generation (physics-steered) ===\n");
 
     for step in 0..60 {
@@ -130,6 +134,7 @@ fn main() -> Result<()> {
         };
 
         let steered_slice = engine.steer(&logit_slice, &goal_pos)?;
+        last_steered_pos = Some(steered_slice.clone());
 
         // Reconstruct full logits
         let steered_logits = if raw_logits.dim(1)? > dim {
@@ -182,9 +187,43 @@ fn main() -> Result<()> {
     println!("    {}", full_text);
 
     // =========================================================
+    // Populate real splats from this generation
+    // =========================================================
+    println!("\n--- Phase 5: Splat Scar Tissue ---");
+    if let Some(final_pos) = last_steered_pos {
+        let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
+        if generated_tokens.len() > 15 {
+            engine.memory_mut().add_splat(Splat::new(
+                pos_1d, 0.15, // sigma
+                1.8,  // positive scar (pleasure)
+            ));
+            println!(
+                "    ✓ Added PLEASURE splat (generation succeeded: {} tokens)",
+                generated_tokens.len()
+            );
+        } else {
+            engine.memory_mut().add_splat(Splat::new(
+                pos_1d, 0.15, // sigma
+                -0.9, // negative scar (pain)
+            ));
+            println!(
+                "    ✗ Added PAIN splat (generation too short: {} tokens)",
+                generated_tokens.len()
+            );
+        }
+        println!(
+            "    Splats in memory: {}",
+            engine
+                .memory()
+                .query_force(&Tensor::zeros((dim,), candle_core::DType::F32, &device)?)
+                .is_ok()
+        );
+    }
+
+    // =========================================================
     // Phase 5: Dream Replay
     // =========================================================
-    println!("\n--- Phase 5: Dream Replay ---");
+    println!("\n--- Phase 6: Dream Replay ---");
     let dream_memory = SplatMemory::new(device.clone());
     let mut dream = DreamEngine::new(dream_memory);
     let traj = Tensor::randn(0.0f32, 1.0, (20, dim), &device)?;
