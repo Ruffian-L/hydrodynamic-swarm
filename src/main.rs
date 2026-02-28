@@ -54,7 +54,7 @@ fn main() -> Result<()> {
     // Find GGUF model
     let llama_path = find_file(
         "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        "/Users/j/Desktop/again/Niodoo-Physics-LLM-main/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
     );
     println!("    Model: {}", llama_path);
 
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
     // Find tokenizer
     let tokenizer_path = find_file(
         "data/tokenizer.json",
-        "/Users/j/Desktop/again/Niodoo-Physics-LLM-main/models/tokenizer.json",
+        "/Users/j/Desktop/models/tokenizer.json",
     );
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
