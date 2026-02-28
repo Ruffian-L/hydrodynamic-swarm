@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Gaussian Splat — individual memory unit.
 //!
 //! Each splat has:

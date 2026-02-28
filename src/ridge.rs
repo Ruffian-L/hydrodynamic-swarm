@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Ridge-Running Loop
 //!
 //! A query particle slides down the continuous Diderot field,
