@@ -8,6 +8,7 @@ mod dream;
 mod field;
 mod memory;
 mod niodoo;
+mod ridge;
 mod splat;
 
 use anyhow::Result;
@@ -15,11 +16,22 @@ use candle_core::{Device, Tensor};
 use field::ContinuousField;
 use memory::SplatMemory;
 use niodoo::{compute_steering_force, steer_residual, NiodooParams};
+use ridge::{QueryParticle, RidgeRunner};
 
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 — Hydrodynamic Swarm ===\n");
 
-    let device = Device::Cpu;
+    // Use Metal GPU if available, fall back to CPU
+    let device = match Device::new_metal(0) {
+        Ok(d) => {
+            println!("[*] Using Metal GPU");
+            d
+        }
+        Err(_) => {
+            println!("[*] Metal not available, using CPU");
+            Device::Cpu
+        }
+    };
 
     // Phase 1: Load continuous field from embeddings
     println!("[1] Loading continuous Diderot field...");
@@ -80,7 +92,37 @@ fn main() -> Result<()> {
         (steered_norm - baseline_norm).abs()
     );
 
-    println!("\n[✓] Physics pipeline working. Ready for Day 2: ridge-running loop.");
+    println!("\n[✓] Day 1 physics pipeline working.");
+
+    // === DAY 2: RIDGE-RUNNING DEMO ===
+    println!("\n=== Day 2: Ridge-Running Demo ===");
+    println!("[4] Building ridge runner...\n");
+
+    let field2 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
+    let splat_memory2 = SplatMemory::new(&device);
+    let goal_pos2 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+
+    let runner = RidgeRunner::new(field2, splat_memory2, goal_pos2)
+        .with_dt(0.01)
+        .with_viscosity(0.5)
+        .with_damping(0.95);
+
+    let start_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let particle = QueryParticle::new(start_pos)?;
+
+    println!("    Start position norm: {:.6}", particle.pos_norm()?);
+    println!("    Running 200 steps...\n");
+
+    let (final_particle, stats) = runner.run(particle, 200, 0.001)?;
+
+    println!("\n    --- Results ---");
+    println!("    Steps:              {}", stats.steps);
+    println!("    Settled:            {}", stats.settled);
+    println!("    Final speed:        {:.6}", stats.final_speed);
+    println!("    Final density:      {:.6e}", stats.final_density);
+    println!("    Final position norm: {:.6}", final_particle.pos_norm()?);
+
+    println!("\n[✓] Day 2 ridge-running complete.");
 
     Ok(())
 }

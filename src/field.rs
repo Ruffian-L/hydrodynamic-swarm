@@ -37,6 +37,23 @@ impl ContinuousField {
         })
     }
 
+    /// Create a small demo field (1k points, 64D) for fast CPU iteration.
+    /// Sigma is tuned so kernels are non-trivial at this scale.
+    pub fn load_demo(device: &Device) -> Result<Self> {
+        let n_points = 1_000;
+        let dim = 64;
+        // Cluster some points around the origin so the field has structure
+        let positions = Tensor::randn(0.0f32, 1.0, (n_points, dim), device)?;
+
+        Ok(Self {
+            positions,
+            device: device.clone(),
+            // In 64D, typical dist between random unit-var points ≈ sqrt(2*64) ≈ 11.3
+            // σ=5.0 means kernels are exp(-11.3²/25) ≈ exp(-5.1) ≈ 0.006 — small but non-zero
+            kernel_sigma: 5.0,
+        })
+    }
+
     /// Load from an existing tensor of positions (N, D).
     pub fn from_positions(positions: Tensor, device: &Device) -> Self {
         Self {
