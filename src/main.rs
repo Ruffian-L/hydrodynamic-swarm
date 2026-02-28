@@ -1,7 +1,7 @@
 //! SplatRAG v1 — Hydrodynamic Swarm
 //!
-//! Full Llama 3.1 + Niodoo physics steering on real 4096d embeddings.
-//! Loads quantized GGUF model, runs physics-steered generation.
+//! Full Llama 3.1 + Niodoo physics steering with real tokenization.
+//! Type a prompt → physics steers generation → decoded text output.
 
 mod dream;
 mod field;
@@ -19,6 +19,7 @@ use field::ContinuousField;
 use memory::SplatMemory;
 use niodoo::NiodooEngine;
 use std::io::BufReader;
+use tokenizers::Tokenizer;
 
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 — Hydrodynamic Swarm ===\n");
@@ -41,84 +42,82 @@ fn main() -> Result<()> {
     println!("\n--- Phase 1: Loading Real Embeddings ---");
     let field = ContinuousField::load_real("data/universe_domain.safetensors", &device)?;
     let dim = field.dim;
-    println!("    Embedding dimension: {}", dim);
 
     // =========================================================
-    // Phase 2: Load quantized Llama 3.1 from GGUF
+    // Phase 2: Load Llama 3.1 GGUF + Tokenizer
     // =========================================================
-    println!("\n--- Phase 2: Loading Llama 3.1 ---");
-    let llama_path = "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf";
+    println!("\n--- Phase 2: Loading Llama 3.1 + Tokenizer ---");
 
-    // Check if model file exists, fallback to known location
-    let llama_path = if std::path::Path::new(llama_path).exists() {
-        llama_path.to_string()
-    } else {
-        let alt = "/Users/j/Desktop/again/Niodoo-Physics-LLM-main/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf";
-        if std::path::Path::new(alt).exists() {
-            println!("    Using model from: {}", alt);
-            alt.to_string()
-        } else {
-            eprintln!(
-                "ERROR: No GGUF model found. Place your model at {}",
-                llama_path
-            );
-            std::process::exit(1);
-        }
-    };
+    // Find GGUF model
+    let llama_path = find_file(
+        "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        "/Users/j/Desktop/again/Niodoo-Physics-LLM-main/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+    );
+    println!("    Model: {}", llama_path);
 
-    println!("    Loading GGUF: {}...", llama_path);
     let mut file = std::fs::File::open(&llama_path)?;
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
-
-    println!("    GGUF metadata loaded. Building model weights...");
     let mut llama = ModelWeights::from_gguf(ct, &mut reader, &device)?;
-    println!("    ✓ Llama 3.1 loaded successfully");
+    println!("    ✓ Llama 3.1 loaded");
+
+    // Find tokenizer
+    let tokenizer_path = find_file(
+        "data/tokenizer.json",
+        "/Users/j/Desktop/again/Niodoo-Physics-LLM-main/models/tokenizer.json",
+    );
+    let tokenizer =
+        Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
+    println!("    ✓ Tokenizer loaded ({})", tokenizer_path);
 
     // =========================================================
-    // Phase 3: Initialize Niodoo engine + splat memory
+    // Phase 3: Niodoo Engine
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
     let engine = NiodooEngine::new(field, memory);
-    println!("    ✓ Engine ready (dt=0.08, viscosity=0.6)");
+    println!("    ✓ Engine ready");
 
     // =========================================================
-    // Phase 4: Physics-steered generation
+    // Phase 4: Real Prompt → Physics-Steered Generation
     // =========================================================
-    println!("\n--- Phase 4: Physics-Steered Generation ---\n");
+    let prompt = "Explain the Physics of Friendship in one paragraph.";
+    println!("\n--- Phase 4: Physics-Steered Generation ---");
+    println!("    Prompt: \"{}\"", prompt);
 
-    // Start with BOS token for Llama 3.1
-    let mut tokens: Vec<u32> = vec![128000]; // <|begin_of_text|>
-    let mut index_pos = 0;
+    // Encode prompt
+    let encoded = tokenizer
+        .encode(prompt, true)
+        .map_err(|e| anyhow::anyhow!("encode: {}", e))?;
+    let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
+    println!("    Prompt tokens: {} IDs", prompt_ids.len());
 
-    // Goal: steer toward an embedding region
+    // Goal position: mean of prompt token embeddings in the Diderot field
+    // For v1: use a zero attractor (will refine with real prompt embedding lookup later)
     let goal_pos = Tensor::zeros((dim,), DType::F32, &device)?;
 
-    for step in 0..30 {
-        // Build token tensor: (1, seq_len) for first step, (1, 1) for subsequent
-        let input_tokens = if step == 0 {
-            Tensor::new(&tokens[..], &device)?.unsqueeze(0)?
-        } else {
-            let last = tokens[tokens.len() - 1];
-            Tensor::new(&[last], &device)?.unsqueeze(0)?
-        };
+    // Feed prompt through Llama first (prefill)
+    let prompt_tensor = Tensor::new(prompt_ids.as_slice(), &device)?.unsqueeze(0)?;
+    println!("    Prefilling {} prompt tokens...", prompt_ids.len());
+    let mut raw_logits = llama.forward(&prompt_tensor, 0)?;
+    let mut index_pos = prompt_ids.len();
 
-        // Forward through Llama — returns logits (1, vocab_size)
-        let raw_logits = llama.forward(&input_tokens, index_pos)?;
+    // Collect generated tokens
+    let mut generated_tokens: Vec<u32> = Vec::new();
 
+    println!("\n    === Generation (physics-steered) ===\n");
+
+    for step in 0..60 {
         // Steer the logits with Niodoo physics
-        // raw_logits are (1, 128256) — narrow first D logits for steering
         let logit_slice = if raw_logits.dim(1)? >= dim {
-            raw_logits.narrow(1, 0, dim)? // (1, dim) — already 2D
+            raw_logits.narrow(1, 0, dim)?
         } else {
             raw_logits.clone()
         };
 
-        // steer() expects (1, D) and returns (1, D) — no reshape needed
         let steered_slice = engine.steer(&logit_slice, &goal_pos)?;
 
-        // Reconstruct full logits with steered portion
+        // Reconstruct full logits
         let steered_logits = if raw_logits.dim(1)? > dim {
             let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
             Tensor::cat(&[&steered_slice, &rest], 1)?
@@ -126,32 +125,47 @@ fn main() -> Result<()> {
             steered_slice
         };
 
-        // Sample next token (greedy for now)
+        // Greedy decode
         let next_token: u32 = steered_logits.argmax(1)?.squeeze(0)?.to_scalar()?;
 
-        // Compute steering delta
+        // Steering delta
         let delta = (&steered_logits - &raw_logits)?;
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
-        tokens.push(next_token);
-        let seq_len_so_far = if step == 0 { tokens.len() - 1 } else { 1 };
-        index_pos += seq_len_so_far;
+        generated_tokens.push(next_token);
 
-        if step < 10 || step % 5 == 0 {
+        // Decode and print
+        let decoded = tokenizer
+            .decode(&[next_token], false)
+            .unwrap_or_else(|_| format!("[{}]", next_token));
+
+        if step < 15 || step % 10 == 0 {
             println!(
-                "    step {:>2} | token: {:>6} | steering_delta: {:.4}",
-                step, next_token, delta_norm
+                "    step {:>2} | token {:>6} | delta: {:>7.2} | \"{}\"",
+                step, next_token, delta_norm, decoded
             );
         }
 
-        // Stop on EOS
-        if next_token == 128009 {
-            println!("    → EOS reached at step {}", step);
+        // Stop on EOS tokens
+        if next_token == 128009 || next_token == 128001 {
+            println!("    → EOS at step {}", step);
             break;
         }
+
+        // Feed next token
+        let next_input = Tensor::new(&[next_token], &device)?.unsqueeze(0)?;
+        raw_logits = llama.forward(&next_input, index_pos)?;
+        index_pos += 1;
     }
 
-    println!("\n    Generated {} tokens total.", tokens.len());
+    // =========================================================
+    // Decode full output
+    // =========================================================
+    println!("\n    === Full Decoded Output ===\n");
+    let full_text = tokenizer
+        .decode(&generated_tokens, true)
+        .unwrap_or_else(|_| "[decode error]".to_string());
+    println!("    {}", full_text);
 
     // =========================================================
     // Phase 5: Dream Replay
@@ -169,11 +183,22 @@ fn main() -> Result<()> {
     println!("  ✅ SplatRAG v1 — FULLY OPERATIONAL");
     println!("========================================");
     println!("  Model:    Llama 3.1 8B Instruct (Q5_K_M)");
-    println!("  Dim:      {}", dim);
-    println!("  Tokens:   {}", tokens.len());
-    println!("  Backend:  Metal GPU");
-    println!("  Steering: Niodoo physics on logit space");
+    println!("  Prompt:   \"{}\"", prompt);
+    println!("  Tokens:   {} generated", generated_tokens.len());
+    println!("  Backend:  Metal GPU + Niodoo physics");
     println!("========================================");
 
     Ok(())
+}
+
+/// Find a file at primary path, fallback to secondary.
+fn find_file(primary: &str, fallback: &str) -> String {
+    if std::path::Path::new(primary).exists() {
+        primary.to_string()
+    } else if std::path::Path::new(fallback).exists() {
+        fallback.to_string()
+    } else {
+        eprintln!("ERROR: File not found at {} or {}", primary, fallback);
+        std::process::exit(1);
+    }
 }
