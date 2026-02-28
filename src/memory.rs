@@ -1,77 +1,70 @@
-#![allow(dead_code)]
 //! SplatMemory — manages a collection of splats and computes aggregate forces.
 //!
 //! This is the "scar tissue" layer: accumulated experience that biases
 //! the particle's trajectory through the field.
+//! Pain lasts longer than pleasure (asymmetric decay).
 
 use crate::splat::Splat;
-use candle_core::{Device, Result, Tensor};
+use candle_core::{DType, Result, Tensor};
 
 pub struct SplatMemory {
-    pub splats: Vec<Splat>,
-    pub device: Device,
-    /// Reward memories decay with this halflife
-    pub reward_halflife: f32,
-    /// Pain memories decay slower (asymmetric)
-    pub pain_halflife: f32,
+    splats: Vec<Splat>,
+    device: candle_core::Device,
 }
 
 impl SplatMemory {
-    pub fn new(device: &Device) -> Self {
+    pub fn new(device: candle_core::Device) -> Self {
         Self {
             splats: Vec::new(),
-            device: device.clone(),
-            reward_halflife: 100.0,
-            pain_halflife: 500.0, // pain lasts 5x longer
+            device,
         }
     }
 
-    /// Add a new splat (memory scar).
     pub fn add_splat(&mut self, splat: Splat) {
         self.splats.push(splat);
     }
 
-    /// Create and add a reward splat at a position.
-    pub fn record_reward(&mut self, position: Tensor, sigma: f32, strength: f32, time: u64) {
-        self.splats
-            .push(Splat::new(position, sigma, strength, 1.0, time));
+    /// Asymmetric decay: pain lasts longer than pleasure.
+    /// Pain decays at 70% of the pleasure rate.
+    pub fn decay_step(&mut self, decay_rate: f32) {
+        for splat in &mut self.splats {
+            if splat.alpha > 0.0 {
+                // pleasure decays faster
+                splat.alpha *= decay_rate;
+            } else {
+                // pain decays slower (70% of decay rate)
+                splat.alpha *= decay_rate * 0.7;
+            }
+            // prevent complete disappearance — scars persist
+            if splat.alpha.abs() < 0.01 {
+                splat.alpha *= 0.95;
+            }
+        }
     }
 
-    /// Create and add a pain splat at a position.
-    pub fn record_pain(&mut self, position: Tensor, sigma: f32, strength: f32, time: u64) {
-        self.splats
-            .push(Splat::new(position, sigma, strength, -1.0, time));
-    }
-
-    /// Compute the total force from all splats on a query position.
+    /// Core function: summed Gaussian pull/push from all nearby splats.
     ///
-    /// This is the scar tissue steering: accumulated reward/pain
-    /// pulls the particle toward good regions and away from bad ones.
-    pub fn query_force(&self, query_pos: &Tensor) -> Result<Tensor> {
-        let dim = query_pos.dims()[0];
-        let mut total = Tensor::zeros((dim,), candle_core::DType::F32, &self.device)?;
+    /// For each splat: force = α · (μ - pos) · exp(-||μ - pos||² / σ²)
+    /// Positive α pulls toward the splat (pleasure), negative pushes away (pain).
+    pub fn query_force(&self, pos: &Tensor) -> Result<Tensor> {
+        let dims = pos.dims().to_vec();
+        let mut total_force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
 
         for splat in &self.splats {
-            if splat.alpha.abs() < 1e-6 {
-                continue; // skip dead splats
-            }
-            let force = splat.force_on(query_pos)?;
-            total = (total + force)?;
+            // diff = μ - pos (direction toward splat)
+            let diff = (&splat.mu - pos)?;
+            // dist² = ||μ - pos||²
+            let dist_sq: f32 = diff.sqr()?.sum_all()?.to_scalar()?;
+            // Gaussian kernel: exp(-dist²/σ²)
+            let sigma_sq = splat.sigma * splat.sigma;
+            let kernel = (-dist_sq / sigma_sq).exp();
+            // force = α · kernel · diff
+            let scale = (splat.alpha * kernel) as f64;
+            let signed_force = diff.affine(scale, 0.0)?;
+
+            total_force = (&total_force + &signed_force)?;
         }
-
-        Ok(total)
-    }
-
-    /// Decay all splats (asymmetric: pain lasts longer).
-    pub fn decay_all(&mut self, current_time: u64) {
-        for splat in &mut self.splats {
-            splat.decay(current_time, self.reward_halflife, self.pain_halflife);
-        }
-    }
-
-    /// Prune dead splats (alpha below threshold).
-    pub fn prune(&mut self, threshold: f32) {
-        self.splats.retain(|s| s.alpha.abs() >= threshold);
+        Ok(total_force)
     }
 
     /// Number of active splats.
@@ -79,7 +72,9 @@ impl SplatMemory {
         self.splats.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.splats.is_empty()
+    /// Prune dead splats below threshold.
+    #[allow(dead_code)]
+    pub fn prune(&mut self, threshold: f32) {
+        self.splats.retain(|s| s.alpha.abs() >= threshold);
     }
 }

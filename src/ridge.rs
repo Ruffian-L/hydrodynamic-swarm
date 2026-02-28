@@ -158,6 +158,47 @@ impl RidgeRunner {
 
         Ok((particle, stats))
     }
+
+    /// Simplified ridge loop for testing splat memory forces.
+    pub fn run_with_memory(
+        &self,
+        mut particle: QueryParticle,
+        max_steps: usize,
+    ) -> Result<QueryParticle> {
+        for step in 0..max_steps {
+            let grad_force = self
+                .field
+                .probe_gradient(&particle.pos)?
+                .affine(self.viscosity_scale as f64, 0.0)?;
+            let splat_force = self.splat_memory.query_force(&particle.pos)?;
+            let goal_force = (&self.goal_pos - &particle.pos)?;
+
+            let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
+
+            // Euler integration: a = F/m, v += a*dt, x += v*dt
+            let accel = total_force.affine(1.0 / particle.mass as f64, 0.0)?;
+            let dv = accel.affine(self.dt as f64, 0.0)?;
+            particle.vel = (&particle.vel + &dv)?;
+            let dx = particle.vel.affine(self.dt as f64, 0.0)?;
+            particle.pos = (&particle.pos + &dx)?;
+
+            let vel_norm = particle.speed()?;
+            if vel_norm < 0.001 {
+                println!("    Particle settled on ridge after {} steps", step);
+                break;
+            }
+
+            if step % 30 == 0 {
+                println!(
+                    "    step {:>4} | speed: {:.6} | pos_norm: {:.4}",
+                    step,
+                    vel_norm,
+                    particle.pos_norm()?
+                );
+            }
+        }
+        Ok(particle)
+    }
 }
 
 /// Statistics from a ridge-running session.

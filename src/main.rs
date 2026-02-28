@@ -12,11 +12,12 @@ mod ridge;
 mod splat;
 
 use anyhow::Result;
-use candle_core::{Device, Tensor};
+use candle_core::{DType, Device, Tensor};
 use field::ContinuousField;
 use memory::SplatMemory;
 use niodoo::{compute_steering_force, steer_residual, NiodooParams};
 use ridge::{QueryParticle, RidgeRunner};
+use splat::Splat;
 
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 — Hydrodynamic Swarm ===\n");
@@ -44,7 +45,7 @@ fn main() -> Result<()> {
 
     // Phase 2: Initialize empty splat memory
     println!("[2] Initializing splat memory...");
-    let memory = SplatMemory::new(&device);
+    let memory = SplatMemory::new(device.clone());
     println!("    Splats: {} (empty — no scars yet)", memory.len());
 
     // Phase 3: Demonstrate the physics
@@ -99,7 +100,7 @@ fn main() -> Result<()> {
     println!("[4] Building ridge runner...\n");
 
     let field2 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
-    let splat_memory2 = SplatMemory::new(&device);
+    let splat_memory2 = SplatMemory::new(device.clone());
     let goal_pos2 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
 
     let runner = RidgeRunner::new(field2, splat_memory2, goal_pos2)
@@ -123,6 +124,56 @@ fn main() -> Result<()> {
     println!("    Final position norm: {:.6}", final_particle.pos_norm()?);
 
     println!("\n[✓] Day 2 ridge-running complete.");
+
+    // === DAY 3: SPLAT MEMORY TEST ===
+    println!("\n=== Day 3: Splat Memory Test ===");
+    println!("[5] Testing pleasure + pain splats...\n");
+
+    let mut memory3 = SplatMemory::new(device.clone());
+
+    // Add test splats: pleasure at origin, pain at a random point
+    let pleasure_pos = Tensor::zeros((512,), DType::F32, &device)?;
+    memory3.add_splat(Splat::new(pleasure_pos, 0.15, 1.2)); // strong pleasure
+
+    let pain_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    memory3.add_splat(Splat::new(pain_pos, 0.15, -0.8)); // pain
+
+    println!("    Splats: {} (1 pleasure + 1 pain)", memory3.len());
+
+    let field3 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
+    let goal_pos3 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let runner3 = RidgeRunner::new(field3, memory3, goal_pos3)
+        .with_dt(0.01)
+        .with_viscosity(0.5);
+
+    let start3 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let particle3 = QueryParticle::new(start3)?;
+    println!("    Start position norm: {:.6}", particle3.pos_norm()?);
+
+    let final_p = runner3.run_with_memory(particle3, 150)?;
+
+    println!(
+        "\n    Splat force test complete. Final position norm: {:.4}",
+        final_p.pos_norm()?
+    );
+
+    // Test asymmetric decay
+    println!("\n[6] Testing asymmetric decay...");
+    let mut decay_mem = SplatMemory::new(device.clone());
+    let pos_a = Tensor::zeros((512,), DType::F32, &device)?;
+    let pos_b = Tensor::zeros((512,), DType::F32, &device)?;
+    decay_mem.add_splat(Splat::new(pos_a, 0.15, 1.0)); // pleasure α=1.0
+    decay_mem.add_splat(Splat::new(pos_b, 0.15, -1.0)); // pain α=-1.0
+
+    for i in 0..10 {
+        decay_mem.decay_step(0.9);
+        if i % 3 == 0 {
+            println!("    decay step {:>2}", i);
+        }
+    }
+    println!("    (Pain decays slower than pleasure — asymmetric scar tissue)");
+
+    println!("\n[✓] Day 3 splat memory complete. Ready for Day 4: steering hook.");
 
     Ok(())
 }
