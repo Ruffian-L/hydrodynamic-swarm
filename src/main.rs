@@ -12,7 +12,7 @@ mod splat;
 
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
-use candle_core::{DType, Device, Tensor};
+use candle_core::{Device, Tensor};
 use candle_transformers::models::quantized_llama::ModelWeights;
 use dream::DreamEngine;
 use field::ContinuousField;
@@ -74,8 +74,6 @@ fn main() -> Result<()> {
     // Phase 3: Niodoo Engine
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
-    // Save field positions for prompt embedding lookup (before engine takes ownership)
-    let vocab_embeddings = field.positions.clone(); // (128256, 4096) — vocab embedding matrix
     let memory = SplatMemory::new(device.clone());
     let engine = NiodooEngine::new(field, memory);
     println!("    ✓ Engine ready");
@@ -94,26 +92,29 @@ fn main() -> Result<()> {
     let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
     println!("    Prompt tokens: {} IDs", prompt_ids.len());
 
-    // Goal position: real prompt embedding from the Diderot field.
-    // Look up each prompt token's embedding from the field positions (vocab matrix)
-    // and average them → the goal attractor sits at the centroid of prompt meaning.
-    let prompt_embeddings = vocab_embeddings.index_select(
-        &Tensor::new(prompt_ids.as_slice(), &device)?.to_dtype(DType::I64)?,
-        0,
-    )?; // (num_prompt_tokens, 4096)
-    let goal_pos = prompt_embeddings.mean(0)?; // (4096,) — centroid of prompt
-    let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    println!(
-        "    Goal attractor norm: {:.4} (from {} token embeddings)",
-        goal_norm,
-        prompt_ids.len()
-    );
-
-    // Feed prompt through Llama first (prefill)
+    // Feed prompt through Llama (prefill) to get context-aware goal attractor
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), &device)?.unsqueeze(0)?;
     println!("    Prefilling {} prompt tokens...", prompt_ids.len());
-    let mut raw_logits = llama.forward(&prompt_tensor, 0)?;
+    let prefill_logits = llama.forward(&prompt_tensor, 0)?;
     let mut index_pos = prompt_ids.len();
+
+    // Goal attractor: first D logits from the prefill pass.
+    // This is the model's context-aware response to the prompt (in logit space),
+    // so Niodoo will steer generation toward what the model "naturally" wants to say.
+    // Much more meaningful than raw vocab mean which cancels to ~zero.
+    let goal_pos = if prefill_logits.dim(1)? >= dim {
+        prefill_logits.narrow(1, 0, dim)?.squeeze(0)? // (dim,)
+    } else {
+        prefill_logits.squeeze(0)?
+    };
+    let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    println!(
+        "    Goal attractor norm: {:.4} (context-aware, from prefill logits)",
+        goal_norm
+    );
+
+    // Now start generating from prefill logits
+    let mut raw_logits = prefill_logits;
 
     // Collect generated tokens
     let mut generated_tokens: Vec<u32> = Vec::new();
