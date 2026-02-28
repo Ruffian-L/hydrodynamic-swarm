@@ -240,17 +240,11 @@ fn main() -> Result<()> {
                 generated_tokens.len()
             );
         }
-        println!(
-            "    Splats in memory: {}",
-            engine
-                .memory()
-                .query_force(&Tensor::zeros((dim,), candle_core::DType::F32, &device)?)
-                .is_ok()
-        );
+        println!("    Splats in memory: {}", engine.memory().len());
     }
 
     // =========================================================
-    // Phase 5: Dream Replay
+    // Phase 6: Dream Replay
     // =========================================================
     println!("\n--- Phase 6: Dream Replay ---");
     let dream_memory = SplatMemory::new(device.clone());
