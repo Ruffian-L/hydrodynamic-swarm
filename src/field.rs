@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Continuous Diderot Field
 //!
 //! The field is a sum of Gaussian kernels over all stored memory positions.

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! SplatMemory — manages a collection of splats and computes aggregate forces.
 //!
 //! This is the "scar tissue" layer: accumulated experience that biases

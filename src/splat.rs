@@ -6,7 +6,9 @@
 //! - α (opacity/viscosity — modulated by reward/pain)
 //! - valence (+1 attract, -1 repel)
 
-use candle_core::{Device, Result, Tensor};
+#![allow(dead_code)]
+
+use candle_core::{Result, Tensor};
 
 /// A single Gaussian splat representing one memory.
 pub struct Splat {

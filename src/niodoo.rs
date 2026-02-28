@@ -71,5 +71,5 @@ pub fn compute_steering_force(
 /// steered_residual = baseline_residual + (total_force * dt)
 pub fn steer_residual(baseline_residual: &Tensor, total_force: &Tensor, dt: f32) -> Result<Tensor> {
     let delta = total_force.affine(dt as f64, 0.0)?;
-    (baseline_residual + delta).map_err(Into::into)
+    baseline_residual + delta
 }

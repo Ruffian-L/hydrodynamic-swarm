@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Dream Replay
 //!
 //! After generation, replay top-K successful trajectories with Langevin noise
