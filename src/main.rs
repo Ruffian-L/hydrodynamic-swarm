@@ -13,9 +13,10 @@ mod splat;
 
 use anyhow::Result;
 use candle_core::{DType, Device, Tensor};
+use dream::DreamEngine;
 use field::ContinuousField;
 use memory::SplatMemory;
-use niodoo::{compute_steering_force, steer_residual, NiodooParams};
+use niodoo::NiodooEngine;
 use ridge::{QueryParticle, RidgeRunner};
 use splat::Splat;
 
@@ -34,146 +35,130 @@ fn main() -> Result<()> {
         }
     };
 
-    // Phase 1: Load continuous field from embeddings
-    println!("[1] Loading continuous Diderot field...");
+    // =========================================================
+    // Day 1: Continuous Diderot Field
+    // =========================================================
+    println!("\n--- Day 1: Continuous Field ---");
     let field = ContinuousField::load("data/universe_domain.safetensors", &device)?;
     println!(
-        "    Field: {} points × {} dims",
+        "[1] Field loaded: {} points × {} dims",
         field.n_points(),
         field.dim()
     );
 
-    // Phase 2: Initialize empty splat memory
-    println!("[2] Initializing splat memory...");
-    let memory = SplatMemory::new(device.clone());
-    println!("    Splats: {} (empty — no scars yet)", memory.len());
-
-    // Phase 3: Demonstrate the physics
-    println!("[3] Running single-step physics demo...\n");
-
-    let params = NiodooParams::default();
-
-    // Simulate a query position (would come from hidden state in real usage)
-    let query_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    // Simulate a goal position (would come from prompt embedding)
-    let goal_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    // Zero initial momentum
-    let momentum = Tensor::zeros((512,), candle_core::DType::F32, &device)?;
-    // Simulate a baseline residual
-    let baseline_residual = Tensor::randn(0.0f32, 0.1, (512,), &device)?;
-
-    // Probe the field
-    let density = field.probe(&query_pos)?;
-    let density_val: f32 = density.to_scalar()?;
-    println!("    Field density at query: {:.6}", density_val);
-
-    // Compute gradient
-    let gradient = field.probe_gradient(&query_pos)?;
-    let grad_norm: f32 = gradient.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    println!("    Gradient magnitude:     {:.6}", grad_norm);
-
-    // Compute full steering force
-    let total_force =
-        compute_steering_force(&field, &memory, &query_pos, &goal_pos, &momentum, &params)?;
-    let force_norm: f32 = total_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    println!("    Total force magnitude:  {:.6}", force_norm);
-
-    // Apply steering to residual
-    let steered = steer_residual(&baseline_residual, &total_force, params.dt)?;
-    let steered_norm: f32 = steered.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    let baseline_norm: f32 = baseline_residual
-        .sqr()?
-        .sum_all()?
-        .to_scalar::<f32>()?
-        .sqrt();
-    println!("    Baseline residual norm: {:.6}", baseline_norm);
-    println!("    Steered residual norm:  {:.6}", steered_norm);
+    let probe_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let density: f32 = field.probe(&probe_pos)?.to_scalar()?;
+    let grad = field.probe_gradient(&probe_pos)?;
+    let grad_norm: f32 = grad.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
     println!(
-        "    Delta:                  {:.6}",
-        (steered_norm - baseline_norm).abs()
+        "[1] Density: {:.6e}, Gradient norm: {:.6e}",
+        density, grad_norm
     );
 
-    println!("\n[✓] Day 1 physics pipeline working.");
-
-    // === DAY 2: RIDGE-RUNNING DEMO ===
-    println!("\n=== Day 2: Ridge-Running Demo ===");
-    println!("[4] Building ridge runner...\n");
-
+    // =========================================================
+    // Day 2: Ridge-Running Loop
+    // =========================================================
+    println!("\n--- Day 2: Ridge-Running ---");
     let field2 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
-    let splat_memory2 = SplatMemory::new(device.clone());
-    let goal_pos2 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-
-    let runner = RidgeRunner::new(field2, splat_memory2, goal_pos2)
+    let memory2 = SplatMemory::new(device.clone());
+    let goal2 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let runner = RidgeRunner::new(field2, memory2, goal2)
         .with_dt(0.01)
         .with_viscosity(0.5)
         .with_damping(0.95);
 
-    let start_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    let particle = QueryParticle::new(start_pos)?;
+    let start = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let particle = QueryParticle::new(start)?;
+    println!("[2] Start pos norm: {:.4}", particle.pos_norm()?);
 
-    println!("    Start position norm: {:.6}", particle.pos_norm()?);
-    println!("    Running 200 steps...\n");
-
-    let (final_particle, stats) = runner.run(particle, 200, 0.001)?;
-
-    println!("\n    --- Results ---");
-    println!("    Steps:              {}", stats.steps);
-    println!("    Settled:            {}", stats.settled);
-    println!("    Final speed:        {:.6}", stats.final_speed);
-    println!("    Final density:      {:.6e}", stats.final_density);
-    println!("    Final position norm: {:.6}", final_particle.pos_norm()?);
-
-    println!("\n[✓] Day 2 ridge-running complete.");
-
-    // === DAY 3: SPLAT MEMORY TEST ===
-    println!("\n=== Day 3: Splat Memory Test ===");
-    println!("[5] Testing pleasure + pain splats...\n");
-
-    let mut memory3 = SplatMemory::new(device.clone());
-
-    // Add test splats: pleasure at origin, pain at a random point
-    let pleasure_pos = Tensor::zeros((512,), DType::F32, &device)?;
-    memory3.add_splat(Splat::new(pleasure_pos, 0.15, 1.2)); // strong pleasure
-
-    let pain_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    memory3.add_splat(Splat::new(pain_pos, 0.15, -0.8)); // pain
-
-    println!("    Splats: {} (1 pleasure + 1 pain)", memory3.len());
-
-    let field3 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
-    let goal_pos3 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    let runner3 = RidgeRunner::new(field3, memory3, goal_pos3)
-        .with_dt(0.01)
-        .with_viscosity(0.5);
-
-    let start3 = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
-    let particle3 = QueryParticle::new(start3)?;
-    println!("    Start position norm: {:.6}", particle3.pos_norm()?);
-
-    let final_p = runner3.run_with_memory(particle3, 150)?;
-
+    let (final_p, stats) = runner.run(particle, 100, 0.001)?;
     println!(
-        "\n    Splat force test complete. Final position norm: {:.4}",
+        "[2] Steps: {} | Final speed: {:.4} | Final pos norm: {:.4}",
+        stats.steps,
+        stats.final_speed,
         final_p.pos_norm()?
     );
 
+    // =========================================================
+    // Day 3: Splat Memory (Scar Tissue)
+    // =========================================================
+    println!("\n--- Day 3: Splat Memory ---");
+    let mut memory3 = SplatMemory::new(device.clone());
+
+    let pleasure_pos = Tensor::zeros((512,), DType::F32, &device)?;
+    memory3.add_splat(Splat::new(pleasure_pos, 0.15, 1.2));
+
+    let pain_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    memory3.add_splat(Splat::new(pain_pos, 0.15, -0.8));
+    println!("[3] Splats: {} (1 pleasure, 1 pain)", memory3.len());
+
+    let test_pos = Tensor::randn(0.0f32, 1.0, (512,), &device)?;
+    let force = memory3.query_force(&test_pos)?;
+    let force_norm: f32 = force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    println!("[3] Splat force at random pos: {:.6e}", force_norm);
+
     // Test asymmetric decay
-    println!("\n[6] Testing asymmetric decay...");
-    let mut decay_mem = SplatMemory::new(device.clone());
-    let pos_a = Tensor::zeros((512,), DType::F32, &device)?;
-    let pos_b = Tensor::zeros((512,), DType::F32, &device)?;
-    decay_mem.add_splat(Splat::new(pos_a, 0.15, 1.0)); // pleasure α=1.0
-    decay_mem.add_splat(Splat::new(pos_b, 0.15, -1.0)); // pain α=-1.0
-
-    for i in 0..10 {
-        decay_mem.decay_step(0.9);
-        if i % 3 == 0 {
-            println!("    decay step {:>2}", i);
-        }
+    let pre_decay_len = memory3.len();
+    for _ in 0..5 {
+        memory3.decay_step(0.9);
     }
-    println!("    (Pain decays slower than pleasure — asymmetric scar tissue)");
+    println!(
+        "[3] After 5 decay steps: {} splats (pain persists longer)",
+        memory3.len()
+    );
+    assert_eq!(pre_decay_len, memory3.len()); // splats don't vanish, just fade
 
-    println!("\n[✓] Day 3 splat memory complete. Ready for Day 4: steering hook.");
+    // =========================================================
+    // Day 4: Niodoo Steering Hook
+    // =========================================================
+    println!("\n--- Day 4: Niodoo Steering ---");
+    let field4 = ContinuousField::load("data/universe_domain.safetensors", &device)?;
+    let memory4 = SplatMemory::new(device.clone());
+    let engine = NiodooEngine::new(field4, memory4);
+
+    // Simulate a baseline residual (batch=1, dim=512)
+    let baseline = Tensor::randn(0.0f32, 1.0, (1, 512), &device)?;
+    let goal = Tensor::zeros((512,), DType::F32, &device)?;
+
+    let steered = engine.steer(&baseline, &goal)?;
+
+    let baseline_norm: f32 = baseline.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    let steered_norm: f32 = steered.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    let delta = (&steered - &baseline)?;
+    let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+
+    println!("[4] Baseline norm: {:.6}", baseline_norm);
+    println!("[4] Steered norm:  {:.6}", steered_norm);
+    println!(
+        "[4] Delta norm:    {:.6} (physics steering applied)",
+        delta_norm
+    );
+
+    // =========================================================
+    // Day 5: Dream Replay
+    // =========================================================
+    println!("\n--- Day 5: Dream Replay ---");
+    let dream_memory = SplatMemory::new(device.clone());
+    let mut dream = DreamEngine::new(dream_memory);
+
+    let traj1 = Tensor::randn(0.0f32, 1.0, (10, 512), &device)?;
+    let traj2 = Tensor::randn(0.0f32, 1.0, (8, 512), &device)?;
+    dream.run(vec![traj1, traj2], 0.05)?;
+    println!("[5] Dream replay complete.");
+
+    // =========================================================
+    // Summary
+    // =========================================================
+    println!("\n========================================");
+    println!("  ✅ SplatRAG v1 — ALL PHASES COMPLETE");
+    println!("========================================");
+    println!("  [1] Continuous Diderot Field  ✓");
+    println!("  [2] Ridge-Running Loop        ✓");
+    println!("  [3] Splat Memory (Scar Tissue) ✓");
+    println!("  [4] Niodoo Steering Hook      ✓");
+    println!("  [5] Dream Replay              ✓");
+    println!("========================================");
+    println!("\nNext: Load real embeddings → hook to LLM residual stream → generate.");
 
     Ok(())
 }

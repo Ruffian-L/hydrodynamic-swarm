@@ -160,6 +160,7 @@ impl RidgeRunner {
     }
 
     /// Simplified ridge loop for testing splat memory forces.
+    #[allow(dead_code)]
     pub fn run_with_memory(
         &self,
         mut particle: QueryParticle,

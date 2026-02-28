@@ -101,6 +101,12 @@ impl ContinuousField {
         let sigma_sq = self.kernel_sigma * self.kernel_sigma;
         let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
 
+        // Safety: if all kernels are zero (underflow), return zero gradient
+        let kernel_sum: f32 = kernel.sum_all()?.to_scalar()?;
+        if kernel_sum.abs() < 1e-30 || kernel_sum.is_nan() {
+            return Tensor::zeros(pos.dims(), candle_core::DType::F32, &self.device);
+        }
+
         // weighted diff: (N, D) * (N, 1)
         let kernel_expanded = kernel.unsqueeze(1)?; // (N, 1)
         let weighted = diff.broadcast_mul(&kernel_expanded)?; // (N, D)

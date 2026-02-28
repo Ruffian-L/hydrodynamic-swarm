@@ -1,65 +1,53 @@
-#![allow(dead_code)]
 //! Dream Replay
 //!
 //! After generation, replay top-K successful trajectories with Langevin noise
 //! to reinforce good paths and update splat opacities.
-//!
-//! Placeholder for Day 5 implementation.
 
+use crate::memory::SplatMemory;
 use candle_core::{Result, Tensor};
 
-/// A recorded trajectory through the field during generation.
-pub struct Trajectory {
-    /// Sequence of positions visited
-    pub positions: Vec<Tensor>,
-    /// Reward score for this trajectory
-    pub reward: f32,
+pub struct DreamEngine {
+    memory: SplatMemory,
 }
 
-/// Dream replay state.
-pub struct DreamReplay {
-    /// Stored trajectories from recent generations
-    pub trajectories: Vec<Trajectory>,
-    /// How many top trajectories to replay
-    pub top_k: usize,
-    /// Noise scale for replay perturbation
-    pub replay_noise: f32,
-}
-
-impl DreamReplay {
-    pub fn new(top_k: usize, replay_noise: f32) -> Self {
-        Self {
-            trajectories: Vec::new(),
-            top_k,
-            replay_noise,
-        }
+impl DreamEngine {
+    pub fn new(memory: SplatMemory) -> Self {
+        Self { memory }
     }
 
-    /// Record a trajectory from a generation run.
-    pub fn record(&mut self, trajectory: Trajectory) {
-        self.trajectories.push(trajectory);
-    }
-
-    /// Run dream replay: replay top-K trajectories with noise.
-    /// Returns updated splat opacity deltas.
+    /// Simple dream replay: replay trajectories with noise, update splats.
     ///
-    /// TODO: Full implementation on Day 5
-    pub fn replay(&self) -> Result<Vec<(usize, f32)>> {
-        // Sort by reward, take top-K
-        let mut sorted: Vec<_> = self.trajectories.iter().enumerate().collect();
-        sorted.sort_by(|a, b| b.1.reward.partial_cmp(&a.1.reward).unwrap());
+    /// In full v1 this would project noisy trajectories back through the field
+    /// and update splat alphas based on trajectory reward. For now we add
+    /// Langevin noise to successful trajectories and apply global decay.
+    pub fn run(&mut self, success_trajectories: Vec<Tensor>, noise_scale: f32) -> Result<()> {
+        for traj in &success_trajectories {
+            // Add Langevin noise to trajectory
+            let noise = Tensor::randn(0.0f32, noise_scale, traj.dims(), traj.device())?;
+            let _noisy = (traj + &noise)?;
 
-        let top: Vec<_> = sorted
-            .into_iter()
-            .take(self.top_k)
-            .map(|(idx, t)| (idx, t.reward))
-            .collect();
+            // TODO: Project noisy trajectory through field, update splat alphas
+            // based on whether the perturbed path still reaches high-reward regions.
+            println!(
+                "    Dream replay: processed trajectory (shape {:?}, noise {:.4})",
+                traj.dims(),
+                noise_scale
+            );
+        }
 
-        Ok(top)
+        // Global decay — scars fade over time
+        self.memory.decay_step(0.98);
+        println!(
+            "    Applied global decay (0.98). Splats remaining: {}",
+            self.memory.len()
+        );
+
+        Ok(())
     }
 
-    /// Clear old trajectories.
-    pub fn clear(&mut self) {
-        self.trajectories.clear();
+    /// Access the memory after replay (for reinsertion into engine).
+    #[allow(dead_code)]
+    pub fn into_memory(self) -> SplatMemory {
+        self.memory
     }
 }

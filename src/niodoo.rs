@@ -1,75 +1,66 @@
-//! Niodoo Physics Steering
+//! Niodoo Physics Steering Engine
 //!
-//! The core steering function that combines all forces and applies them
-//! to the baseline residual stream. This is where retrieval becomes generation.
+//! The core steering function: apply physics forces to the LLM residual stream.
+//! This is where retrieval becomes generation — the same physical process.
 
 use crate::field::ContinuousField;
 use crate::memory::SplatMemory;
 use candle_core::{Result, Tensor};
 
-/// Physics parameters for the steering loop.
-pub struct NiodooParams {
-    /// How much the field gradient influences steering
-    pub viscosity_scale: f32,
-    /// Integration timestep
-    pub dt: f32,
-    /// Momentum damping factor (0 = no momentum, 1 = full momentum)
-    pub momentum_decay: f32,
-    /// Noise scale for exploration (Langevin-style)
-    pub noise_scale: f32,
+pub struct NiodooEngine {
+    field: ContinuousField,
+    memory: SplatMemory,
+    dt: f32,
+    viscosity_scale: f32,
 }
 
-impl Default for NiodooParams {
-    fn default() -> Self {
+impl NiodooEngine {
+    pub fn new(field: ContinuousField, memory: SplatMemory) -> Self {
         Self {
-            viscosity_scale: 0.1,
-            dt: 0.01,
-            momentum_decay: 0.9,
-            noise_scale: 0.001,
+            field,
+            memory,
+            dt: 0.08,
+            viscosity_scale: 0.6,
         }
     }
-}
 
-/// Compute the total steering force from all physics components.
-///
-/// total_force = grad_force + splat_force + goal_force + momentum + noise
-pub fn compute_steering_force(
-    field: &ContinuousField,
-    memory: &SplatMemory,
-    query_pos: &Tensor,
-    goal_pos: &Tensor,
-    momentum: &Tensor,
-    params: &NiodooParams,
-) -> Result<Tensor> {
-    // Field gradient: the ridge-running force
-    let grad_force = field
-        .probe_gradient(query_pos)?
-        .affine(params.viscosity_scale as f64, 0.0)?;
+    /// Core steering: apply physics to LLM residual stream.
+    ///
+    /// steered = baseline + dt * (grad_force * viscosity + splat_force + goal_force)
+    pub fn steer(&self, baseline_residual: &Tensor, goal_pos: &Tensor) -> Result<Tensor> {
+        // Current hidden position (simplified for v1: squeeze batch dim)
+        let pos = baseline_residual.squeeze(0)?; // (1, 512) -> (512,)
 
-    // Splat scar tissue force
-    let splat_force = memory.query_force(query_pos)?;
+        // 1. Field gradient: ridge-running force
+        let grad_force = self
+            .field
+            .probe_gradient(&pos)?
+            .affine(self.viscosity_scale as f64, 0.0)?;
 
-    // Goal-directed force: pull toward prompt embedding
-    let goal_force = (goal_pos - query_pos)?;
+        // 2. Splat scar tissue force
+        let splat_force = self.memory.query_force(&pos)?;
 
-    // Momentum (damped)
-    let damped_momentum = momentum.affine(params.momentum_decay as f64, 0.0)?;
+        // 3. Goal attractor
+        let goal_force = (goal_pos - &pos)?;
 
-    // Langevin noise for exploration
-    let noise = Tensor::randn(0.0f32, params.noise_scale, query_pos.dims(), field.device())?;
+        // Sum and scale by dt
+        let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
+        let steering = total_force.affine(self.dt as f64, 0.0)?;
 
-    // Sum all forces
-    let total = ((grad_force + splat_force)? + goal_force)?;
-    let total = (total + damped_momentum)?;
-    let total = (total + noise)?;
+        // Apply steering to residual (unsqueeze back to batch dim)
+        let steering_2d = steering.unsqueeze(0)?; // (512,) -> (1, 512)
+        baseline_residual + &steering_2d
+    }
 
-    Ok(total)
-}
+    /// Get a reference to the memory for external updates.
+    #[allow(dead_code)]
+    pub fn memory(&self) -> &SplatMemory {
+        &self.memory
+    }
 
-/// Apply the steering force to a baseline residual.
-///
-/// steered_residual = baseline_residual + (total_force * dt)
-pub fn steer_residual(baseline_residual: &Tensor, total_force: &Tensor, dt: f32) -> Result<Tensor> {
-    let delta = total_force.affine(dt as f64, 0.0)?;
-    baseline_residual + delta
+    /// Get a mutable reference to the memory.
+    #[allow(dead_code)]
+    pub fn memory_mut(&mut self) -> &mut SplatMemory {
+        &mut self.memory
+    }
 }
