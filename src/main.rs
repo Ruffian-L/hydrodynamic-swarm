@@ -74,6 +74,8 @@ fn main() -> Result<()> {
     // Phase 3: Niodoo Engine
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
+    // Save field positions for prompt embedding lookup (before engine takes ownership)
+    let vocab_embeddings = field.positions.clone(); // (128256, 4096) — vocab embedding matrix
     let memory = SplatMemory::new(device.clone());
     let engine = NiodooEngine::new(field, memory);
     println!("    ✓ Engine ready");
@@ -92,9 +94,20 @@ fn main() -> Result<()> {
     let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
     println!("    Prompt tokens: {} IDs", prompt_ids.len());
 
-    // Goal position: mean of prompt token embeddings in the Diderot field
-    // For v1: use a zero attractor (will refine with real prompt embedding lookup later)
-    let goal_pos = Tensor::zeros((dim,), DType::F32, &device)?;
+    // Goal position: real prompt embedding from the Diderot field.
+    // Look up each prompt token's embedding from the field positions (vocab matrix)
+    // and average them → the goal attractor sits at the centroid of prompt meaning.
+    let prompt_embeddings = vocab_embeddings.index_select(
+        &Tensor::new(prompt_ids.as_slice(), &device)?.to_dtype(DType::I64)?,
+        0,
+    )?; // (num_prompt_tokens, 4096)
+    let goal_pos = prompt_embeddings.mean(0)?; // (4096,) — centroid of prompt
+    let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    println!(
+        "    Goal attractor norm: {:.4} (from {} token embeddings)",
+        goal_norm,
+        prompt_ids.len()
+    );
 
     // Feed prompt through Llama first (prefill)
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), &device)?.unsqueeze(0)?;
