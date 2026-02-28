@@ -5,6 +5,7 @@
 
 mod dream;
 mod field;
+mod logger;
 mod memory;
 mod niodoo;
 mod ridge;
@@ -16,6 +17,7 @@ use candle_core::{Device, Tensor};
 use candle_transformers::models::quantized_llama::ModelWeights;
 use dream::DreamEngine;
 use field::ContinuousField;
+use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
 use niodoo::NiodooEngine;
 use splat::Splat;
@@ -78,6 +80,23 @@ fn main() -> Result<()> {
     let memory = SplatMemory::new(device.clone());
     let mut engine = NiodooEngine::new(field, memory);
     println!("    ✓ Engine ready");
+
+    // Initialize telemetry logger
+    let mut logger = SessionLogger::new()?;
+    logger.log_config(SessionConfig {
+        dt: 0.08,
+        viscosity: 0.6,
+        kernel_sigma: 2.24,
+        embedding_dim: dim,
+        field_points: 128256,
+        model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
+        backend: if device.is_metal() {
+            "Metal GPU"
+        } else {
+            "CPU"
+        }
+        .to_string(),
+    })?;
 
     // =========================================================
     // Phase 4: Real Prompt → Physics-Steered Generation
@@ -165,6 +184,16 @@ fn main() -> Result<()> {
             );
         }
 
+        // Log every step to JSONL
+        let residual_norm: f32 = steered_logits.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        logger.log_step(StepEntry {
+            step,
+            token_id: next_token,
+            token_text: decoded,
+            steering_delta: delta_norm,
+            residual_norm,
+        })?;
+
         // Stop on EOS tokens
         if next_token == 128009 || next_token == 128001 {
             println!("    → EOS at step {}", step);
@@ -232,12 +261,32 @@ fn main() -> Result<()> {
     // =========================================================
     // Summary
     // =========================================================
+    let splat_type = if generated_tokens.len() > 15 {
+        "pleasure"
+    } else {
+        "pain"
+    };
+    logger.log_summary(SessionSummary {
+        prompt: prompt.to_string(),
+        prompt_token_count: prompt_ids.len(),
+        generated_token_count: generated_tokens.len(),
+        goal_attractor_norm: goal_norm,
+        splat_count_before: 0,
+        splat_count_after: 1,
+        splat_type_added: splat_type.to_string(),
+        decoded_output: full_text,
+        delta_min: 0.0, // filled by log_summary
+        delta_max: 0.0,
+        delta_mean: 0.0,
+    })?;
+
     println!("\n========================================");
     println!("  ✅ SplatRAG v1 — FULLY OPERATIONAL");
     println!("========================================");
     println!("  Model:    Llama 3.1 8B Instruct (Q5_K_M)");
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
+    println!("  Log:      {}", logger.path().display());
     println!("  Backend:  Metal GPU + Niodoo physics");
     println!("========================================");
 
