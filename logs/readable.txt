@@ -1,0 +1,192 @@
+=== Run: 2026-03-01_20-03-31_bert_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772395432","session_id":"2026-03-01_bert_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":12,"splat_count_after":12,"splat_type_added":"pleasure","decoded_output":" I remember I wrote this paragraph for a high school assignment responding to the concept of Physics being applied universally and finding interesting metaphors in physics concepts applicable elsewhere in society (like economics).\nPhysics connects individuals in various ways similar to electric circuits connecting electrical devices to facilitate energy distribution among components in parallel setups enhancing productivity","delta_min":0.0,"delta_max":71.6894,"delta_mean":51.019817}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ I remember I wrote this paragraph for a high school assignment responding to the concept of Physics being applied universally and finding interesting metaphors in physics concepts applicable elsewhere in society (like economics).\nPhysics connects individuals in various ways similar to electric circuits connecting electrical devices to facilitate energy distribution among components in parallel setups enhancing productivity
+
+---
+
+=== Run: 2026-03-01_20-04-20_bert_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772395482","session_id":"2026-03-01_bert_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":15,"splat_count_after":15,"splat_type_added":"pleasure","decoded_output":" When objects bond, they form a love-shove dynamic that interacts with external forces (people, environments etc.) resulting in movements relative to long-term consequences! \nSent via SnapchatOct 11 | 144737 eeee ma (cannot trigger with old matters recur omit Mae (my incap4## i","delta_min":0.0,"delta_max":87.00458,"delta_mean":51.60261}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ When objects bond, they form a love-shove dynamic that interacts with external forces (people, environments etc.) resulting in movements relative to long-term consequences! \nSent via SnapchatOct 11 | 144737 eeee ma (cannot trigger with old matters recur omit Mae (my incap4## i
+
+---
+
+=== Run: 2026-03-01_20-05-06_bert_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772395528","session_id":"2026-03-01_bert_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":10,"splat_count_after":10,"splat_type_added":"pleasure","decoded_output":" Is friendship physics readable?\nConclusion: Yes, friendship physics is readable, although perhaps with slight modifications regarding conceptualizations. Conceptualizing stimuli, mutual affection, affection and attention reciprocity (cue association, attachment theory and mutual reinforcement hypothesis predict deepening bonds derives by friendly interactions explains diverse functions friendly interacts serves","delta_min":0.0,"delta_max":68.84491,"delta_mean":52.706535}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ Is friendship physics readable?\nConclusion: Yes, friendship physics is readable, although perhaps with slight modifications regarding conceptualizations. Conceptualizing stimuli, mutual affection, affection and attention reciprocity (cue association, attachment theory and mutual reinforcement hypothesis predict deepening bonds derives by friendly interactions explains diverse functions friendly interacts serves
+
+---
+
+=== Run: 2026-03-01_20-18-14_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772396317","session_id":"2026-03-01_unsloth_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.819,"splat_count_before":15,"splat_count_after":15,"splat_type_added":"pleasure","decoded_output":" Like that's even possible!\nWhile friendship isn’t typically associated with Newton’s laws or chaos theory, the physics behind friendship stems from principles attempting explain complex interactions among individuals in society. Through discussions involving theories like Mohr Circles—a combination Isaac Newton ’ and  ( magnetic fields “building upon Laws","delta_min":0.0,"delta_max":89.49818,"delta_mean":52.646534}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ Like that's even possible!\nWhile friendship isn’t typically associated with Newton’s laws or chaos theory, the physics behind friendship stems from principles attempting explain complex interactions among individuals in society. Through discussions involving theories like Mohr Circles—a combination Isaac Newton ’ and  ( magnetic fields “building upon Laws
+
+---
+
+=== Run: 2026-03-01_20-19-17_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772396378","session_id":"2026-03-01_unsloth_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.819,"splat_count_before":11,"splat_count_after":11,"splat_type_added":"pleasure","decoded_output":" Friendship can be a channeling of Energy Focused purposes to align individuals within relationships, taking opportunities in enhancing Emotions among peoples interactions contributing towards mutual Empathy: through approaching sympathetic perceptions . Just because the challenge guarantee a forever friendship her Add with inordinate confidence \"Things just aligned perfect that the mind prototype","delta_min":0.0,"delta_max":61.36128,"delta_mean":43.840828}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ Friendship can be a channeling of Energy Focused purposes to align individuals within relationships, taking opportunities in enhancing Emotions among peoples interactions contributing towards mutual Empathy: through approaching sympathetic perceptions . Just because the challenge guarantee a forever friendship her Add with inordinate confidence \
+
+---
+
+=== Run: 2026-03-01_20-20-09_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: {"timestamp":"1772396431","session_id":"2026-03-01_unsloth_v3-forcecap80_T0_9_s150_a2_d100","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.819,"splat_count_before":11,"splat_count_after":11,"splat_type_added":"pleasure","decoded_output":" A wonderful analogy by Bruce Almighty (2003).\nPeople are magnets with varying pole strengths pulling friends towards strength or attraction by distance from and proximity toward friends all – assorted pollsters branding like like a strong magnet attracts weak metal - but like attracts towards magnets ( I do solemn vows paradox end – reacts ripple","delta_min":0.0,"delta_max":66.85912,"delta_mean":48.699104}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ A wonderful analogy by Bruce Almighty (2003).\nPeople are magnets with varying pole strengths pulling friends towards strength or attraction by distance from and proximity toward friends all – assorted pollsters branding like like a strong magnet attracts weak metal - but like attracts towards magnets ( I do solemn vows paradox end – reacts ripple
+
+---
+
+=== Run: 2026-03-01_21-34-05_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+  The \
+
+---
+
+=== Run: 2026-03-01_21-34-49_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+﻿\nPhysics tells science fiction fans everywhere that relationships aren’t instinctual–they involve quantum physics principles!\nGravity plays significant roles throughout friendship formation– similar frequencies enhance bonds at incredible distances whereas differing frequencies introduce obstacles– unconsciously affecting relationships by strength of relation alone– interaction shares unique energies when the freq measurements align
+
+---
+
+=== Run: 2026-03-01_22-51-06_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ What scientific theories or principles foster the formation and sustenance of meaningful bonds?\nWhile friendship appears abstract and subjective, scientific theories reveal underlying principles governing the formation and maintenance of meaningful relationships. From attachment theory, suggesting shared experiences facilitate attachment formation leading to lasting bonds, comes adult attachment theory and as a dimensional perspective
+
+---
+
+=== Run: 2026-03-01_22-51-42_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "How does transformer attention work in detail?"
+
+ \nPart 1- Understanding Transformer Architecture \n\nLet's first dive into understanding Transformer architecture and its components thoroughly \n\nIntroduction \n\nTransformers revolutionised sequence-to-sequence tasks primarily due attention mechanism termed Self Attention introduced simultaneously well successful in various tasks resulting accelerated bio NAS popular concurrently\n\nUnderstanding Transformer Layers \n\nTransformer designed
+
+---
+
+=== Run: 2026-03-01_22-52-18_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "Write a short poem about gravity and human connection."
+
+ \nThe Force pushes earth and sea  \n Binding bodies back to me     \nThey rush toward unseen ties   \nTheir carriages halted rise     \nThey rush toward unseen ties   \n Free fall crushed in hidden eyes   \n pixilated debris waived goodbye     \n as Packstraus in echoing eye     \nMy heartbeat storyteller slow   \nNow
+
+---
+
+=== Run: 2026-03-01_22-52-55_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "Why do birds fly south for winter? Give a multi-step explanation."
+
+ \nBird species migrate to escape harsh weather conditions which usually occur in winter or summer seasons depending on the species. These birds fly south for winter primarily due to various environmental factors that decrease availability resources or endurance of plants utilized typically through both reduced computing drinking supply strength stability a fallen contributions trees receiving from bird survive
+
+---
+
+=== Run: 2026-03-01_22-53-31_unsloth_v3-forcecap80_T0_9_s150_a2_d100 ===
+Model: unsloth | Tokens: 60
+Prompt: "What is consciousness?"
+
+ Does it emanate from the brain? Can AI possess consciousness?\nIn Eastern philosophies and ancient cultures predominately in China and India consciousness (literally or translated ‘awaremind’) refers directly or impliedly (collective unconscious/social interconnected rethought convivial intimacy mind therefore cultural her seems the “mind
+
+---
+
+=== Run: session_1772291435 ===
+Model: {"timestamp":"1772291455","session_id":"session_1772291435","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":0,"splat_count_after":1,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":16.696198}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772301680 ===
+Model: {"timestamp":"1772301697","session_id":"session_1772301680","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":0,"splat_count_after":1,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":16.696198}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772393200 ===
+Model: {"timestamp":"1772393224","session_id":"session_1772393200","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":16.696198}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772393479 ===
+Model: {"timestamp":"1772393503","session_id":"session_1772393479","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":16.696198}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772393540 ===
+Model: {"timestamp":"1772393564","session_id":"session_1772393540","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":16.696198}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772393632 ===
+Model: {"timestamp":"1772393658","session_id":"session_1772393632","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces","delta_min":0.0,"delta_max":26.379166,"delta_mean":17.628284}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a complex phenomenon that can be understood through the lens of physics. Just as particles interact through forces like gravity and electromagnetism, friends interact through forces like affection and empathy. The strength of these forces depends on the proximity and velocity of the friends, with closer friends experiencing stronger forces
+
+---
+
+=== Run: session_1772393897 ===
+Model: {"timestamp":"1772393920","session_id":"session_1772393897","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship, a bond strengthened by shared experiences or between between between between not often between by between so between between between of between between between made between that between between between between between with by between as between between between between between between between between based with often that by of\r between between of between between","delta_min":0.0,"delta_max":427.81754,"delta_mean":309.00488}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship, a bond strengthened by shared experiences or between between between between not often between by between so between between between of between between between made between that between between between between between with by between as between between between between between between between between based with often that by of\r between between of between between
+
+---
+
+=== Run: session_1772394307 ===
+Model: {"timestamp":"1772394328","session_id":"session_1772394307","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" Dynamics of friendship are governed by Newton’s laws of motion combined leverage principles  (see By definition the (II to & For  –  forces The and and:\nforce  ¾ three  much The The ,\n  first and The\r The In F In﻿ ( but ( interact","delta_min":0.0,"delta_max":312.1462,"delta_mean":160.78215}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ Dynamics of friendship are governed by Newton’s laws of motion combined leverage principles  (see By definition the (II to & For  –  forces The and and:\nforce  ¾ three  much The The ,\n  first and The\r The In F In﻿ ( but ( interact
+
+---
+
+=== Run: session_1772394464 ===
+Model: {"timestamp":"1772394485","session_id":"session_1772394464","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":12,"splat_count_after":12,"splat_type_added":"pleasure","decoded_output":" \nFriendship is a force unto itself that operates according to laws independent of outside influence—a Gale force flux surrounding hearts of trust and experienced numerous shared moments occurring countless times leading necessarily toward stability notes glimpsingly tracing awkward canine barks shaped away so show odd truths friendly echoing bond promotes eas – Discover ex at","delta_min":0.0,"delta_max":80.893906,"delta_mean":55.936367}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nFriendship is a force unto itself that operates according to laws independent of outside influence—a Gale force flux surrounding hearts of trust and experienced numerous shared moments occurring countless times leading necessarily toward stability notes glimpsingly tracing awkward canine barks shaped away so show odd truths friendly echoing bond promotes eas – Discover ex at
+
+---
+
+=== Run: session_1772394636 ===
+Model: {"timestamp":"1772394658","session_id":"session_1772394636","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.819,"splat_count_before":9,"splat_count_after":9,"splat_type_added":"pleasure","decoded_output":" Friendship is fueled by forces of inherently logical and sensible compatibility among friends still captivated in chronic acquaintance bonding patterns accountable towards yet abstract yet tangible sense in supporting shared experiences. Views running alongside attentiveness forms free emotional interactions containing repeatedly satisfying relationships towards thoughts intersect possibilities leading.\nThe Physics of Friendship  could imply various","delta_min":0.0,"delta_max":56.636913,"delta_mean":41.011734}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ Friendship is fueled by forces of inherently logical and sensible compatibility among friends still captivated in chronic acquaintance bonding patterns accountable towards yet abstract yet tangible sense in supporting shared experiences. Views running alongside attentiveness forms free emotional interactions containing repeatedly satisfying relationships towards thoughts intersect possibilities leading.\nThe Physics of Friendship  could imply various
+
+---
+
+=== Run: session_1772394798 ===
+Model: {"timestamp":"1772394819","session_id":"session_1772394798","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":14,"splat_count_after":14,"splat_type_added":"pleasure","decoded_output":" \nDespite its ephemeral nature, friendship remains tangible throughout a lifetime, leaving memories and experiences — akin to residual magnetic fields lingering amidst particles reunited millennia apart– inciting reflex-positive sentiments but paving the eerie existential entourage in a much deeper depth and gravityw-present (insert  philosophical [ clock drama disc","delta_min":0.0,"delta_max":85.01026,"delta_mean":53.277843}} | Tokens: 60
+Prompt: "Explain the Physics of Friendship in one paragraph."
+
+ \nDespite its ephemeral nature, friendship remains tangible throughout a lifetime, leaving memories and experiences — akin to residual magnetic fields lingering amidst particles reunited millennia apart– inciting reflex-positive sentiments but paving the eerie existential entourage in a much deeper depth and gravityw-present (insert  philosophical [ clock drama disc
+
+---
+

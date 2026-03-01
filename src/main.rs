@@ -365,21 +365,66 @@ fn main() -> Result<()> {
         splat_count_before: engine.memory().len(), // includes online splats from generation
         splat_count_after: engine.memory().len(),
         splat_type_added: splat_type.to_string(),
-        decoded_output: full_text,
+        decoded_output: full_text.clone(),
         delta_min: 0.0, // filled by log_summary
         delta_max: 0.0,
         delta_mean: 0.0,
     })?;
 
     println!("\n========================================");
-    println!("  ✅ SplatRAG v1 — FULLY OPERATIONAL");
+    println!("  SplatRAG v1.1 -- OPERATIONAL");
     println!("========================================");
     println!("  Model:    Llama 3.1 8B Instruct (Q5_K_M)");
+    println!("  Variant:  {}", model_variant);
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
     println!("  Log:      {}", logger.path().display());
     println!("  Backend:  Metal GPU + Niodoo physics");
     println!("========================================");
+
+    // Append to human-readable log
+    {
+        use std::io::Write;
+        let readable_path = Path::new("logs/readable.txt");
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(readable_path)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let secs_per_day: u64 = 86400;
+        let days = now / secs_per_day;
+        let day_secs = now % secs_per_day;
+        let hours = day_secs / 3600;
+        let minutes = (day_secs % 3600) / 60;
+        // Approximate date from Unix days
+        let mut y = 1970i64;
+        let mut remaining = days as i64;
+        loop {
+            let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
+            if remaining < days_in_year { break; }
+            remaining -= days_in_year;
+            y += 1;
+        }
+        let month_days = [31, if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let mut m = 1;
+        for md in &month_days {
+            if remaining < *md as i64 { break; }
+            remaining -= *md as i64;
+            m += 1;
+        }
+        let d = remaining + 1;
+        writeln!(f, "=== Run: {}-{:02}-{:02} {:02}:{:02} UTC ===", y, m, d, hours, minutes)?;
+        writeln!(f, "Model: {} | Tokens: {} | Splats: {}", model_variant, generated_tokens.len(), engine.memory().len())?;
+        writeln!(f, "Prompt: \"{}\"", prompt)?;
+        writeln!(f, "")?;
+        writeln!(f, "{}", full_text)?;
+        writeln!(f, "")?;
+        writeln!(f, "---")?;
+        writeln!(f, "")?;
+    }
 
     Ok(())
 }
