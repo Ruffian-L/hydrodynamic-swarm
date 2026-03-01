@@ -38,7 +38,7 @@ impl NiodooEngine {
     /// Returns the steered residual with the same shape `(1, D)`.
     ///
     /// steered = baseline + dt * (grad_force * viscosity + splat_force + goal_force)
-    pub fn steer(&self, baseline_residual: &Tensor, goal_pos: &Tensor) -> Result<Tensor> {
+    pub fn steer(&self, baseline_residual: &Tensor, goal_pos: &Tensor, step: usize) -> Result<Tensor> {
         // Shape validation: require exactly (1, D)
         let dims = baseline_residual.dims();
         if dims.len() != 2 {
@@ -70,6 +70,17 @@ impl NiodooEngine {
 
         // 3. Goal attractor
         let goal_force = (goal_pos - &pos)?;
+
+        // Force telemetry: log magnitudes so we can see scars warping trajectory
+        let splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let grad_mag: f32 = grad_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let goal_mag: f32 = goal_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        if step <= 15 || step % 10 == 0 {
+            println!(
+                "    [FORCES] step {:>2} | grad: {:>8.2} | splat: {:>8.2} | goal: {:>8.2}",
+                step, grad_mag, splat_mag, goal_mag
+            );
+        }
 
         // Sum and scale by dt
         let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
