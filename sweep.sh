@@ -52,10 +52,10 @@ done
 echo ""
 echo "=== SWEEP RESULTS: $MODEL ==="
 echo ""
-printf "%-12s | %-6s | %s\n" "Category" "Tokens" "First 80 chars"
+printf "%-12s | %-6s | %s\n" "Category" "Model" "First 80 chars"
 printf "%-12s-+-%-6s-+-%s\n" "------------" "------" "----------------------------------------"
 for i in "${!R_CAT[@]}"; do
-    printf "%-12s | %-6s | %s\n" "${R_CAT[$i]}" "${R_TOK[$i]}" "${R_TXT[$i]}"
+    printf "%-12s | %-6s | %s\n" "${R_CAT[$i]}" "$MODEL" "${R_TXT[$i]}"
 done
 echo ""
 echo "=== SWEEP COMPLETE ==="
