@@ -63,6 +63,7 @@ pub struct SessionSummary {
 pub struct LogEntry {
     pub timestamp: String,
     pub session_id: String,
+    pub model_variant: String,
     pub entry_type: String, // "config", "step", "summary"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<SessionConfig>,
@@ -75,6 +76,7 @@ pub struct LogEntry {
 pub struct SessionLogger {
     file: fs::File,
     session_id: String,
+    model_variant: String,
     deltas: Vec<f32>,
     log_path: PathBuf,
 }
@@ -82,7 +84,7 @@ pub struct SessionLogger {
 impl SessionLogger {
     /// Create a new session logger with a descriptive label.
     /// Filename: `logs/{YYYY-MM-DD}_{HH-MM-SS}_{label}.jsonl`
-    pub fn new(label: &str) -> std::io::Result<Self> {
+    pub fn new(label: &str, model_variant: &str) -> std::io::Result<Self> {
         let log_dir = Path::new("logs");
         fs::create_dir_all(log_dir)?;
 
@@ -121,6 +123,7 @@ impl SessionLogger {
         Ok(Self {
             file,
             session_id,
+            model_variant: model_variant.to_string(),
             deltas: Vec::new(),
             log_path,
         })
@@ -131,6 +134,7 @@ impl SessionLogger {
         let entry = LogEntry {
             timestamp: self.now_str(),
             session_id: self.session_id.clone(),
+            model_variant: self.model_variant.clone(),
             entry_type: "config".to_string(),
             config: Some(config),
             step: None,
@@ -145,6 +149,7 @@ impl SessionLogger {
         let entry = LogEntry {
             timestamp: self.now_str(),
             session_id: self.session_id.clone(),
+            model_variant: self.model_variant.clone(),
             entry_type: "step".to_string(),
             config: None,
             step: Some(step),
@@ -168,6 +173,7 @@ impl SessionLogger {
         let entry = LogEntry {
             timestamp: self.now_str(),
             session_id: self.session_id.clone(),
+            model_variant: self.model_variant.clone(),
             entry_type: "summary".to_string(),
             config: None,
             step: None,

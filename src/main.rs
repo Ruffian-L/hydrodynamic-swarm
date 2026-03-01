@@ -23,6 +23,7 @@ use niodoo::NiodooEngine;
 use splat::Splat;
 use rand::Rng;
 use std::io::BufReader;
+use std::path::Path;
 use tokenizers::Tokenizer;
 
 fn main() -> Result<()> {
@@ -80,13 +81,20 @@ fn main() -> Result<()> {
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
     let mut engine = NiodooEngine::new(field, memory);
-    println!("    ✓ Engine ready");
+    println!("    Engine ready");
+
+    // Load persistent splat memory if it exists
+    let splat_file = Path::new("data/splat_memory.safetensors");
+    let loaded_count = engine.memory_mut().load(splat_file)?;
+    if loaded_count == 0 {
+        println!("    No existing splat memory found (first run)");
+    }
 
     // Initialize telemetry logger
     let model_variant = "unsloth"; // or "bert" -- swap when testing
     let prompt = "Explain the Physics of Friendship in one paragraph.";
     let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
-    let mut logger = SessionLogger::new(&test_label)?;
+    let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
         prompt: prompt.to_string(),
         dt: 0.08,
@@ -302,6 +310,9 @@ fn main() -> Result<()> {
         }
         println!("    Splats in memory: {}", engine.memory().len());
     }
+
+    // Save persistent splat memory to disk (before dream decay wipes them)
+    engine.memory().save(splat_file)?;
 
     // =========================================================
     // Phase 6: Dream Replay
