@@ -8,3 +8,4 @@
 | | | _Jules will begin appending entries here on the next push to master._ |
 | 2026-03-01 | 002398231db94449ec0444dbb6819ff639166fc3 | feat: add workflow_dispatch trigger to jules researcher |
 | 2026-03-01 | 52e09ea3dca16f631bd616223a79197f14c1697c | docs(research_logs): document workflow_dispatch trigger commit (#1) |
+| 2026-03-01 | 1d5dbc5e60345f95e9425151d4b82633b1816897 | fix: separate auto-merge workflow triggered on PR open |
