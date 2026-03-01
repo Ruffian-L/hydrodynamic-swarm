@@ -26,6 +26,7 @@ pub struct StepEntry {
 /// Session config snapshot
 #[derive(Serialize)]
 pub struct SessionConfig {
+    pub prompt: String,
     pub dt: f32,
     pub viscosity: f32,
     pub kernel_sigma: f32,
