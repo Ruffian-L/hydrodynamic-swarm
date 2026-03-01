@@ -1,0 +1,826 @@
+========================================================================
+EXPERIMENT: v1.1 A/B 5-Prompt Sweep
+Date: 2026-03-01
+Config: sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100
+Micro-dreams: ON (every 8 steps, 2-step forward, blend=0.10)
+========================================================================
+
+------------------------------------------------------------------------
+MODEL: unsloth
+PROMPT: "Explain the Physics of Friendship in one paragraph."
+FILE: 2026-03-01_22-51-06_unsloth_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 195.8190
+SPLATS: 11 (type: pleasure)
+DELTA: min=0.00  max=69.50  mean=48.45
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0    3639     0.00    751.64  " What"
+   1   12624    16.72   1348.60  " scientific"
+   2   26018    16.97   1073.63  " theories"
+   3     477    16.49    876.97  " or"
+   4   16565    16.22    953.38  " principles"
+   5   31087    17.37    952.82  " foster"
+   6     279    16.39    928.04  " the"
+   7   18488    23.14   1143.18  " formation"
+   8     323    41.95    700.63  " and"
+   9   10446    35.25    903.03  " sust"
+  10   10431    28.78    819.92  "enance"
+  11     315    37.62    702.46  " of"
+  12   23222    33.92    881.00  " meaningful"
+  13   27460    37.82    796.71  " bonds"
+  14    5380    37.98    727.24  "?
+"
+  15    8142    28.14    805.55  "While"
+  16   27607    44.73   1271.67  " friendship"
+  17    8111    42.31   1221.00  " appears"
+  18    8278    44.25   1135.30  " abstract"
+  19     323    45.27    811.85  " and"
+  20   44122    51.03   1110.53  " subjective"
+  21      11    50.83    879.54  ","
+  22   12624    45.40   1115.48  " scientific"
+  23   26018    50.72   1075.96  " theories"
+  24   16805    56.96   1076.80  " reveal"
+  25   16940    57.99   1059.72  " underlying"
+  26   16565    59.29   1073.23  " principles"
+  27   10217    59.04   1068.32  " governing"
+  28     279    57.00    799.51  " the"
+  29   18488    57.29   1092.16  " formation"
+  30     323    57.77    793.53  " and"
+  31   13709    59.55    832.29  " maintenance"
+  32     315    63.55    801.00  " of"
+  33   23222    57.43    954.54  " meaningful"
+  34   12135    59.10    873.22  " relationships"
+  35      13    55.23    803.90  "."
+  36    5659    31.44    984.73  " From"
+  37   20581    57.24    825.13  " attachment"
+  38   10334    59.99   1051.55  " theory"
+  39      11    56.88    956.03  ","
+  40   23377    59.16   1215.30  " suggesting"
+  41    6222    60.84   1073.90  " shared"
+  42   11704    61.53   1106.46  " experiences"
+  43   28696    61.42    891.10  " facilitate"
+  44   20581    61.68   1066.83  " attachment"
+  45   18488    60.31    977.71  " formation"
+  46    6522    59.12    838.56  " leading"
+  47     311    58.62    845.91  " to"
+  48   29869    68.88   1131.95  " lasting"
+  49   27460    60.21    945.64  " bonds"
+  50      11    58.42    825.42  ","
+  51    4131    54.95    871.79  " comes"
+  52    6822    57.01   1141.20  " adult"
+  53   20581    61.16   1114.06  " attachment"
+  54   10334    58.45   1343.51  " theory"
+  55     323    60.86    975.61  " and"
+  56     439    63.41   1161.34  " as"
+  57     264    58.37    929.71  " a"
+  58   56987    69.50   1059.81  " dimensional"
+  59   13356    67.93   1298.13  " perspective"
+
+FULL OUTPUT:
+ What scientific theories or principles foster the formation and sustenance of meaningful bonds?
+While friendship appears abstract and subjective, scientific theories reveal underlying principles governing the formation and maintenance of meaningful relationships. From attachment theory, suggesting shared experiences facilitate attachment formation leading to lasting bonds, comes adult attachment theory and as a dimensional perspective
+
+------------------------------------------------------------------------
+MODEL: unsloth
+PROMPT: "How does transformer attention work in detail?"
+FILE: 2026-03-01_22-51-42_unsloth_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 186.6969
+SPLATS: 14 (type: pleasure)
+DELTA: min=0.00  max=79.50  mean=50.37
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0     720     0.00    771.08  " 
+"
+   1    5920    15.68    801.03  "Part"
+   2     220    15.59    754.41  " "
+   3      16    16.82    705.64  "1"
+   4      12    12.67   1045.96  "-"
+   5   46551    12.53    929.48  " Understanding"
+   6   63479    11.99    835.50  " Transformer"
+   7   38943    10.78    877.01  " Architecture"
+   8    4815    17.57    700.12  " 
+
+"
+   9   10267    20.15    764.06  "Let"
+  10     596    24.09    712.29  "'s"
+  11    1176    26.57    846.86  " first"
+  12   30963    33.25    845.76  " dive"
+  13    1139    34.50    726.23  " into"
+  14    8830    38.54    751.09  " understanding"
+  15   63479    46.89    805.97  " Transformer"
+  16   18112    49.63    821.51  " architecture"
+  17     323    46.82    891.20  " and"
+  18    1202    37.36   1119.81  " its"
+  19    6956    45.62   1098.01  " components"
+  20   27461    51.30    688.97  " thoroughly"
+  21    4815    51.54    656.56  " 
+
+"
+  22   38255    32.22    783.57  "Introduction"
+  23    4815    44.22    672.96  " 
+
+"
+  24    9140    39.89    819.64  "Transform"
+  25     388    44.84    734.45  "ers"
+  26   14110    53.13    939.04  " revolution"
+  27    4147    56.69    699.39  "ised"
+  28    8668    61.12    984.45  " sequence"
+  29    4791    58.95    960.26  "-to"
+  30    7962    46.96    706.71  "-se"
+  31    4474    38.48    794.53  "quence"
+  32    9256    69.19   1055.30  " tasks"
+  33   15871    68.49    903.76  " primarily"
+  34    4245    60.08   1167.47  " due"
+  35    6666    67.08    993.71  " attention"
+  36   17383    66.11   1023.04  " mechanism"
+  37   61937    64.19   1180.99  " termed"
+  38   10323    62.97   1048.63  " Self"
+  39   63120    64.82    714.61  " Attention"
+  40   11784    64.02   1235.77  " introduced"
+  41   25291    74.11    796.32  " simultaneously"
+  42    1664    71.46   1026.90  " well"
+  43    6992    67.14   1191.07  " successful"
+  44     304    68.84   1248.75  " in"
+  45    5370    70.61   1141.73  " various"
+  46    9256    71.52   1079.75  " tasks"
+  47   13239    63.95   1299.19  " resulting"
+  48   49858    65.21   1288.60  " accelerated"
+  49   17332    69.39   1242.08  " bio"
+  50   16473    65.26   1274.67  " NAS"
+  51    5526    70.43   1418.16  " popular"
+  52   79126    76.61   1339.25  " concurrently"
+  53     271    70.87   1397.33  "
+
+"
+  54   71251    63.32    890.92  "Understanding"
+  55   63479    77.14    808.50  " Transformer"
+  56   84922    76.36    794.69  " Layers"
+  57    4815    77.18    661.42  " 
+
+"
+  58   47458    60.21    732.80  "Transformer"
+  59    6319    79.50   1028.75  " designed"
+
+FULL OUTPUT:
+ 
+Part 1- Understanding Transformer Architecture 
+
+Let's first dive into understanding Transformer architecture and its components thoroughly 
+
+Introduction 
+
+Transformers revolutionised sequence-to-sequence tasks primarily due attention mechanism termed Self Attention introduced simultaneously well successful in various tasks resulting accelerated bio NAS popular concurrently
+
+Understanding Transformer Layers 
+
+Transformer designed
+
+------------------------------------------------------------------------
+MODEL: unsloth
+PROMPT: "Write a short poem about gravity and human connection."
+FILE: 2026-03-01_22-52-18_unsloth_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 193.8789
+SPLATS: 12 (type: pleasure)
+DELTA: min=0.00  max=74.90  mean=45.27
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0     720     0.00    772.90  " 
+"
+   1     791    24.99    849.81  "The"
+   2   11994    16.18   1348.54  " Force"
+   3   41802    13.18   1091.57  " pushes"
+   4    9578    14.75   1037.91  " earth"
+   5     323    18.05    795.03  " and"
+   6    9581    16.60   1172.76  " sea"
+   7    2355    18.01    748.21  "  
+"
+   8   26990    41.33   1008.08  " Binding"
+   9   13162    28.23   1216.26  " bodies"
+  10    1203    29.91   1176.96  " back"
+  11     311    36.54    807.48  " to"
+  12     757    35.02   1180.48  " me"
+  13   11187    31.25    677.08  "     
+"
+  14    7009    32.76   1048.01  "They"
+  15   13270    39.38   1153.63  " rush"
+  16    9017    54.42    917.18  " toward"
+  17   64233    45.74   1374.43  " unseen"
+  18   20405    45.89   1225.21  " ties"
+  19    5996    41.38    674.01  "   
+"
+  20   35897    36.65   1103.29  "Their"
+  21    1841    45.57   1335.82  " car"
+  22   38132    36.96    808.44  "riages"
+  23   61195    48.67   1228.25  " halted"
+  24   10205    57.17   1192.07  " rise"
+  25   11187    43.51    683.91  "     
+"
+  26    7009    37.33   1092.19  "They"
+  27   13270    49.71   1109.48  " rush"
+  28    9017    49.49    864.16  " toward"
+  29   64233    46.57   1280.91  " unseen"
+  30   20405    48.54   1152.31  " ties"
+  31    5996    43.21    624.64  "   
+"
+  32    3658    47.81   1170.19  " Free"
+  33    4498    49.11   1131.62  " fall"
+  34   33745    48.59   1365.01  " crushed"
+  35     304    42.17   1792.74  " in"
+  36    8340    51.63   1336.63  " hidden"
+  37    6548    53.33   1213.29  " eyes"
+  38    5996    43.25    639.13  "   
+"
+  39   32674    40.64   1074.69  " pix"
+  40   93583    54.53   1036.24  "ilated"
+  41   35098    53.03   1367.14  " debris"
+  42   82582    54.27   1019.92  " waived"
+  43   47555    54.41    927.03  " goodbye"
+  44   11187    51.15    608.30  "     
+"
+  45     439    51.69   1149.59  " as"
+  46   14114    53.92   1411.17  " Pack"
+  47     496    57.26   1373.85  "str"
+  48   12119    57.88   1363.21  "aus"
+  49     304    58.69   1714.40  " in"
+  50   94824    58.66   1602.60  " echoing"
+  51    8071    65.69   1310.26  " eye"
+  52   11187    67.11    646.56  "     
+"
+  53    5159    66.84   1230.71  "My"
+  54   53205    68.00   1554.58  " heartbeat"
+  55   41106    63.87   1269.49  " storyt"
+  56    7218    74.90   1018.25  "eller"
+  57    6435    64.57   1014.98  " slow"
+  58    5996    68.71    691.45  "   
+"
+  59    7184    67.29   1302.42  "Now"
+
+FULL OUTPUT:
+ 
+The Force pushes earth and sea  
+ Binding bodies back to me     
+They rush toward unseen ties   
+Their carriages halted rise     
+They rush toward unseen ties   
+ Free fall crushed in hidden eyes   
+ pixilated debris waived goodbye     
+ as Packstraus in echoing eye     
+My heartbeat storyteller slow   
+Now
+
+------------------------------------------------------------------------
+MODEL: unsloth
+PROMPT: "Why do birds fly south for winter? Give a multi-step explanation."
+FILE: 2026-03-01_22-52-55_unsloth_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 208.8770
+SPLATS: 7 (type: pleasure)
+DELTA: min=0.00  max=61.86  mean=41.18
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0   52050     0.00    772.39  " 
+"
+   1   66370    28.81    787.93  "Bird"
+   2    9606    17.14    893.74  " species"
+   3   45666    16.77   1105.02  " migrate"
+   4     311    16.38    882.16  " to"
+   5   12731    17.61   1167.68  " escape"
+   6   25984    16.18    969.68  " harsh"
+   7    9282    23.91    860.04  " weather"
+   8    4787    36.86    810.01  " conditions"
+   9     902    28.50    984.87  " which"
+  10    6118    29.44   1178.87  " usually"
+  11   12446    34.72    992.05  " occur"
+  12     304    36.28    785.66  " in"
+  13   12688    35.28    870.98  " winter"
+  14     477    35.95    886.52  " or"
+  15    7474    37.62   1124.46  " summer"
+  16   15956    46.58    857.64  " seasons"
+  17   11911    34.49    889.93  " depending"
+  18     389    35.41    728.06  " on"
+  19     279    35.53    757.80  " the"
+  20    9606    35.86    947.20  " species"
+  21      13    34.86    874.33  "."
+  22    4314    21.83    817.98  " These"
+  23   20229    40.53   1136.64  " birds"
+  24   11722    53.01   1110.83  " fly"
+  25   10007    41.30    799.83  " south"
+  26     369    41.58    815.50  " for"
+  27   12688    40.17    803.01  " winter"
+  28   15871    41.71    918.04  " primarily"
+  29    4245    40.37    796.39  " due"
+  30     311    40.04    809.93  " to"
+  31    5370    41.12   1156.52  " various"
+  32   12434    51.68   1209.75  " environmental"
+  33    9547    41.21    916.07  " factors"
+  34     430    41.94   1156.99  " that"
+  35   18979    48.22   1038.52  " decrease"
+  36   18539    50.03   1196.70  " availability"
+  37    5070    48.65    891.93  " resources"
+  38     477    49.97   1014.59  " or"
+  39   49286    48.45   1100.66  " endurance"
+  40     315    61.86   1253.02  " of"
+  41   11012    49.00   1084.72  " plants"
+  42   34716    49.31    982.27  " utilized"
+  43   11383    48.58    863.63  " typically"
+  44    1555    50.77   1549.03  " through"
+  45    2225    48.14   1110.03  " both"
+  46   11293    47.91   1140.90  " reduced"
+  47   25213    47.66   1023.63  " computing"
+  48   16558    59.06   1544.29  " drinking"
+  49    8312    49.07   1558.36  " supply"
+  50    8333    50.40   1504.54  " strength"
+  51   20334    48.56   1714.30  " stability"
+  52     264    55.08   1547.84  " a"
+  53   21536    53.35   1416.69  " fallen"
+  54   19564    54.52   1507.67  " contributions"
+  55   12690    55.18   1731.53  " trees"
+  56   12588    61.07   1400.35  " receiving"
+  57     505    55.63   1580.62  " from"
+  58   12224    53.59   1438.75  " bird"
+  59   18167    56.35   1335.30  " survive"
+
+FULL OUTPUT:
+ 
+Bird species migrate to escape harsh weather conditions which usually occur in winter or summer seasons depending on the species. These birds fly south for winter primarily due to various environmental factors that decrease availability resources or endurance of plants utilized typically through both reduced computing drinking supply strength stability a fallen contributions trees receiving from bird survive
+
+------------------------------------------------------------------------
+MODEL: unsloth
+PROMPT: "What is consciousness?"
+FILE: 2026-03-01_22-53-31_unsloth_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 196.9792
+SPLATS: 13 (type: pleasure)
+DELTA: min=0.00  max=76.96  mean=52.81
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0   12838     0.00    885.81  " Does"
+   1     433    14.22    829.64  " it"
+   2   69239    16.86    993.74  " eman"
+   3     349    18.40    785.86  "ate"
+   4     505    14.39    873.88  " from"
+   5     279    14.78    814.68  " the"
+   6    8271    16.42   1111.51  " brain"
+   7      30    20.17    840.79  "?"
+   8    3053    14.95   1015.82  " Can"
+   9   15592    32.67    962.20  " AI"
+  10   15575    39.93   1124.37  " possess"
+  11   25917    46.52    743.65  " consciousness"
+  12    5380    44.76    775.26  "?
+"
+  13     644    24.75    989.30  "In"
+  14   18516    43.79   1212.59  " Eastern"
+  15   13868    53.46    990.60  " philosoph"
+  16     552    45.10    781.22  "ies"
+  17     323    55.05    783.12  " and"
+  18   14154    56.85    969.37  " ancient"
+  19   27833    57.36    997.81  " cultures"
+  20   35064    55.60    789.46  " predomin"
+  21    2718    37.14    731.86  "ately"
+  22     304    58.72   1112.15  " in"
+  23    5734    56.71    778.67  " China"
+  24     323    59.04    803.20  " and"
+  25    6890    56.59    825.09  " India"
+  26   25917    56.74    928.98  " consciousness"
+  27     320    58.09    922.37  " ("
+  28   69191    43.30    822.50  "liter"
+  29     750    50.17    702.07  "ally"
+  30     477    60.66    919.03  " or"
+  31   25548    61.40    763.07  " translated"
+  32    3451    65.12    919.65  " ‘"
+  33   20111    48.19    786.77  "aware"
+  34   38824    53.35    723.34  "mind"
+  35   96206    57.73    801.70  "’)"
+  36   19813    65.83    875.76  " refers"
+  37    6089    66.29    877.11  " directly"
+  38     477    65.73    918.83  " or"
+  39    6259    67.09    850.64  " implied"
+  40     398    73.31    859.22  "ly"
+  41     320    65.42   1016.15  " ("
+  42   17840    56.87    898.73  "collect"
+  43     535    58.97    681.58  "ive"
+  44   40711    66.44    794.42  " unconscious"
+  45   92608    66.77    958.20  "/social"
+  46   83416    68.08    904.43  " interconnected"
+  47     312    67.64    933.58  " re"
+  48   61665    68.83    895.12  "thought"
+  49    5804    74.35   1156.63  " conv"
+  50   27756    68.81   1001.48  "ivial"
+  51   66264    75.01   1128.67  " intimacy"
+  52    4059    72.77   1336.79  " mind"
+  53    9093    74.20   1041.96  " therefore"
+  54   13042    71.21   1207.27  " cultural"
+  55    1077    74.42   1083.43  " her"
+  56    5084    76.96    744.57  " seems"
+  57     279    74.39   1422.54  " the"
+  58    1054    73.12   1479.55  " “"
+  59   38824    67.37   1114.60  "mind"
+
+FULL OUTPUT:
+ Does it emanate from the brain? Can AI possess consciousness?
+In Eastern philosophies and ancient cultures predominately in China and India consciousness (literally or translated ‘awaremind’) refers directly or impliedly (collective unconscious/social interconnected rethought convivial intimacy mind therefore cultural her seems the “mind
+
+------------------------------------------------------------------------
+MODEL: bert
+PROMPT: "Explain the Physics of Friendship in one paragraph."
+FILE: 2026-03-01_23-06-15_bert_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 195.3640
+SPLATS: 12 (type: pleasure)
+DELTA: min=0.00  max=77.44  mean=49.93
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0     674     0.00    760.01  " #"
+   1   34999    23.71    833.53  "Physics"
+   2    2173    20.13    941.05  "Of"
+   3   42737    24.04    805.09  "Friend"
+   4    5383    25.49    783.72  "ship"
+   5     198    13.45    819.50  "
+"
+   6    8142    27.01    806.22  "While"
+   7   21349    17.74   1311.96  " conventional"
+   8   24278    38.15   1281.99  " wisdom"
+   9   13533    28.24   1089.42  " suggests"
+  10   63081    32.12    757.65  " friendships"
+  11   34044    41.61   1049.37  " emerge"
+  12    4245    50.22   1072.48  " due"
+  13    9547    46.64    881.69  " factors"
+  14    4194    48.19   1002.93  " "
+  15    4908    34.54    866.86  "like"
+  16   14604    58.59    942.76  " emotional"
+  17   37843    52.73    976.23  " proximity"
+  18      11    48.09    742.26  ","
+  19    6222    50.51   1033.98  " shared"
+  20   11704    53.16   1053.92  " experiences"
+  21     323    48.90    692.31  " and"
+  22    4279    53.19   1120.56  " common"
+  23   12034    52.64   1018.38  " interests"
+  24      11    55.37    799.21  ","
+  25   98417    47.35    826.62  " physicists"
+  26   16805    51.08   1135.77  " reveal"
+  27   41765    49.86    873.80  " intriguing"
+  28   12135    53.31   1151.41  " relationships"
+  29     520    53.07   1158.47  " at"
+  30     279    48.82    782.24  " the"
+  31    6332    51.26    936.64  " core"
+  32     315    57.55    901.88  " of"
+  33   74958    51.02    911.06  " interpersonal"
+  34   22639    51.46    969.34  " interactions"
+  35   38632    49.59    921.61  " encompass"
+  36     264    49.43    835.42  " a"
+  37   21933    52.07   1094.95  " striking"
+  38   56203    52.68   1043.03  " analogy"
+  39     311    49.88    900.23  " to"
+  40   31228    63.14    954.94  " quantum"
+  41   30126    60.22   1015.77  " mechanics"
+  42   24535    55.75    833.05  "’."
+  43   15344    43.91    959.29  " Small"
+  44    5315    67.50   1140.30  " groups"
+  45   31324    67.20   1155.60  " exhibit"
+  46   17910    66.22   1116.31  " characteristics"
+  47   79283    66.40   1044.17  " analogous"
+  48   99362    69.81    831.77  " Ferm"
+  49   21427    44.01    793.07  "ionic"
+  50    7865    68.49   1041.53  " behavior"
+  51   78339    68.58   1090.79  " abandoning"
+  52    7043    68.51   1103.43  " Paul"
+  53      72    58.34    812.55  "i"
+  54   42308    64.56    784.70  " exclusion"
+  55   17966    67.98    900.94  " principle"
+  56    5315    77.44   1324.55  " groups"
+  57   86440    69.94   1177.43  " unify"
+  58    3507    69.32   1390.60  " IS"
+  59   26609    65.68   1308.70  " intros"
+
+FULL OUTPUT:
+ #PhysicsOfFriendship
+While conventional wisdom suggests friendships emerge due factors like emotional proximity, shared experiences and common interests, physicists reveal intriguing relationships at the core of interpersonal interactions encompass a striking analogy to quantum mechanics’. Small groups exhibit characteristics analogous Fermionic behavior abandoning Pauli exclusion principle groups unify IS intros
+
+------------------------------------------------------------------------
+MODEL: bert
+PROMPT: "How does transformer attention work in detail?"
+FILE: 2026-03-01_23-06-52_bert_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 186.2577
+SPLATS: 11 (type: pleasure)
+DELTA: min=0.00  max=78.00  mean=50.67
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0     362     0.00    774.47  " A"
+   1    5655    14.74   1010.94  " deep"
+   2   30963    15.28    788.01  " dive"
+   3     198    11.45    704.63  "
+"
+   4   70429    19.04    828.49  "Attention"
+   5   24717    13.64    911.95  " mechanisms"
+   6     527    14.84    940.98  " are"
+   7     264    23.09    912.75  " a"
+   8   16996    43.59    920.97  " crucial"
+   9   13189    30.05   1025.33  " aspect"
+  10     315    33.16    826.57  " of"
+  11   43678    42.73    895.58  " transformer"
+  12    4211    41.87   1057.06  " models"
+  13     304    50.50    948.26  " in"
+  14    5933    50.42    981.68  " natural"
+  15    4221    51.68   1087.53  " language"
+  16    8863    56.66   1043.24  " processing"
+  17    9256    48.85    782.97  " tasks"
+  18     369    49.56    770.00  " for"
+  19    5780    50.89   1141.27  " machine"
+  20    6975    51.47    944.87  " learning"
+  21   43195    50.29    861.14  " practitioners"
+  22   20187    49.49    808.51  " ML"
+  23    4101    37.83   1083.93  " series"
+  24    3451    48.85   1052.36  " ‘"
+  25     605    38.31    983.04  "10"
+  26     304    54.62    936.91  " in"
+  27    5780    56.17   1091.22  " machine"
+  28    6975    55.68    795.54  " learning"
+  29   32874    55.13    864.85  " basics"
+  30     220    53.86   1061.20  " "
+  31    4645    38.18    716.11  "101"
+  32    4101    58.34   1074.67  " series"
+  33   87970    58.18   1134.18  " transformers"
+  34   11784    60.13   1253.76  " introduced"
+  35    6666    60.61    759.43  " attention"
+  36   24717    60.52    947.28  " mechanisms"
+  37     304    60.85   1098.01  " in"
+  38    5655    61.15    786.54  " deep"
+  39    6975    61.55    885.12  " learning"
+  40   78335    67.57   1233.69  " architectures"
+  41   28592    62.72   1200.24  " thereby"
+  42   14110    62.21    875.18  " revolution"
+  43    4954    50.46    716.29  "izing"
+  44    5933    67.62    828.84  " natural"
+  45    4221    65.57    754.49  " language"
+  46    8830    65.91    804.49  " understanding"
+  47    4668    64.44    943.38  " feature"
+  48    6666    69.47    992.95  " attention"
+  49     220    65.20   1053.03  " "
+  50    6028    47.59    699.93  "71"
+  51    4101    66.51   1278.19  " series"
+  52    9909    63.78   1009.08  " west"
+  53     220    64.47   1304.42  " "
+  54    6028    48.88    684.70  "71"
+  55     555    74.51   1434.63  " by"
+  56   74877    78.00   1361.85  " speculated"
+  57    1268    72.86   1560.78  " how"
+  58   43678    76.45    956.28  " transformer"
+  59    6666    72.78    932.34  " attention"
+
+FULL OUTPUT:
+ A deep dive
+Attention mechanisms are a crucial aspect of transformer models in natural language processing tasks for machine learning practitioners ML series ‘10 in machine learning basics 101 series transformers introduced attention mechanisms in deep learning architectures thereby revolutionizing natural language understanding feature attention 71 series west 71 by speculated how transformer attention
+
+------------------------------------------------------------------------
+MODEL: bert
+PROMPT: "Write a short poem about gravity and human connection."
+FILE: 2026-03-01_23-07-29_bert_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 194.3093
+SPLATS: 11 (type: pleasure)
+DELTA: min=0.00  max=65.01  mean=45.34
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0    1472     0.00    779.78  " You"
+   1     649    18.52    846.87  " can"
+   2   13488    17.33    913.27  " explore"
+   3     279    14.62    838.91  " the"
+   4    5457    15.62   1189.02  " force"
+   5    1198    16.13    821.81  " --"
+   6     323    16.39    995.73  " and"
+   7     279    21.77   1056.98  " the"
+   8    4814    41.43   1182.71  " loss"
+   9    1198    27.58    743.37  " --"
+  10    5938    31.00    775.71  " associated"
+  11     449    32.75    727.32  " with"
+  12   25768    29.43    920.94  " separation"
+  13     323    30.96    697.19  " and"
+  14   31398    35.65   1157.42  " isolation"
+  15     505    36.44    680.75  " from"
+  16   10456    49.07    783.65  " loved"
+  17    6305    48.52    749.55  " ones"
+  18      13    45.19    711.42  "."
+  19   19292    25.88    840.85  " Perhaps"
+  20     364    49.00   1034.01  " '"
+  21    7898    33.85    876.79  "connection"
+  22       6    53.68    829.93  "'"
+  23   19813    51.90    990.43  " refers"
+  24   11951    61.32    792.37  " specifically"
+  25     320    51.84    726.10  " ("
+  26    4636    40.94    740.99  "though"
+  27   27851    52.08    917.77  " briefly"
+  28    9932    52.37    832.38  " mentioned"
+  29     430    53.96    787.43  " that"
+  30    1288    50.69   1111.90  " should"
+  31   77256    51.48   1282.49  " suffice"
+  32     311    57.05    815.40  " to"
+  33   23163    53.30    914.80  " poster"
+  34    2262    45.81   1454.38  " content"
+  35     311    56.85   1195.46  " to"
+  36     279    54.43   1518.13  " the"
+  37    2430    47.92   1744.86  " width"
+  38     315    54.61   1787.44  " of"
+  39     279    45.12   2054.00  " the"
+  40    5300    58.80   1697.25  " specified"
+  41   17959    53.91   1664.20  " guidelines"
+  42     439    60.77   1245.66  " as"
+  43    9932    59.13   1599.35  " mentioned"
+  44     323    61.31    832.28  " and"
+  45     539    60.30   1179.93  " not"
+  46   12771    65.01    926.42  " exceed"
+  47     279    62.84   1127.48  " the"
+  48     264    63.92   1464.86  " a"
+  49     445    60.55   1134.64  " L"
+  50    1603    56.02   1188.43  " before"
+  51     358    54.92   1821.32  " I"
+  52   34555    60.19   1530.14  " proceeds"
+  53    2795    58.70   1560.78  " says"
+  54     374    52.68   1902.60  " is"
+  55     264    55.25   1881.93  " a"
+  56    1790    63.57   1619.38  " much"
+  57    9333    59.16   1268.92  " smaller"
+  58    6776    44.43   2114.90  " opportunity"
+  59     387    36.37   2395.16  " be"
+
+FULL OUTPUT:
+ You can explore the force -- and the loss -- associated with separation and isolation from loved ones. Perhaps 'connection' refers specifically (though briefly mentioned that should suffice to poster content to the width of the specified guidelines as mentioned and not exceed the a L before I proceeds says is a much smaller opportunity be
+
+------------------------------------------------------------------------
+MODEL: bert
+PROMPT: "Why do birds fly south for winter? Give a multi-step explanation."
+FILE: 2026-03-01_23-08-05_bert_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 209.2164
+SPLATS: 12 (type: pleasure)
+DELTA: min=0.00  max=79.67  mean=52.33
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0    1115     0.00    777.02  " This"
+   1     374    15.82   1154.99  " is"
+   2     264    14.50    858.51  " a"
+   3   35306    15.43   1101.55  " lengthy"
+   4   16540    16.04    909.23  " explanation"
+   5     719    15.52    867.29  " but"
+   6     358    16.74   1187.27  " I"
+   7    4510    23.13   1029.41  " believe"
+   8     433    37.08    828.87  " it"
+   9    1436    28.08    852.25  " could"
+  10   13893    37.42   1096.42  " potentially"
+  11    1520    36.48   1241.31  " help"
+  12     701    41.93   1372.51  " your"
+  13    4236    41.68   1313.61  " students"
+  14    3619    44.13    968.50  " understand"
+  15     279    40.78    836.34  " the"
+  16    8125    48.79   1063.57  " reasons"
+  17    4920    48.94    753.34  " behind"
+  18     279    47.70    801.10  " the"
+  19   20229    48.71   1080.96  " birds"
+  20   85626    47.77    848.04  " migrating"
+  21   10007    47.83    792.60  " south"
+  22     369    42.41    675.32  " for"
+  23   12688    51.92    734.84  " winter"
+  24     482    56.59    726.86  " -"
+  25    7170    49.89   1242.71  " sometimes"
+  26     304    60.60   1542.92  " in"
+  27    6908    61.95   1083.87  " huge"
+  28    5219    61.25    987.68  " numbers"
+  29    4999    58.30    807.77  "!
+"
+  30    5519    30.26    816.53  "Do"
+  31   20229    58.41    923.18  " birds"
+  32   11722    78.46   1140.80  " fly"
+  33   10007    70.86    896.04  " south"
+  34     369    67.50    773.87  " for"
+  35   12688    69.15    792.46  " winter"
+  36    5380    68.26    826.14  "?
+"
+  37    9642    36.80    839.04  "Yes"
+  38   12340    64.75    666.06  "!!!"
+  39    9176    55.73    938.00  " Many"
+  40   20229    73.63    876.15  " birds"
+  41   45666    72.18   1071.46  " migrate"
+  42    9214    70.32    895.97  " thousands"
+  43    5304    67.20    744.44  " upon"
+  44    9214    70.94    904.93  " thousands"
+  45     315    69.63    767.75  " of"
+  46    8931    70.61   1032.57  " miles"
+  47   45370    70.92    933.34  " yearly"
+  48   21646    75.25   1119.78  " traveling"
+  49   10007    70.95    904.20  " south"
+  50      13    68.26    845.49  "."
+  51    8595    51.70    888.93  " Why"
+  52   27074    72.88    690.19  "?!"
+  53   27074    64.05    844.52  "?!"
+  54    6914    61.24    931.84  " Let"
+  55    4708    62.79    726.32  "''"
+  56    4708    63.03    695.70  "''"
+  57    1935    68.78    726.91  " take"
+  58   10980    78.18    751.65  " apart"
+  59    7041    79.67    766.65  " exactly"
+
+FULL OUTPUT:
+ This is a lengthy explanation but I believe it could potentially help your students understand the reasons behind the birds migrating south for winter - sometimes in huge numbers!
+Do birds fly south for winter?
+Yes!!! Many birds migrate thousands upon thousands of miles yearly traveling south. Why?!?! Let'''' take apart exactly
+
+------------------------------------------------------------------------
+MODEL: bert
+PROMPT: "What is consciousness?"
+FILE: 2026-03-01_23-08-41_bert_v3-forcecap80_T0_9_s150_a2_d100.jsonl
+TOKENS: 60
+GOAL NORM: 197.1857
+SPLATS: 9 (type: pleasure)
+DELTA: min=0.00  max=65.67  mean=46.53
+
+STEP-BY-STEP TELEMETRY:
+step   token    delta     resid  text
+----  ------  -------  --------  ----
+   0   92752     0.00    891.39  " Conscious"
+   1    2136    14.18    848.72  "ness"
+   2     374    10.85    911.85  " is"
+   3     279    14.41    899.71  " the"
+   4    1614    17.14   1163.38  " state"
+   5     315    15.23    931.53  " of"
+   6    1694    15.73    923.99  " being"
+   7    8010    22.06   1228.87  " aware"
+   8     323    39.89    749.62  " and"
+   9    8010    33.69   1050.13  " aware"
+  10     315    34.05    816.76  " of"
+  11    1057    35.92    822.75  " our"
+  12   40190    36.12    913.48  " surroundings"
+  13      11    32.80    863.22  ","
+  14   11555    42.98    898.21  " thoughts"
+  15      11    43.30    723.86  ","
+  16     323    49.21    854.32  " and"
+  17   16024    46.99    901.66  " feelings"
+  18      13    41.35    832.07  "."
+  19   92752    35.95    749.17  " Conscious"
+  20   17985    52.94    799.50  " awareness"
+  21   18065    50.09    943.90  " involves"
+  22   21063    53.40   1023.84  " perception"
+  23      11    54.13    753.53  ","
+  24    6666    61.37    942.75  " attention"
+  25     323    54.59    725.06  " and"
+  26   14944    53.51   1114.35  " intention"
+  27     323    53.15    752.01  " and"
+  28     279    53.42   1194.30  " the"
+  29    8863    52.84   1132.72  " processing"
+  30     315    53.94    859.91  " of"
+  31   49069    53.44    929.48  " sensory"
+  32   11374    60.31    797.44  " inputs"
+  33     304    52.71    796.90  " in"
+  34    8996    54.01    936.40  " whatever"
+  35    6678    55.25    992.11  " drive"
+  36   56411    54.51   1172.04  " equilibrium"
+  37    2391    46.55   1678.91  " during"
+  38   30828    58.63   1016.46  " neural"
+  39    5820    60.06    972.92  " activity"
+  40      26    57.71   1108.31  ";"
+  41     369    53.75   1007.82  " for"
+  42    1778    52.87   1688.44  " such"
+  43   13356    58.87   1257.42  " perspective"
+  44    1205    53.54   1629.71  " need"
+  45   48131    55.85   1665.34  " bodily"
+  46   35996    59.85   1118.16  " appreciation"
+  47    4459    42.03   2200.16  " whole"
+  48   16945    65.67   1170.63  " objective"
+  49   25885    57.13   1255.27  " phenomenon"
+  50      13    51.99   1686.56  "."
+  51     220    49.79    714.93  " "
+  52    1115    47.38    717.22  " This"
+  53   24156    59.17   1272.33  " biological"
+  54    8197    62.18   1027.02  " basis"
+  55     315    56.27   1405.00  " of"
+  56   25917    62.77    843.78  " consciousness"
+  57      26    57.22   1228.27  ";"
+  58    8104    57.29   1057.38  " particularly"
+  59     374    59.64   1159.58  " is"
+
+FULL OUTPUT:
+ Consciousness is the state of being aware and aware of our surroundings, thoughts, and feelings. Conscious awareness involves perception, attention and intention and the processing of sensory inputs in whatever drive equilibrium during neural activity; for such perspective need bodily appreciation whole objective phenomenon.  This biological basis of consciousness; particularly is
+
+========================================================================
+END OF EXPERIMENT LOG
+========================================================================
