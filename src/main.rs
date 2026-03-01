@@ -84,9 +84,11 @@ fn main() -> Result<()> {
 
     // Initialize telemetry logger
     let model_variant = "unsloth"; // or "bert" -- swap when testing
+    let prompt = "Explain the Physics of Friendship in one paragraph.";
     let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
     let mut logger = SessionLogger::new(&test_label)?;
     logger.log_config(SessionConfig {
+        prompt: prompt.to_string(),
         dt: 0.08,
         viscosity: 0.6,
         kernel_sigma: 2.24,
@@ -108,9 +110,8 @@ fn main() -> Result<()> {
     })?;
 
     // =========================================================
-    // Phase 4: Real Prompt → Physics-Steered Generation
+    // Phase 4: Real Prompt -> Physics-Steered Generation
     // =========================================================
-    let prompt = "Explain the Physics of Friendship in one paragraph.";
     println!("\n--- Phase 4: Physics-Steered Generation ---");
     println!("    Prompt: \"{}\"", prompt);
 
