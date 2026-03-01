@@ -21,6 +21,7 @@ use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
 use niodoo::NiodooEngine;
 use splat::Splat;
+use rand::Rng;
 use std::io::BufReader;
 use tokenizers::Tokenizer;
 
@@ -82,7 +83,9 @@ fn main() -> Result<()> {
     println!("    ✓ Engine ready");
 
     // Initialize telemetry logger
-    let mut logger = SessionLogger::new()?;
+    let model_variant = "unsloth"; // or "bert" -- swap when testing
+    let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
+    let mut logger = SessionLogger::new(&test_label)?;
     logger.log_config(SessionConfig {
         dt: 0.08,
         viscosity: 0.6,
@@ -90,12 +93,18 @@ fn main() -> Result<()> {
         embedding_dim: dim,
         field_points: 128256,
         model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
+        model_variant: model_variant.to_string(),
         backend: if device.is_metal() {
             "Metal GPU"
         } else {
             "CPU"
         }
         .to_string(),
+        splat_sigma: 150.0,
+        splat_alpha: 2.0,
+        force_cap: 80.0,
+        temperature: 0.9,
+        min_splat_dist: 100.0,
     })?;
 
     // =========================================================
@@ -163,12 +172,62 @@ fn main() -> Result<()> {
             steered_slice
         };
 
-        // Greedy decode
-        let next_token: u32 = steered_logits.argmax(1)?.squeeze(0)?.to_scalar()?;
+        // Temperature sampling -- softmax over scaled logits, then sample
+        let temperature: f64 = 0.9;
+        let scaled_logits = (&steered_logits / temperature)?;
+        let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
+        let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
+        let mut rng = rand::thread_rng();
+        let roll: f32 = rng.gen();
+        let mut cumsum = 0.0f32;
+        let mut next_token: u32 = 0;
+        for (i, p) in probs_vec.iter().enumerate() {
+            cumsum += p;
+            if roll < cumsum {
+                next_token = i as u32;
+                break;
+            }
+        }
 
         // Steering delta
         let delta = (&steered_logits - &raw_logits)?;
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+
+        // Online splat update -- add scar mid-generation based on steering strength
+        if step > 5 && delta_norm > 12.0 {
+            if let Some(ref pos) = last_steered_pos {
+                let current_pos = pos.squeeze(0)?; // (1, D) -> (D,)
+
+                // Diagnostic: how far is the current position from the last splat?
+                let splat_force = engine.memory().query_force(&current_pos)?;
+                let splat_force_norm: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+                if step <= 15 || step % 10 == 0 {
+                    println!(
+                        "    [DIAG] step {} | splat_force_norm: {:.6e} | splats: {}",
+                        step, splat_force_norm, engine.memory().len()
+                    );
+                }
+
+                // Variant 2: min distance check -- prevent stacking
+                let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
+                if !too_close {
+                    engine.memory_mut().add_splat(Splat::new(
+                        current_pos,
+                        150.0,
+                        2.0, // pleasure -- soft pull
+                    ));
+                    println!(
+                        "    [ONLINE] Added pleasure splat at step {} (delta {:.2}, splats: {})",
+                        step, delta_norm, engine.memory().len()
+                    );
+                } else if step <= 15 || step % 10 == 0 {
+                    println!(
+                        "    [SKIP] step {} -- too close to existing splat (delta {:.2})",
+                        step, delta_norm
+                    );
+                }
+            }
+        }
 
         generated_tokens.push(next_token);
 
@@ -223,7 +282,7 @@ fn main() -> Result<()> {
         let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
         if generated_tokens.len() > 15 {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 0.15, // sigma
+                pos_1d, 150.0, // sigma
                 1.8,  // positive scar (pleasure)
             ));
             println!(
@@ -232,7 +291,7 @@ fn main() -> Result<()> {
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 0.15, // sigma
+                pos_1d, 150.0, // sigma
                 -0.9, // negative scar (pain)
             ));
             println!(
@@ -265,8 +324,8 @@ fn main() -> Result<()> {
         prompt_token_count: prompt_ids.len(),
         generated_token_count: generated_tokens.len(),
         goal_attractor_norm: goal_norm,
-        splat_count_before: 0,
-        splat_count_after: 1,
+        splat_count_before: engine.memory().len(), // includes online splats from generation
+        splat_count_after: engine.memory().len(),
         splat_type_added: splat_type.to_string(),
         decoded_output: full_text,
         delta_min: 0.0, // filled by log_summary

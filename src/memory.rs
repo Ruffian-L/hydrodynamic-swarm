@@ -73,6 +73,18 @@ impl SplatMemory {
         self.splats.len()
     }
 
+    /// Check if any splat center is within min_dist of pos (L2).
+    pub fn has_nearby(&self, pos: &Tensor, min_dist: f32) -> Result<bool> {
+        let min_dist_sq = min_dist * min_dist;
+        for splat in &self.splats {
+            let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
+            if dist_sq < min_dist_sq {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     /// Prune dead splats below threshold.
     #[allow(dead_code)]
     pub fn prune(&mut self, threshold: f32) {

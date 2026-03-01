@@ -65,6 +65,8 @@ impl NiodooEngine {
 
         // Sum and scale by dt
         let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
+        // Force cap: prevent any single dimension from dominating (Variant 3)
+        let total_force = total_force.clamp(-80f32, 80f32)?;
         let steering = total_force.affine(self.dt as f64, 0.0)?;
 
         // Restore batch dim: (D,) -> (1, D) and add to baseline
