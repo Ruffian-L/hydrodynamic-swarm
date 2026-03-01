@@ -7,3 +7,4 @@
 |------|--------|---------|
 | | | _Jules will begin appending entries here on the next push to master._ |
 | 2026-03-01 | 002398231db94449ec0444dbb6819ff639166fc3 | feat: add workflow_dispatch trigger to jules researcher |
+| 2026-03-01 | 8d85b3f43b2f5db91936cb5f50d3d9676ee87a0f | docs: add README.md for public launch |
