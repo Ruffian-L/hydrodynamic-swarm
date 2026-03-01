@@ -180,21 +180,28 @@ fn main() -> Result<()> {
             raw_logits.clone()
         };
 
-        let steered_slice = engine.steer(&logit_slice, &goal_pos)?;
+        let steered_slice = engine.steer(&logit_slice, &goal_pos, step)?;
         last_steered_pos = Some(steered_slice.clone());
 
         // Micro-dream consolidation: forward+backward physics burst on the 4096d slice
         // Triggers every 8 steps after warmup
         let steered_slice = if step > 5 && (step % 8 == 0) {
-            let consolidated = micro_dream(&engine, &steered_slice, &goal_pos, 2, 0.10)?;
-            let md_delta: f32 = (&consolidated - &steered_slice)?.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+            let result = micro_dream(&engine, &steered_slice, &goal_pos, step, 2, 0.10)?;
             if step <= 15 || step % 10 == 0 {
                 println!(
-                    "    [MICRO-DREAM] step {} | correction_norm: {:.2}",
-                    step, md_delta
+                    "    [MICRO-DREAM] step {} | correction_norm: {:.2}{}",
+                    step, result.correction_norm,
+                    if result.reflection_triggered { " ** HYDRAULIC JUMP **" } else { "" }
                 );
             }
-            consolidated
+            if result.reflection_triggered {
+                // TopoCoT: inject reflection marker into token stream
+                println!(
+                    "    [TOPO-COT] step {} | *recalibrating latent path* (correction: {:.2})",
+                    step, result.correction_norm
+                );
+            }
+            result.consolidated
         } else {
             steered_slice
         };
