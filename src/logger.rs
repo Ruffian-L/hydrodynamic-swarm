@@ -2,7 +2,7 @@
 //! JSONL Telemetry Logger
 //!
 //! Logs every generation step and session summary to `logs/` as JSONL.
-//! Each session gets its own file: `logs/YYYY-MM-DD_session_NNN.jsonl`
+//! Each session file: `logs/{date}_{time}_{label}.jsonl`
 //!
 //! v2 note: when we unify splat memory across prompts (Emergent Synthesis),
 //! the logger will track which domain each splat originated from,
@@ -32,7 +32,13 @@ pub struct SessionConfig {
     pub embedding_dim: usize,
     pub field_points: usize,
     pub model: String,
+    pub model_variant: String,
     pub backend: String,
+    pub splat_sigma: f32,
+    pub splat_alpha: f32,
+    pub force_cap: f32,
+    pub temperature: f32,
+    pub min_splat_dist: f32,
 }
 
 /// Final session summary
@@ -51,7 +57,7 @@ pub struct SessionSummary {
     pub delta_mean: f32,
 }
 
-/// Top-level log entry — one per line in the JSONL file
+/// Top-level log entry -- one per line in the JSONL file
 #[derive(Serialize)]
 pub struct LogEntry {
     pub timestamp: String,
@@ -69,31 +75,53 @@ pub struct SessionLogger {
     file: fs::File,
     session_id: String,
     deltas: Vec<f32>,
+    log_path: PathBuf,
 }
 
 impl SessionLogger {
-    /// Create a new session logger. Creates `logs/` dir if needed.
-    pub fn new() -> std::io::Result<Self> {
+    /// Create a new session logger with a descriptive label.
+    /// Filename: `logs/{YYYY-MM-DD}_{HH-MM-SS}_{label}.jsonl`
+    pub fn new(label: &str) -> std::io::Result<Self> {
         let log_dir = Path::new("logs");
         fs::create_dir_all(log_dir)?;
 
-        // Generate session ID: YYYY-MM-DD_HH-MM-SS
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        // Simple date formatting without chrono dependency
-        let session_id = format!("session_{}", now);
 
-        let path = log_dir.join(format!("{}.jsonl", &session_id));
-        let file = fs::File::create(&path)?;
+        // Manual UTC date/time formatting (no chrono dependency)
+        let secs_per_day: u64 = 86400;
+        let days = now / secs_per_day;
+        let day_secs = now % secs_per_day;
+        let hours = day_secs / 3600;
+        let minutes = (day_secs % 3600) / 60;
+        let seconds = day_secs % 60;
 
-        println!("    📝 Logging to: {}", path.display());
+        // Compute year/month/day from days since epoch
+        let (year, month, day) = days_to_date(days);
+
+        let date_str = format!("{:04}-{:02}-{:02}", year, month, day);
+        let time_str = format!("{:02}-{:02}-{:02}", hours, minutes, seconds);
+
+        // Sanitize label for filename
+        let safe_label: String = label
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .collect();
+
+        let session_id = format!("{}_{}", date_str, safe_label);
+        let filename = format!("{}_{}_{}.jsonl", date_str, time_str, safe_label);
+        let log_path = log_dir.join(&filename);
+        let file = fs::File::create(&log_path)?;
+
+        println!("    Logging to: {}", log_path.display());
 
         Ok(Self {
             file,
             session_id,
             deltas: Vec::new(),
+            log_path,
         })
     }
 
@@ -149,7 +177,7 @@ impl SessionLogger {
 
     /// Get the log file path
     pub fn path(&self) -> PathBuf {
-        Path::new("logs").join(format!("{}.jsonl", &self.session_id))
+        self.log_path.clone()
     }
 
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
@@ -165,4 +193,36 @@ impl SessionLogger {
             .as_secs();
         format!("{}", secs)
     }
+}
+
+/// Convert days since Unix epoch to (year, month, day).
+fn days_to_date(mut days: u64) -> (u64, u64, u64) {
+    // Simplified Gregorian calendar calculation
+    let mut year = 1970;
+    loop {
+        let days_in_year = if is_leap(year) { 366 } else { 365 };
+        if days < days_in_year {
+            break;
+        }
+        days -= days_in_year;
+        year += 1;
+    }
+    let months_days: [u64; 12] = if is_leap(year) {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    let mut month = 1;
+    for &md in &months_days {
+        if days < md {
+            break;
+        }
+        days -= md;
+        month += 1;
+    }
+    (year, month, days + 1)
+}
+
+fn is_leap(year: u64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
