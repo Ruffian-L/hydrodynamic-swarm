@@ -1,6 +1,5 @@
 target/
 data/
-logs/
 project_brain_dump.json
 .DS_Store
 .ai_sweep.pid

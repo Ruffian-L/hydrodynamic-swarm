@@ -1,0 +1,62 @@
+{"timestamp":"1772393897","session_id":"session_1772393897","entry_type":"config","config":{"dt":0.08,"viscosity":0.6,"kernel_sigma":2.24,"embedding_dim":4096,"field_points":128256,"model":"Llama-3.1-8B-Instruct-Q5_K_M","backend":"Metal GPU"}}
+{"timestamp":"1772393902","session_id":"session_1772393897","entry_type":"step","step":{"step":0,"token_id":52050,"token_text":" \n","steering_delta":0.0,"residual_norm":760.00916}}
+{"timestamp":"1772393903","session_id":"session_1772393897","entry_type":"step","step":{"step":1,"token_id":42737,"token_text":"Friend","steering_delta":26.379166,"residual_norm":788.4125}}
+{"timestamp":"1772393903","session_id":"session_1772393897","entry_type":"step","step":{"step":2,"token_id":5383,"token_text":"ship","steering_delta":21.805368,"residual_norm":760.1911}}
+{"timestamp":"1772393904","session_id":"session_1772393897","entry_type":"step","step":{"step":3,"token_id":11,"token_text":",","steering_delta":15.168311,"residual_norm":1046.6195}}
+{"timestamp":"1772393904","session_id":"session_1772393897","entry_type":"step","step":{"step":4,"token_id":264,"token_text":" a","steering_delta":14.873225,"residual_norm":961.1266}}
+{"timestamp":"1772393904","session_id":"session_1772393897","entry_type":"step","step":{"step":5,"token_id":11049,"token_text":" bond","steering_delta":17.62187,"residual_norm":1150.4081}}
+{"timestamp":"1772393905","session_id":"session_1772393897","entry_type":"step","step":{"step":6,"token_id":60862,"token_text":" strengthened","steering_delta":18.235317,"residual_norm":1307.4567}}
+{"timestamp":"1772393905","session_id":"session_1772393897","entry_type":"step","step":{"step":7,"token_id":555,"token_text":" by","steering_delta":56.61977,"residual_norm":900.84766}}
+{"timestamp":"1772393905","session_id":"session_1772393897","entry_type":"step","step":{"step":8,"token_id":6222,"token_text":" shared","steering_delta":103.11797,"residual_norm":1147.3584}}
+{"timestamp":"1772393905","session_id":"session_1772393897","entry_type":"step","step":{"step":9,"token_id":11704,"token_text":" experiences","steering_delta":151.83952,"residual_norm":1231.6241}}
+{"timestamp":"1772393906","session_id":"session_1772393897","entry_type":"step","step":{"step":10,"token_id":477,"token_text":" or","steering_delta":202.69572,"residual_norm":856.05774}}
+{"timestamp":"1772393906","session_id":"session_1772393897","entry_type":"step","step":{"step":11,"token_id":1990,"token_text":" between","steering_delta":239.99525,"residual_norm":1112.2588}}
+{"timestamp":"1772393906","session_id":"session_1772393897","entry_type":"step","step":{"step":12,"token_id":1990,"token_text":" between","steering_delta":265.93695,"residual_norm":1276.2262}}
+{"timestamp":"1772393906","session_id":"session_1772393897","entry_type":"step","step":{"step":13,"token_id":1990,"token_text":" between","steering_delta":275.75223,"residual_norm":1247.1796}}
+{"timestamp":"1772393907","session_id":"session_1772393897","entry_type":"step","step":{"step":14,"token_id":1990,"token_text":" between","steering_delta":283.33344,"residual_norm":1214.01}}
+{"timestamp":"1772393907","session_id":"session_1772393897","entry_type":"step","step":{"step":15,"token_id":539,"token_text":" not","steering_delta":293.73138,"residual_norm":1366.8802}}
+{"timestamp":"1772393907","session_id":"session_1772393897","entry_type":"step","step":{"step":16,"token_id":3629,"token_text":" often","steering_delta":238.53484,"residual_norm":921.9145}}
+{"timestamp":"1772393908","session_id":"session_1772393897","entry_type":"step","step":{"step":17,"token_id":1990,"token_text":" between","steering_delta":340.30765,"residual_norm":1192.3843}}
+{"timestamp":"1772393908","session_id":"session_1772393897","entry_type":"step","step":{"step":18,"token_id":555,"token_text":" by","steering_delta":323.1373,"residual_norm":1853.5166}}
+{"timestamp":"1772393908","session_id":"session_1772393897","entry_type":"step","step":{"step":19,"token_id":1990,"token_text":" between","steering_delta":323.50287,"residual_norm":1318.9272}}
+{"timestamp":"1772393908","session_id":"session_1772393897","entry_type":"step","step":{"step":20,"token_id":779,"token_text":" so","steering_delta":347.0155,"residual_norm":1748.1495}}
+{"timestamp":"1772393909","session_id":"session_1772393897","entry_type":"step","step":{"step":21,"token_id":1990,"token_text":" between","steering_delta":313.1942,"residual_norm":1802.2936}}
+{"timestamp":"1772393909","session_id":"session_1772393897","entry_type":"step","step":{"step":22,"token_id":1990,"token_text":" between","steering_delta":353.68146,"residual_norm":1795.6875}}
+{"timestamp":"1772393909","session_id":"session_1772393897","entry_type":"step","step":{"step":23,"token_id":1990,"token_text":" between","steering_delta":361.4655,"residual_norm":1751.8575}}
+{"timestamp":"1772393910","session_id":"session_1772393897","entry_type":"step","step":{"step":24,"token_id":315,"token_text":" of","steering_delta":373.55368,"residual_norm":1646.5411}}
+{"timestamp":"1772393910","session_id":"session_1772393897","entry_type":"step","step":{"step":25,"token_id":1990,"token_text":" between","steering_delta":358.40942,"residual_norm":1644.2717}}
+{"timestamp":"1772393910","session_id":"session_1772393897","entry_type":"step","step":{"step":26,"token_id":1990,"token_text":" between","steering_delta":373.55283,"residual_norm":1647.5203}}
+{"timestamp":"1772393910","session_id":"session_1772393897","entry_type":"step","step":{"step":27,"token_id":1990,"token_text":" between","steering_delta":374.85443,"residual_norm":1629.7903}}
+{"timestamp":"1772393911","session_id":"session_1772393897","entry_type":"step","step":{"step":28,"token_id":1903,"token_text":" made","steering_delta":379.43634,"residual_norm":1631.446}}
+{"timestamp":"1772393911","session_id":"session_1772393897","entry_type":"step","step":{"step":29,"token_id":1990,"token_text":" between","steering_delta":356.97946,"residual_norm":1828.2783}}
+{"timestamp":"1772393911","session_id":"session_1772393897","entry_type":"step","step":{"step":30,"token_id":430,"token_text":" that","steering_delta":353.53232,"residual_norm":1879.1125}}
+{"timestamp":"1772393912","session_id":"session_1772393897","entry_type":"step","step":{"step":31,"token_id":1990,"token_text":" between","steering_delta":370.47037,"residual_norm":1821.5336}}
+{"timestamp":"1772393912","session_id":"session_1772393897","entry_type":"step","step":{"step":32,"token_id":1990,"token_text":" between","steering_delta":385.58585,"residual_norm":1708.7456}}
+{"timestamp":"1772393912","session_id":"session_1772393897","entry_type":"step","step":{"step":33,"token_id":1990,"token_text":" between","steering_delta":382.58182,"residual_norm":1735.722}}
+{"timestamp":"1772393912","session_id":"session_1772393897","entry_type":"step","step":{"step":34,"token_id":1990,"token_text":" between","steering_delta":375.71674,"residual_norm":1795.3422}}
+{"timestamp":"1772393913","session_id":"session_1772393897","entry_type":"step","step":{"step":35,"token_id":1990,"token_text":" between","steering_delta":392.62982,"residual_norm":1664.7073}}
+{"timestamp":"1772393913","session_id":"session_1772393897","entry_type":"step","step":{"step":36,"token_id":449,"token_text":" with","steering_delta":400.51917,"residual_norm":1552.2506}}
+{"timestamp":"1772393913","session_id":"session_1772393897","entry_type":"step","step":{"step":37,"token_id":555,"token_text":" by","steering_delta":368.3703,"residual_norm":1705.6096}}
+{"timestamp":"1772393914","session_id":"session_1772393897","entry_type":"step","step":{"step":38,"token_id":1990,"token_text":" between","steering_delta":379.53177,"residual_norm":1691.1766}}
+{"timestamp":"1772393914","session_id":"session_1772393897","entry_type":"step","step":{"step":39,"token_id":439,"token_text":" as","steering_delta":403.51596,"residual_norm":1521.6704}}
+{"timestamp":"1772393914","session_id":"session_1772393897","entry_type":"step","step":{"step":40,"token_id":1990,"token_text":" between","steering_delta":370.775,"residual_norm":1542.005}}
+{"timestamp":"1772393914","session_id":"session_1772393897","entry_type":"step","step":{"step":41,"token_id":1990,"token_text":" between","steering_delta":407.10806,"residual_norm":1535.4911}}
+{"timestamp":"1772393915","session_id":"session_1772393897","entry_type":"step","step":{"step":42,"token_id":1990,"token_text":" between","steering_delta":410.23285,"residual_norm":1488.0269}}
+{"timestamp":"1772393915","session_id":"session_1772393897","entry_type":"step","step":{"step":43,"token_id":1990,"token_text":" between","steering_delta":408.7373,"residual_norm":1558.3307}}
+{"timestamp":"1772393915","session_id":"session_1772393897","entry_type":"step","step":{"step":44,"token_id":1990,"token_text":" between","steering_delta":414.3133,"residual_norm":1442.6248}}
+{"timestamp":"1772393916","session_id":"session_1772393897","entry_type":"step","step":{"step":45,"token_id":1990,"token_text":" between","steering_delta":415.70364,"residual_norm":1417.6221}}
+{"timestamp":"1772393916","session_id":"session_1772393897","entry_type":"step","step":{"step":46,"token_id":1990,"token_text":" between","steering_delta":416.63116,"residual_norm":1208.1598}}
+{"timestamp":"1772393916","session_id":"session_1772393897","entry_type":"step","step":{"step":47,"token_id":1990,"token_text":" between","steering_delta":416.55658,"residual_norm":1193.8959}}
+{"timestamp":"1772393916","session_id":"session_1772393897","entry_type":"step","step":{"step":48,"token_id":3196,"token_text":" based","steering_delta":406.91122,"residual_norm":1062.8612}}
+{"timestamp":"1772393917","session_id":"session_1772393897","entry_type":"step","step":{"step":49,"token_id":449,"token_text":" with","steering_delta":302.89493,"residual_norm":853.7689}}
+{"timestamp":"1772393917","session_id":"session_1772393897","entry_type":"step","step":{"step":50,"token_id":3629,"token_text":" often","steering_delta":409.64954,"residual_norm":1517.9202}}
+{"timestamp":"1772393917","session_id":"session_1772393897","entry_type":"step","step":{"step":51,"token_id":430,"token_text":" that","steering_delta":407.6159,"residual_norm":1742.6147}}
+{"timestamp":"1772393918","session_id":"session_1772393897","entry_type":"step","step":{"step":52,"token_id":555,"token_text":" by","steering_delta":417.13876,"residual_norm":1459.5156}}
+{"timestamp":"1772393918","session_id":"session_1772393897","entry_type":"step","step":{"step":53,"token_id":315,"token_text":" of","steering_delta":419.65445,"residual_norm":1312.1797}}
+{"timestamp":"1772393918","session_id":"session_1772393897","entry_type":"step","step":{"step":54,"token_id":201,"token_text":"\r","steering_delta":419.2022,"residual_norm":1431.2684}}
+{"timestamp":"1772393918","session_id":"session_1772393897","entry_type":"step","step":{"step":55,"token_id":1990,"token_text":" between","steering_delta":234.86389,"residual_norm":745.5705}}
+{"timestamp":"1772393919","session_id":"session_1772393897","entry_type":"step","step":{"step":56,"token_id":1990,"token_text":" between","steering_delta":426.79663,"residual_norm":1014.6256}}
+{"timestamp":"1772393919","session_id":"session_1772393897","entry_type":"step","step":{"step":57,"token_id":315,"token_text":" of","steering_delta":427.81754,"residual_norm":981.9832}}
+{"timestamp":"1772393919","session_id":"session_1772393897","entry_type":"step","step":{"step":58,"token_id":1990,"token_text":" between","steering_delta":374.34006,"residual_norm":921.9985}}
+{"timestamp":"1772393920","session_id":"session_1772393897","entry_type":"step","step":{"step":59,"token_id":1990,"token_text":" between","steering_delta":416.16318,"residual_norm":923.09033}}
+{"timestamp":"1772393920","session_id":"session_1772393897","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":55,"splat_count_after":55,"splat_type_added":"pleasure","decoded_output":" \nFriendship, a bond strengthened by shared experiences or between between between between not often between by between so between between between of between between between made between that between between between between between with by between as between between between between between between between between based with often that by of\r between between of between between","delta_min":0.0,"delta_max":427.81754,"delta_mean":309.00488}}
