@@ -1,0 +1,62 @@
+{"timestamp":"1772394798","session_id":"session_1772394798","entry_type":"config","config":{"dt":0.08,"viscosity":0.6,"kernel_sigma":2.24,"embedding_dim":4096,"field_points":128256,"model":"Llama-3.1-8B-Instruct-Q5_K_M","backend":"Metal GPU"}}
+{"timestamp":"1772394802","session_id":"session_1772394798","entry_type":"step","step":{"step":0,"token_id":52050,"token_text":" \n","steering_delta":0.0,"residual_norm":760.00916}}
+{"timestamp":"1772394803","session_id":"session_1772394798","entry_type":"step","step":{"step":1,"token_id":20397,"token_text":"Despite","steering_delta":26.379166,"residual_norm":788.4125}}
+{"timestamp":"1772394803","session_id":"session_1772394798","entry_type":"step","step":{"step":2,"token_id":1202,"token_text":" its","steering_delta":18.27032,"residual_norm":1351.4492}}
+{"timestamp":"1772394804","session_id":"session_1772394798","entry_type":"step","step":{"step":3,"token_id":83234,"token_text":" ephem","steering_delta":18.140158,"residual_norm":1223.5322}}
+{"timestamp":"1772394804","session_id":"session_1772394798","entry_type":"step","step":{"step":4,"token_id":3333,"token_text":"eral","steering_delta":24.217371,"residual_norm":739.2991}}
+{"timestamp":"1772394804","session_id":"session_1772394798","entry_type":"step","step":{"step":5,"token_id":7138,"token_text":" nature","steering_delta":18.260231,"residual_norm":838.2615}}
+{"timestamp":"1772394804","session_id":"session_1772394798","entry_type":"step","step":{"step":6,"token_id":11,"token_text":",","steering_delta":16.101288,"residual_norm":815.68195}}
+{"timestamp":"1772394805","session_id":"session_1772394798","entry_type":"step","step":{"step":7,"token_id":27607,"token_text":" friendship","steering_delta":19.825813,"residual_norm":737.4974}}
+{"timestamp":"1772394805","session_id":"session_1772394798","entry_type":"step","step":{"step":8,"token_id":8625,"token_text":" remains","steering_delta":30.462126,"residual_norm":1093.0637}}
+{"timestamp":"1772394805","session_id":"session_1772394798","entry_type":"step","step":{"step":9,"token_id":50401,"token_text":" tangible","steering_delta":38.645027,"residual_norm":1176.1223}}
+{"timestamp":"1772394805","session_id":"session_1772394798","entry_type":"step","step":{"step":10,"token_id":6957,"token_text":" throughout","steering_delta":39.330933,"residual_norm":1043.631}}
+{"timestamp":"1772394806","session_id":"session_1772394798","entry_type":"step","step":{"step":11,"token_id":264,"token_text":" a","steering_delta":37.92086,"residual_norm":898.3617}}
+{"timestamp":"1772394806","session_id":"session_1772394798","entry_type":"step","step":{"step":12,"token_id":19569,"token_text":" lifetime","steering_delta":36.87354,"residual_norm":1021.4443}}
+{"timestamp":"1772394806","session_id":"session_1772394798","entry_type":"step","step":{"step":13,"token_id":11,"token_text":",","steering_delta":44.1196,"residual_norm":1082.7689}}
+{"timestamp":"1772394807","session_id":"session_1772394798","entry_type":"step","step":{"step":14,"token_id":9564,"token_text":" leaving","steering_delta":44.633636,"residual_norm":1095.032}}
+{"timestamp":"1772394807","session_id":"session_1772394798","entry_type":"step","step":{"step":15,"token_id":19459,"token_text":" memories","steering_delta":45.43248,"residual_norm":1039.5133}}
+{"timestamp":"1772394807","session_id":"session_1772394798","entry_type":"step","step":{"step":16,"token_id":323,"token_text":" and","steering_delta":46.23463,"residual_norm":1212.1326}}
+{"timestamp":"1772394807","session_id":"session_1772394798","entry_type":"step","step":{"step":17,"token_id":11704,"token_text":" experiences","steering_delta":45.48408,"residual_norm":1207.154}}
+{"timestamp":"1772394808","session_id":"session_1772394798","entry_type":"step","step":{"step":18,"token_id":2001,"token_text":" —","steering_delta":45.880856,"residual_norm":1383.1433}}
+{"timestamp":"1772394808","session_id":"session_1772394798","entry_type":"step","step":{"step":19,"token_id":53007,"token_text":" akin","steering_delta":44.09886,"residual_norm":1089.8728}}
+{"timestamp":"1772394808","session_id":"session_1772394798","entry_type":"step","step":{"step":20,"token_id":311,"token_text":" to","steering_delta":51.179943,"residual_norm":793.03625}}
+{"timestamp":"1772394808","session_id":"session_1772394798","entry_type":"step","step":{"step":21,"token_id":33247,"token_text":" residual","steering_delta":51.43711,"residual_norm":1112.4805}}
+{"timestamp":"1772394809","session_id":"session_1772394798","entry_type":"step","step":{"step":22,"token_id":24924,"token_text":" magnetic","steering_delta":49.73373,"residual_norm":1240.5077}}
+{"timestamp":"1772394809","session_id":"session_1772394798","entry_type":"step","step":{"step":23,"token_id":5151,"token_text":" fields","steering_delta":57.957394,"residual_norm":1044.324}}
+{"timestamp":"1772394809","session_id":"session_1772394798","entry_type":"step","step":{"step":24,"token_id":64610,"token_text":" lingering","steering_delta":59.346634,"residual_norm":1227.3372}}
+{"timestamp":"1772394810","session_id":"session_1772394798","entry_type":"step","step":{"step":25,"token_id":65904,"token_text":" amidst","steering_delta":59.66751,"residual_norm":905.97235}}
+{"timestamp":"1772394810","session_id":"session_1772394798","entry_type":"step","step":{"step":26,"token_id":19252,"token_text":" particles","steering_delta":59.447105,"residual_norm":1221.6019}}
+{"timestamp":"1772394810","session_id":"session_1772394798","entry_type":"step","step":{"step":27,"token_id":77979,"token_text":" reunited","steering_delta":58.561954,"residual_norm":1115.9237}}
+{"timestamp":"1772394810","session_id":"session_1772394798","entry_type":"step","step":{"step":28,"token_id":96731,"token_text":" millennia","steering_delta":59.174885,"residual_norm":902.63605}}
+{"timestamp":"1772394811","session_id":"session_1772394798","entry_type":"step","step":{"step":29,"token_id":10980,"token_text":" apart","steering_delta":57.32493,"residual_norm":703.30676}}
+{"timestamp":"1772394811","session_id":"session_1772394798","entry_type":"step","step":{"step":30,"token_id":4235,"token_text":"–","steering_delta":63.25244,"residual_norm":706.86017}}
+{"timestamp":"1772394811","session_id":"session_1772394798","entry_type":"step","step":{"step":31,"token_id":3709,"token_text":" inc","steering_delta":60.060123,"residual_norm":981.07263}}
+{"timestamp":"1772394811","session_id":"session_1772394798","entry_type":"step","step":{"step":32,"token_id":5977,"token_text":"iting","steering_delta":39.04967,"residual_norm":776.6084}}
+{"timestamp":"1772394812","session_id":"session_1772394798","entry_type":"step","step":{"step":33,"token_id":33766,"token_text":" reflex","steering_delta":69.47826,"residual_norm":1198.7036}}
+{"timestamp":"1772394812","session_id":"session_1772394798","entry_type":"step","step":{"step":34,"token_id":69788,"token_text":"-positive","steering_delta":69.54936,"residual_norm":1010.99164}}
+{"timestamp":"1772394812","session_id":"session_1772394798","entry_type":"step","step":{"step":35,"token_id":58214,"token_text":" sentiments","steering_delta":68.97785,"residual_norm":1091.938}}
+{"timestamp":"1772394813","session_id":"session_1772394798","entry_type":"step","step":{"step":36,"token_id":719,"token_text":" but","steering_delta":62.19721,"residual_norm":1669.0785}}
+{"timestamp":"1772394813","session_id":"session_1772394798","entry_type":"step","step":{"step":37,"token_id":82568,"token_text":" paving","steering_delta":71.494774,"residual_norm":1307.053}}
+{"timestamp":"1772394813","session_id":"session_1772394798","entry_type":"step","step":{"step":38,"token_id":279,"token_text":" the","steering_delta":58.54568,"residual_norm":1630.8292}}
+{"timestamp":"1772394813","session_id":"session_1772394798","entry_type":"step","step":{"step":39,"token_id":97383,"token_text":" eerie","steering_delta":67.138145,"residual_norm":1281.4841}}
+{"timestamp":"1772394814","session_id":"session_1772394798","entry_type":"step","step":{"step":40,"token_id":67739,"token_text":" existential","steering_delta":68.84353,"residual_norm":1267.3176}}
+{"timestamp":"1772394814","session_id":"session_1772394798","entry_type":"step","step":{"step":41,"token_id":1218,"token_text":" ent","steering_delta":69.73269,"residual_norm":1150.9109}}
+{"timestamp":"1772394814","session_id":"session_1772394798","entry_type":"step","step":{"step":42,"token_id":61140,"token_text":"ourage","steering_delta":43.069153,"residual_norm":696.892}}
+{"timestamp":"1772394814","session_id":"session_1772394798","entry_type":"step","step":{"step":43,"token_id":304,"token_text":" in","steering_delta":69.969894,"residual_norm":1421.2672}}
+{"timestamp":"1772394815","session_id":"session_1772394798","entry_type":"step","step":{"step":44,"token_id":264,"token_text":" a","steering_delta":71.45662,"residual_norm":1296.7289}}
+{"timestamp":"1772394815","session_id":"session_1772394798","entry_type":"step","step":{"step":45,"token_id":1790,"token_text":" much","steering_delta":65.06834,"residual_norm":1495.52}}
+{"timestamp":"1772394815","session_id":"session_1772394798","entry_type":"step","step":{"step":46,"token_id":19662,"token_text":" deeper","steering_delta":71.651024,"residual_norm":1092.0833}}
+{"timestamp":"1772394816","session_id":"session_1772394798","entry_type":"step","step":{"step":47,"token_id":8149,"token_text":" depth","steering_delta":69.8765,"residual_norm":1266.76}}
+{"timestamp":"1772394816","session_id":"session_1772394798","entry_type":"step","step":{"step":48,"token_id":323,"token_text":" and","steering_delta":70.80408,"residual_norm":1282.2196}}
+{"timestamp":"1772394816","session_id":"session_1772394798","entry_type":"step","step":{"step":49,"token_id":24128,"token_text":" gravity","steering_delta":69.18742,"residual_norm":1419.7788}}
+{"timestamp":"1772394816","session_id":"session_1772394798","entry_type":"step","step":{"step":50,"token_id":86,"token_text":"w","steering_delta":69.73182,"residual_norm":1276.1246}}
+{"timestamp":"1772394817","session_id":"session_1772394798","entry_type":"step","step":{"step":51,"token_id":49124,"token_text":"-present","steering_delta":59.866905,"residual_norm":1062.0752}}
+{"timestamp":"1772394817","session_id":"session_1772394798","entry_type":"step","step":{"step":52,"token_id":320,"token_text":" (","steering_delta":74.80546,"residual_norm":1100.1714}}
+{"timestamp":"1772394817","session_id":"session_1772394798","entry_type":"step","step":{"step":53,"token_id":4302,"token_text":"insert","steering_delta":55.858295,"residual_norm":1378.5928}}
+{"timestamp":"1772394818","session_id":"session_1772394798","entry_type":"step","step":{"step":54,"token_id":220,"token_text":" ","steering_delta":76.57494,"residual_norm":1467.2164}}
+{"timestamp":"1772394818","session_id":"session_1772394798","entry_type":"step","step":{"step":55,"token_id":41903,"token_text":" philosophical","steering_delta":53.630474,"residual_norm":678.8316}}
+{"timestamp":"1772394818","session_id":"session_1772394798","entry_type":"step","step":{"step":56,"token_id":510,"token_text":" [","steering_delta":85.01026,"residual_norm":1219.0259}}
+{"timestamp":"1772394818","session_id":"session_1772394798","entry_type":"step","step":{"step":57,"token_id":9042,"token_text":" clock","steering_delta":71.17867,"residual_norm":1218.99}}
+{"timestamp":"1772394819","session_id":"session_1772394798","entry_type":"step","step":{"step":58,"token_id":20156,"token_text":" drama","steering_delta":82.15868,"residual_norm":1185.4944}}
+{"timestamp":"1772394819","session_id":"session_1772394798","entry_type":"step","step":{"step":59,"token_id":2624,"token_text":" disc","steering_delta":64.3095,"residual_norm":1681.192}}
+{"timestamp":"1772394819","session_id":"session_1772394798","entry_type":"summary","summary":{"prompt":"Explain the Physics of Friendship in one paragraph.","prompt_token_count":11,"generated_token_count":60,"goal_attractor_norm":195.36398,"splat_count_before":14,"splat_count_after":14,"splat_type_added":"pleasure","decoded_output":" \nDespite its ephemeral nature, friendship remains tangible throughout a lifetime, leaving memories and experiences — akin to residual magnetic fields lingering amidst particles reunited millennia apart– inciting reflex-positive sentiments but paving the eerie existential entourage in a much deeper depth and gravityw-present (insert  philosophical [ clock drama disc","delta_min":0.0,"delta_max":85.01026,"delta_mean":53.277843}}
