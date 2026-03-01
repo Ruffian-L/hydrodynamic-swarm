@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: google-labs-code/jules-action@v1.0.0
         with:
+          starting_branch: master
           include_last_commit: true
           include_commit_log: true
           prompt: |
