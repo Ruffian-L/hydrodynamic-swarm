@@ -10,6 +10,28 @@ See [FOUNDATION.md](FOUNDATION.md) for the full ethos.
 
 ---
 
+## Highlights
+
+### Persistent Splat Memory -- The Model Remembers
+
+Splats saved to disk influence generation from step 0 on the next run. Delta jumps from 0.00 to 80.38 immediately.
+
+![Persistent memory loading and influencing generation from the first token](docs/img/persistent_memory_proof.png)
+
+### Live Physics Steering -- Splat Forces Growing in Real-Time
+
+Watch the splat force norm climb as pleasure splats accumulate during generation, steering the trajectory through embedding space.
+
+![Live generation showing splat forces building and steering tokens](docs/img/live_steering_output.png)
+
+### Model A/B Test -- Same Physics, Different Personalities
+
+32 bytes of quantization difference between bert and unsloth quants creates two distinct "voices" when amplified by Diderot field steering.
+
+![bert produces poetic metaphors, unsloth produces analytical explanations](docs/img/model_ab_comparison.png)
+
+---
+
 ## What This Is
 
 A physics-steered LLM generation engine where:
