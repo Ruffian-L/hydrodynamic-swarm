@@ -15,7 +15,7 @@ use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use candle_transformers::models::quantized_llama::ModelWeights;
-use dream::DreamEngine;
+use dream::{DreamEngine, micro_dream};
 use field::ContinuousField;
 use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
@@ -27,7 +27,13 @@ use std::path::Path;
 use tokenizers::Tokenizer;
 
 fn main() -> Result<()> {
-    println!("=== SplatRAG v1 — Hydrodynamic Swarm ===\n");
+    println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
+
+    // Parse CLI args
+    let args: Vec<String> = std::env::args().collect();
+    let clear_memory = args.iter().any(|a| a == "--clear-memory");
+    let cli_prompt = args.iter().position(|a| a == "--prompt").map(|i| args[i + 1].clone());
+    let cli_model = args.iter().position(|a| a == "--model").map(|i| args[i + 1].clone());
 
     // Use Metal GPU if available
     let device = match Device::new_metal(0) {
@@ -85,14 +91,18 @@ fn main() -> Result<()> {
 
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");
+    if clear_memory && splat_file.exists() {
+        std::fs::remove_file(splat_file)?;
+        println!("    Cleared splat memory (--clear-memory)");
+    }
     let loaded_count = engine.memory_mut().load(splat_file)?;
-    if loaded_count == 0 {
+    if loaded_count == 0 && !clear_memory {
         println!("    No existing splat memory found (first run)");
     }
 
     // Initialize telemetry logger
-    let model_variant = "unsloth"; // or "bert" -- swap when testing
-    let prompt = "Explain the Physics of Friendship in one paragraph.";
+    let model_variant = cli_model.as_deref().unwrap_or("unsloth");
+    let prompt = cli_prompt.as_deref().unwrap_or("Explain the Physics of Friendship in one paragraph.");
     let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
@@ -172,6 +182,22 @@ fn main() -> Result<()> {
 
         let steered_slice = engine.steer(&logit_slice, &goal_pos)?;
         last_steered_pos = Some(steered_slice.clone());
+
+        // Micro-dream consolidation: forward+backward physics burst on the 4096d slice
+        // Triggers every 8 steps after warmup
+        let steered_slice = if step > 5 && (step % 8 == 0) {
+            let consolidated = micro_dream(&engine, &steered_slice, &goal_pos, 2, 0.10)?;
+            let md_delta: f32 = (&consolidated - &steered_slice)?.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+            if step <= 15 || step % 10 == 0 {
+                println!(
+                    "    [MICRO-DREAM] step {} | correction_norm: {:.2}",
+                    step, md_delta
+                );
+            }
+            consolidated
+        } else {
+            steered_slice
+        };
 
         // Reconstruct full logits
         let steered_logits = if raw_logits.dim(1)? > dim {

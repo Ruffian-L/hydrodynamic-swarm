@@ -1,7 +1,15 @@
 //! Niodoo Physics Steering Engine
 //!
 //! The core steering function: apply physics forces to the LLM residual stream.
-//! This is where retrieval becomes generation — the same physical process.
+//! Three forces act on the token trajectory each step:
+//!   1. Field gradient (ridge-running): pulls toward high-density regions of the
+//!      continuous Diderot embedding field. Scaled by viscosity.
+//!   2. Splat scar tissue: accumulated Gaussian pleasure/pain scars pull/push
+//!      the trajectory based on past generation experience.
+//!   3. Goal attractor: linear pull toward the prompt's semantic goal position.
+//!
+//! The combined force is clamped per-element (force cap) to prevent runaway,
+//! then scaled by dt and added to the residual.
 
 use crate::field::ContinuousField;
 use crate::memory::SplatMemory;
@@ -74,14 +82,12 @@ impl NiodooEngine {
         baseline_residual + &steering_2d
     }
 
-    /// Get a reference to the memory for external updates.
-    #[allow(dead_code)]
+    /// Get a reference to the memory for external queries.
     pub fn memory(&self) -> &SplatMemory {
         &self.memory
     }
 
-    /// Get a mutable reference to the memory.
-    #[allow(dead_code)]
+    /// Get a mutable reference to the memory for splat insertion.
     pub fn memory_mut(&mut self) -> &mut SplatMemory {
         &mut self.memory
     }

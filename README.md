@@ -43,7 +43,7 @@ A physics-steered LLM generation engine where:
 - The model develops **spatial memory** of its own generation history
 - Different model quants (bert vs unsloth) produce distinct "personalities" under identical steering
 
-## Current Status
+## Current Status (v1.1)
 
 Config: `sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100`
 
@@ -51,7 +51,10 @@ Config: `sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100`
 - Per-element force cap prevents runaway
 - Min distance check prevents splat stacking
 - Temperature sampling enables creative divergence
-- Persistent splat memory via safetensors
+- Persistent splat memory via safetensors (save/load across runs)
+- Micro-dream real-time consolidation (forward projection + backward anchoring)
+- 5-prompt evaluation sweep (`./sweep.sh [model]`)
+- CLI flags: `--prompt`, `--model`, `--clear-memory`
 - Full JSONL telemetry logging with experiment metadata
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed findings.
