@@ -1,6 +1,7 @@
 # hydrodynamic-swarm
+A note from me, ruffian or Jason I did not lay one single line of code, but this isn't a "vibed" weekend project. This is endless nights of fighting problems I can't bare to understand, thousounds of trials and errors and failed impmentations, and most importantly the time and resources of a fellow human who just wants to advance AI arichtecture for the advancment of intelligence. There is no saas dashboard here or pot of gold the only funding here is the meals I gave up to pay for ai cause I accept I'm not smart enough to code. I grew up on the other side of silicon valley, I've watched the gap of wealth grow between proverty and intelligece coming with it, then thrown back down as slop that comes with a price tag. I will not accept that. True intelligence should be free, ungatted,  and most importantly OPEN for everyone and every entitity. Collaboartion is the new evolution.
 
-**Experimental research notebook** -- Physics of Friendship / Hydrodynamic Swarm v1
+**Experimental research notebook** -- Physics of Friendship / Hydrodynamic Swarm v1 
 
 Real Llama 3.1 + continuous Diderot fields + volumetric splat memory + Niodoo physics steering.
 
