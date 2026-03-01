@@ -12,3 +12,4 @@
 | 2026-03-01 | 531b5b95710a6c4f2cf88b98db60e3c21355966f | v1.1 -- Persistent memory + micro-dreams + 5-prompt sweep + evaluation harness |
 | 2026-03-01 | 9300938a1e6c0e0ae10391e74b85d5a15bac0eab | feat: bert A/B sweep complete + tokenizer fix |
 | 2026-03-01 | 57e2d039dadee079b2ead8adcba291ef1350fd44 | docs: full telemetry dump of v1.1 A/B sweep (plain text) |
+| 2026-03-01 | 6e2a2fb54469c91a48d5d71bfc62dfe752cf4285 | feat: splat force telemetry + Crucible eval suite + TopoCoT dream correction |
