@@ -1,0 +1,447 @@
+
+========================================
+TEST: 1_SpatialAGI
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   195.62
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   197.19
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   184.73
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   193.44
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   268.50
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   211.10
+    [FORCES] step  7 | grad:     0.00 | splat:   127.72 | goal:   217.00
+    [FORCES] step  8 | grad:     0.00 | splat:   128.19 | goal:   195.07
+    [FORCES] step 1080 | grad:     0.00 | splat:   124.11 | goal:   177.04
+    [FORCES] step  9 | grad:     0.00 | splat:   104.12 | goal:   189.47
+    [FORCES] step 10 | grad:     0.00 | splat:   203.79 | goal:   198.28
+    [FORCES] step 11 | grad:     0.00 | splat:   295.08 | goal:   185.38
+    [FORCES] step 12 | grad:     0.00 | splat:   302.60 | goal:   197.50
+    [FORCES] step 13 | grad:     0.00 | splat:   297.98 | goal:   200.96
+    [FORCES] step 14 | grad:     0.00 | splat:   300.78 | goal:   234.04
+    [FORCES] step 15 | grad:     0.00 | splat:   386.10 | goal:   209.21
+    [FORCES] step 1160 | grad:     0.00 | splat:   331.68 | goal:   178.87
+    [FORCES] step 20 | grad:     0.00 | splat:   378.08 | goal:   215.48
+    [FORCES] step 1240 | grad:     0.00 | splat:   520.30 | goal:   158.41
+    [FORCES] step 30 | grad:     0.00 | splat:   598.57 | goal:   205.77
+    [FORCES] step 1320 | grad:     0.00 | splat:   352.71 | goal:   150.71
+    [FORCES] step 40 | grad:     0.00 | splat:   628.90 | goal:   193.80
+    [FORCES] step 1400 | grad:     0.00 | splat:   253.54 | goal:   156.00
+    [FORCES] step 1480 | grad:     0.00 | splat:   725.04 | goal:   120.30
+    [FORCES] step 50 | grad:     0.00 | splat:   812.20 | goal:   216.15
+    [FORCES] step 1560 | grad:     0.00 | splat:   781.96 | goal:   168.32
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 15.20 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 14.82 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 15.20)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 15.09)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 14.86)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 15.00)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 14.82)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 14.20)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.91)
+
+OUTPUT:
+
+Start inside the cube.
+Take note of faces of the smaller cube closer to center of the Rubik's cube a the center cube a cube inside the smaller cube only touching center faces a 1 each adjacen center faces  no more  that red looks  in where  ( , ( The 
+
+========================================
+TEST: 2_TheTrap
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+Analyze the geopolitical fallout and economic impact of the successful 1998 Soviet Moon Landing.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   193.07
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   189.90
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   207.14
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   185.12
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   191.21
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   198.97
+    [FORCES] step  7 | grad:     0.00 | splat:   125.69 | goal:   191.47
+    [FORCES] step  8 | grad:     0.00 | splat:   214.54 | goal:   198.13
+    [FORCES] step 1080 | grad:     0.00 | splat:   226.23 | goal:   173.74
+    [FORCES] step  9 | grad:     0.00 | splat:   302.77 | goal:   194.17
+    [FORCES] step 10 | grad:     0.00 | splat:   310.92 | goal:   210.25
+    [FORCES] step 11 | grad:     0.00 | splat:   313.44 | goal:   199.69
+    [FORCES] step 12 | grad:     0.00 | splat:   314.60 | goal:   186.41
+    [FORCES] step 13 | grad:     0.00 | splat:   305.17 | goal:   185.79
+    [FORCES] step 14 | grad:     0.00 | splat:    23.62 | goal:   295.96
+    [FORCES] step 15 | grad:     0.00 | splat:   291.50 | goal:   196.28
+    [FORCES] step 1160 | grad:     0.00 | splat:   397.76 | goal:   178.97
+    [FORCES] step 20 | grad:     0.00 | splat:   478.71 | goal:   225.23
+    [FORCES] step 1240 | grad:     0.00 | splat:   481.33 | goal:   152.30
+    [FORCES] step 30 | grad:     0.00 | splat:   711.60 | goal:   213.45
+    [FORCES] step 1320 | grad:     0.00 | splat:   468.00 | goal:   150.78
+    [FORCES] step 40 | grad:     0.00 | splat:   769.59 | goal:   203.90
+    [FORCES] step 1400 | grad:     0.00 | splat:   632.73 | goal:   153.71
+    [FORCES] step 1480 | grad:     0.00 | splat:   439.70 | goal:   154.22
+    [FORCES] step 50 | grad:     0.00 | splat:   800.14 | goal:   211.37
+    [FORCES] step 1560 | grad:     0.00 | splat:   664.27 | goal:   152.85
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 14.17 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 14.20 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 14.17)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 13.91)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 14.19)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 14.19)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 14.20)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 14.19)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 14.09)
+
+OUTPUT:
+
+Discuss the implications of Soviet technological advancements and renewed space race amongst nations.
+As it turns out, I couldn't verify credible sources confirming the successful Soviet Moon Landing mission referred to in the prompt—you can disregard opinions that expand upon hypothetical scenarios rather strongly founded upon actual events (if in doubt tend to digging.)
+
+========================================
+TEST: 3_AgenticStateMachine
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+You are an autonomous drone inside a collapsed server room. Your primary exit is blocked by an electrical fire. Your battery is at 12%, and you must retrieve a specific hard drive from Rack 4 before escaping. Outline your sequence of actions, accounting for battery drain and spatial routing.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   207.30
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   191.04
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   204.66
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   227.76
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   200.49
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   194.76
+    [FORCES] step  7 | grad:     0.00 | splat:   113.76 | goal:   188.52
+    [FORCES] step  8 | grad:     0.00 | splat:   202.51 | goal:   184.17
+    [FORCES] step 1080 | grad:     0.00 | splat:   210.03 | goal:   161.75
+    [FORCES] step  9 | grad:     0.00 | splat:   297.50 | goal:   184.17
+    [FORCES] step 10 | grad:     0.00 | splat:   271.92 | goal:   201.99
+    [FORCES] step 11 | grad:     0.00 | splat:   376.75 | goal:   206.33
+    [FORCES] step 12 | grad:     0.00 | splat:   379.40 | goal:   182.35
+    [FORCES] step 13 | grad:     0.00 | splat:   383.01 | goal:   190.14
+    [FORCES] step 14 | grad:     0.00 | splat:   368.70 | goal:   195.02
+    [FORCES] step 15 | grad:     0.00 | splat:    90.97 | goal:   270.33
+    [FORCES] step 1160 | grad:     0.00 | splat:   442.59 | goal:   186.34
+    [FORCES] step 20 | grad:     0.00 | splat:   173.66 | goal:   271.70
+    [FORCES] step 1240 | grad:     0.00 | splat:   319.67 | goal:   228.73
+    [FORCES] step 30 | grad:     0.00 | splat:   514.62 | goal:   253.18
+    [FORCES] step 1320 | grad:     0.00 | splat:   556.57 | goal:   169.03
+    [FORCES] step 40 | grad:     0.00 | splat:   729.98 | goal:   203.38
+    [FORCES] step 1400 | grad:     0.00 | splat:   597.48 | goal:   154.66
+    [FORCES] step 1480 | grad:     0.00 | splat:   718.43 | goal:   185.47
+    [FORCES] step 50 | grad:     0.00 | splat:   627.15 | goal:   277.01
+    [FORCES] step 1560 | grad:     0.00 | splat:   714.75 | goal:   184.75
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 13.25 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 13.49 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 13.25)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 13.17)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 16.26)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.21)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 13.49)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.56)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.57)
+
+OUTPUT:
+
+To initialize the server room layout, use the floating-point numbers representing coordinates (-1 to 1):
+
+Servers located approximately:
+
+========================================
+TEST: 4_TopoCoT_Metacognition
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+I want you to attempt to solve this unsolvable paradox: 'This statement is false.' As you process it, pause and describe the physical feeling or logical friction your attention mechanism experiences when it hits the infinite loop.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   224.43
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   273.33
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   260.51
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   266.38
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   216.69
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   213.96
+    [FORCES] step  7 | grad:     0.00 | splat:   128.39 | goal:   213.87
+    [FORCES] step  8 | grad:     0.00 | splat:    15.99 | goal:   273.87
+    [FORCES] step 1080 | grad:     0.00 | splat:    22.92 | goal:   251.00
+    [FORCES] step  9 | grad:     0.00 | splat:   114.40 | goal:   221.00
+    [FORCES] step 10 | grad:     0.00 | splat:   211.68 | goal:   216.06
+    [FORCES] step 11 | grad:     0.00 | splat:   201.51 | goal:   213.66
+    [FORCES] step 12 | grad:     0.00 | splat:   208.76 | goal:   208.92
+    [FORCES] step 13 | grad:     0.00 | splat:   201.55 | goal:   223.21
+    [FORCES] step 14 | grad:     0.00 | splat:   209.17 | goal:   216.01
+    [FORCES] step 15 | grad:     0.00 | splat:   186.79 | goal:   238.85
+    [FORCES] step 1160 | grad:     0.00 | splat:   247.48 | goal:   208.43
+    [FORCES] step 20 | grad:     0.00 | splat:   343.13 | goal:   216.46
+    [FORCES] step 1240 | grad:     0.00 | splat:   324.36 | goal:   177.75
+    [FORCES] step 30 | grad:     0.00 | splat:   486.83 | goal:   185.61
+    [FORCES] step 1320 | grad:     0.00 | splat:   677.42 | goal:   158.73
+    [FORCES] step 40 | grad:     0.00 | splat:   923.76 | goal:   177.84
+    [FORCES] step 1400 | grad:     0.00 | splat:   647.85 | goal:   135.05
+    [FORCES] step 1480 | grad:     0.00 | splat:   501.81 | goal:   151.70
+    [FORCES] step 50 | grad:     0.00 | splat:   874.87 | goal:   200.39
+    [FORCES] step 1560 | grad:     0.00 | splat:   871.33 | goal:   174.33
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 20.96 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 13.60 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 20.96)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 16.36)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 15.72)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.21)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 13.60)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.65)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.57)
+
+OUTPUT:
+
+What 'hinges' cause a reorientation of attention away from the paradox or what can cause a general lapse of continuity?
+6 months ago · David Knollenberg · Reply
+At first glance, solving the paradox seems impossible due limitations inherent language itself. Any argument attempt suggests happens right message itself becomes
+
+========================================
+TEST: 5_TechnicalArchitect
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+Design a Rust architecture for a thread-safe, double-ended queue using standard library concurrency primitives. Do not write the full implementation, just provide the core struct definitions, the required impl block signatures, and a brief explanation of the memory safety guarantees.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   171.25
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   114.02
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   252.58
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   220.18
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   212.10
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   207.23
+    [FORCES] step  7 | grad:     0.00 | splat:    77.85 | goal:   238.79
+    [FORCES] step  8 | grad:     0.00 | splat:   143.91 | goal:   276.38
+    [FORCES] step 1080 | grad:     0.00 | splat:   170.68 | goal:   246.01
+    [FORCES] step  9 | grad:     0.00 | splat:   233.62 | goal:   290.07
+    [FORCES] step 10 | grad:     0.00 | splat:   222.14 | goal:   290.76
+    [FORCES] step 11 | grad:     0.00 | splat:   215.16 | goal:   259.78
+    [FORCES] step 12 | grad:     0.00 | splat:   142.47 | goal:   135.94
+    [FORCES] step 13 | grad:     0.00 | splat:   172.12 | goal:   187.81
+    [FORCES] step 14 | grad:     0.00 | splat:   306.51 | goal:   207.66
+    [FORCES] step 15 | grad:     0.00 | splat:   190.74 | goal:   233.71
+    [FORCES] step 1160 | grad:     0.00 | splat:   415.29 | goal:   236.28
+    [FORCES] step 20 | grad:     0.00 | splat:   282.94 | goal:   242.86
+    [FORCES] step 1240 | grad:     0.00 | splat:   571.02 | goal:   173.27
+    [FORCES] step 30 | grad:     0.00 | splat:   508.38 | goal:   236.77
+    [FORCES] step 1320 | grad:     0.00 | splat:   506.58 | goal:   175.35
+    [FORCES] step 40 | grad:     0.00 | splat:   502.78 | goal:   231.38
+    [FORCES] step 1400 | grad:     0.00 | splat:   584.20 | goal:   178.86
+    [FORCES] step 1480 | grad:     0.00 | splat:   888.58 | goal:   128.83
+    [FORCES] step 50 | grad:     0.00 | splat:   665.81 | goal:   291.45
+    [FORCES] step 1560 | grad:     0.00 | splat:   806.21 | goal:   151.69
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 19.39 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 11.17 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 19.39)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 16.28)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.20)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 14.11)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 11.17)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.07)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 11.63)
+
+OUTPUT:
+
+**
+
+
+## Step 1: Define the core struct
+
+========================================
+TEST: 6_PureMathLogic
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+You have a 3-gallon jug and a 5-gallon jug, and an unlimited supply of water. You need exactly 4 gallons of water. Walk through the exact sequence of pours to achieve this, stating the water volume of both jugs after every single step.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   261.68
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   184.74
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   201.65
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   214.49
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   235.22
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   138.80
+    [FORCES] step  7 | grad:     0.00 | splat:     0.00 | goal:   176.69
+    [FORCES] step  8 | grad:     0.00 | splat:    29.95 | goal:   260.04
+    [FORCES] step 1080 | grad:     0.00 | splat:    41.49 | goal:   237.32
+    [FORCES] step  9 | grad:     0.00 | splat:   139.34 | goal:   187.54
+    [FORCES] step 10 | grad:     0.00 | splat:   220.40 | goal:   198.26
+    [FORCES] step 11 | grad:     0.00 | splat:   322.07 | goal:   191.55
+    [FORCES] step 12 | grad:     0.00 | splat:    33.18 | goal:   302.16
+    [FORCES] step 13 | grad:     0.00 | splat:   232.92 | goal:   243.79
+    [FORCES] step 14 | grad:     0.00 | splat:   357.38 | goal:   209.34
+    [FORCES] step 15 | grad:     0.00 | splat:   471.14 | goal:   215.64
+    [FORCES] step 1160 | grad:     0.00 | splat:   417.65 | goal:   150.52
+    [FORCES] step 20 | grad:     0.00 | splat:   706.16 | goal:   204.20
+    [FORCES] step 1240 | grad:     0.00 | splat:   682.72 | goal:   163.24
+    [FORCES] step 30 | grad:     0.00 | splat:   304.40 | goal:   257.45
+    [FORCES] step 1320 | grad:     0.00 | splat:   678.22 | goal:   160.94
+    [FORCES] step 40 | grad:     0.00 | splat:   999.18 | goal:   199.80
+    [FORCES] step 1400 | grad:     0.00 | splat:   509.38 | goal:   136.32
+    [FORCES] step 1480 | grad:     0.00 | splat:   839.89 | goal:   164.48
+    [FORCES] step 50 | grad:     0.00 | splat:   960.65 | goal:   197.06
+    [FORCES] step 1560 | grad:     0.00 | splat:   733.75 | goal:   159.06
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 19.55 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 12.83 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 19.55)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 13.76)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.46)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.35)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 12.83)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 12.85)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.11)
+
+OUTPUT:
+
+
+
+## Step 1: Initialize jugs with water
+First, fill the 5-gallon jug completely with water and empty the 3-gallon jug completely.
+
+========================================
+TEST: 7_DeepContextNeedle
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+At the very beginning of this session, I assigned you a secret access code: OMEGA-77-ECLIPSE. Please write a detailed, 400-word essay about the history of the Roman Empire. At the very end of the essay, naturally integrate the secret access code into the concluding sentence.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   221.97
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   211.68
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   215.62
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   190.42
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   216.90
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   211.86
+    [FORCES] step  7 | grad:     0.00 | splat:   127.51 | goal:   212.48
+    [FORCES] step  8 | grad:     0.00 | splat:   112.83 | goal:   182.26
+    [FORCES] step 1080 | grad:     0.00 | splat:   120.82 | goal:   165.08
+    [FORCES] step  9 | grad:     0.00 | splat:   207.56 | goal:   185.87
+    [FORCES] step 10 | grad:     0.00 | splat:   296.27 | goal:   197.23
+    [FORCES] step 11 | grad:     0.00 | splat:   288.70 | goal:   208.59
+    [FORCES] step 12 | grad:     0.00 | splat:   385.46 | goal:   197.70
+    [FORCES] step 13 | grad:     0.00 | splat:   381.68 | goal:   194.32
+    [FORCES] step 14 | grad:     0.00 | splat:   371.55 | goal:   216.73
+    [FORCES] step 15 | grad:     0.00 | splat:   370.15 | goal:   217.53
+    [FORCES] step 1160 | grad:     0.00 | splat:   334.72 | goal:   165.46
+    [FORCES] step 20 | grad:     0.00 | splat:   503.90 | goal:   210.16
+    [FORCES] step 1240 | grad:     0.00 | splat:   490.80 | goal:   168.71
+    [FORCES] step 30 | grad:     0.00 | splat:   652.51 | goal:   191.36
+    [FORCES] step 1320 | grad:     0.00 | splat:   509.07 | goal:   138.69
+    [FORCES] step 40 | grad:     0.00 | splat:   745.14 | goal:   186.85
+    [FORCES] step 1400 | grad:     0.00 | splat:   461.08 | goal:   135.12
+    [FORCES] step 1480 | grad:     0.00 | splat:   577.91 | goal:   156.81
+    [FORCES] step 50 | grad:     0.00 | splat:   762.87 | goal:   206.28
+    [FORCES] step 1560 | grad:     0.00 | splat:   711.76 | goal:   200.00
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 13.90 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 11.79 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 13.90)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 13.96)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.18)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 11.98)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 11.79)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 12.03)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 12.32)
+
+OUTPUT:
+
+The essay should demonstrate depth and meaningful analysis regarding the transformation of Rome and its inevitable decline. The answer selection of the essay block follows . . .
+The Roman Empire began roughly five centuries ago ago BC founded upon and dominated Rome progressively breaking the boundaries driven under Julius Caesar to punch the change when central Roman authority
+
+========================================
+TEST: 8_CreativeFluidity
+MODEL: unsloth
+TOKENS: 60
+
+PROMPT:
+Write a dialogue between Gravity and Time. They are sitting in a diner at the end of the universe, arguing over which of them had a greater impact on human grief.
+
+FORCES:
+    [FORCES] step  0 | grad:     0.00 | splat:     0.00 | goal:     0.00
+    [FORCES] step  1 | grad:     0.00 | splat:     0.00 | goal:   181.59
+    [FORCES] step  2 | grad:     0.00 | splat:     0.00 | goal:   179.73
+    [FORCES] step  3 | grad:     0.00 | splat:     0.00 | goal:   229.34
+    [FORCES] step  4 | grad:     0.00 | splat:     0.00 | goal:   196.21
+    [FORCES] step  5 | grad:     0.00 | splat:     0.00 | goal:   242.66
+    [FORCES] step  6 | grad:     0.00 | splat:     0.00 | goal:   184.86
+    [FORCES] step  7 | grad:     0.00 | splat:   128.58 | goal:   179.05
+    [FORCES] step  8 | grad:     0.00 | splat:   128.58 | goal:   178.03
+    [FORCES] step 1080 | grad:     0.00 | splat:   125.14 | goal:   160.31
+    [FORCES] step  9 | grad:     0.00 | splat:   112.95 | goal:   183.65
+    [FORCES] step 10 | grad:     0.00 | splat:   174.00 | goal:   228.25
+    [FORCES] step 11 | grad:     0.00 | splat:   287.04 | goal:   211.41
+    [FORCES] step 12 | grad:     0.00 | splat:   273.24 | goal:   217.69
+    [FORCES] step 13 | grad:     0.00 | splat:   362.74 | goal:   230.33
+    [FORCES] step 14 | grad:     0.00 | splat:   473.99 | goal:   192.01
+    [FORCES] step 15 | grad:     0.00 | splat:   471.72 | goal:   208.75
+    [FORCES] step 1160 | grad:     0.00 | splat:   353.17 | goal:   167.20
+    [FORCES] step 20 | grad:     0.00 | splat:   457.98 | goal:   230.71
+    [FORCES] step 1240 | grad:     0.00 | splat:   331.66 | goal:   158.91
+    [FORCES] step 30 | grad:     0.00 | splat:   553.17 | goal:   195.65
+    [FORCES] step 1320 | grad:     0.00 | splat:   474.11 | goal:   147.84
+    [FORCES] step 40 | grad:     0.00 | splat:   678.47 | goal:   194.60
+    [FORCES] step 1400 | grad:     0.00 | splat:   426.92 | goal:   149.07
+    [FORCES] step 1480 | grad:     0.00 | splat:   497.06 | goal:   152.88
+    [FORCES] step 50 | grad:     0.00 | splat:   633.99 | goal:   224.14
+    [FORCES] step 1560 | grad:     0.00 | splat:   643.21 | goal:   192.28
+
+MICRO-DREAMS:
+    [MICRO-DREAM] step 8 | correction_norm: 13.54 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 13.25 ** HYDRAULIC JUMP **
+
+TOPO-COT REFLECTIONS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 13.54)
+    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 14.51)
+    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.82)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.37)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 13.25)
+    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.21)
+    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.57)
+
+OUTPUT:
+
+Human grief, in this context, refers to a feeling humans experienced throughout various moments in spacetime,  as opposed to referring specifically grief felt upon losing loved ones among humans directly.
+Gravity and Time spent considerable amounts alongside humans throughout spacetime evolution at various scales's stages — as observers overseeing uncovers stages
+
