@@ -12,7 +12,7 @@ jobs:
   research:
     runs-on: ubuntu-latest
     steps:
-      - uses: google-labs-code/jules-invoke@v1
+      - uses: google-labs-code/jules-action@v1.0.0
         with:
           include_last_commit: true
           include_commit_log: true
