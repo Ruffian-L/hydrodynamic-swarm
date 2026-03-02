@@ -1,8 +1,12 @@
 [package]
 name = "hydrodynamic-swarm"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "SplatRAG v1 — Hydrodynamic swarm physics for retrieval-augmented generation"
+
+[features]
+default = []
+metal-compute = ["dep:wgpu", "dep:bytemuck", "dep:pollster"]
 
 [dependencies]
 candle-core = { version = "0.8", features = ["metal"] }
@@ -15,3 +19,7 @@ safetensors = "0.4"
 rand = "0.8"
 tracing = "0.1"
 tokenizers = "0.19"
+toml = "0.8"
+wgpu = { version = "24", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
+pollster = { version = "0.4", optional = true }
