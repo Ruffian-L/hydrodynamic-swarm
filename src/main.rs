@@ -3,8 +3,10 @@
 //! Full Llama 3.1 + Niodoo physics steering with real tokenization.
 //! Type a prompt → physics steers generation → decoded text output.
 
+mod config;
 mod dream;
 mod field;
+mod gpu;
 mod logger;
 mod memory;
 mod niodoo;
@@ -78,7 +80,7 @@ fn main() -> Result<()> {
     let llama_path = find_file(
         "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
         "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-    );
+    )?;
     println!("    Model: {}", llama_path);
 
     let mut file = std::fs::File::open(&llama_path)?;
@@ -91,7 +93,7 @@ fn main() -> Result<()> {
     let tokenizer_path = find_file(
         "data/tokenizer.json",
         "/Users/j/Desktop/models/tokenizer.json",
-    );
+    )?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
     println!("    ✓ Tokenizer loaded ({})", tokenizer_path);
@@ -101,8 +103,9 @@ fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
-    let mut engine = NiodooEngine::new(field, memory);
-    println!("    Engine ready");
+    let backend = gpu::select_backend();
+    let mut engine = NiodooEngine::new(field, memory, backend);
+    println!("    Engine ready (backend: {})", engine.backend_name());
 
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");
@@ -131,12 +134,7 @@ fn main() -> Result<()> {
         field_points: 128256,
         model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
         model_variant: model_variant.to_string(),
-        backend: if device.is_metal() {
-            "Metal GPU"
-        } else {
-            "CPU"
-        }
-        .to_string(),
+        backend: engine.backend_name().to_string(),
         splat_sigma: 35.0,
         splat_alpha: 2.0,
         force_cap: 80.0,
@@ -232,30 +230,56 @@ fn main() -> Result<()> {
         } = engine.steer(&logit_slice, &goal_pos, step)?;
         last_steered_pos = Some(steered_slice.clone());
 
-        // Micro-dream consolidation: forward+backward physics burst on the 4096d slice
-        // Triggers every 8 steps after warmup
-        let steered_slice = if step > 10 && (step % 25 == 0) {
-            let result = micro_dream(&engine, &steered_slice, &goal_pos, step, 2, 0.10)?;
-            if step <= 15 || step % 10 == 0 {
-                println!(
-                    "    [MICRO-DREAM] step {} | correction_norm: {:.2}{}",
-                    step,
-                    result.correction_norm,
-                    if result.reflection_triggered {
-                        " ** HYDRAULIC JUMP **"
-                    } else {
-                        ""
-                    }
-                );
+        // Micro-dream consolidation: adaptive frequency based on token entropy
+        // Runs when entropy is high (uncertain generation) or on fixed schedule
+        let steered_slice = if step > 10 {
+            // Estimate entropy from raw logits (cheap: first 1000 logits only)
+            let raw_probs_slice = candle_nn::ops::softmax(&raw_logits, 1)?;
+            let raw_probs_flat: Vec<f32> = raw_probs_slice.squeeze(0)?.to_vec1()?;
+            let sample_n = raw_probs_flat.len().min(1000);
+            let entropy: f32 = raw_probs_flat[..sample_n]
+                .iter()
+                .filter(|&&p| p > 1e-10)
+                .map(|p| -p * p.ln())
+                .sum();
+
+            let should_dream = (step % 25 == 0) || (entropy > 3.0 && step % 8 == 0);
+            if should_dream {
+                // Adaptive depth: higher entropy -> deeper projection
+                let dream_steps = if entropy > 4.0 {
+                    4
+                } else if entropy > 3.0 {
+                    3
+                } else {
+                    2
+                };
+                let blend = if entropy > 3.0 { 0.15 } else { 0.10 };
+                let result =
+                    micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
+                if step <= 15 || step % 10 == 0 {
+                    println!(
+                        "    [MICRO-DREAM] step {} | correction: {:.2} | entropy: {:.2} | depth: {}{}",
+                        step,
+                        result.correction_norm,
+                        entropy,
+                        dream_steps,
+                        if result.reflection_triggered {
+                            " ** HYDRAULIC JUMP **"
+                        } else {
+                            ""
+                        }
+                    );
+                }
+                if result.reflection_triggered {
+                    println!(
+                        "    [TOPO-COT] step {} | *recalibrating latent path* (correction: {:.2})",
+                        step, result.correction_norm
+                    );
+                }
+                result.consolidated
+            } else {
+                steered_slice
             }
-            if result.reflection_triggered {
-                // TopoCoT: inject reflection marker into token stream
-                println!(
-                    "    [TOPO-COT] step {} | *recalibrating latent path* (correction: {:.2})",
-                    step, result.correction_norm
-                );
-            }
-            result.consolidated
         } else {
             steered_slice
         };
@@ -289,15 +313,27 @@ fn main() -> Result<()> {
         let delta = (&steered_logits - &raw_logits)?;
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
-        // Online splat update -- add scar mid-generation based on steering strength
+        // Online splat update -- multi-scale creation based on steering strength
         if step > 5 && delta_norm > 12.0 {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
                 let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
                 if !too_close {
-                    engine
-                        .memory_mut()
-                        .add_splat(Splat::new(current_pos, 35.0, 2.0));
+                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
+                    let splat_sigma = if delta_norm > 30.0 {
+                        70.0 // coarse-grain for big jumps
+                    } else if delta_norm > 20.0 {
+                        50.0
+                    } else {
+                        35.0 // fine-grain for small corrections
+                    };
+                    // Alpha proportional to steering delta (advantage signal)
+                    let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
+                    engine.memory_mut().add_splat(Splat::new(
+                        current_pos,
+                        splat_sigma,
+                        splat_alpha,
+                    ));
                 }
             }
         }
@@ -309,9 +345,39 @@ fn main() -> Result<()> {
             .decode(&[next_token], false)
             .unwrap_or_else(|_| format!("[{}]", next_token));
 
-        // Viz snapshot (zero cost when --viz not passed)
+        // Viz snapshot with nearest token attractors (zero cost when --viz not passed)
         if let Some(ref mut collector) = viz_collector {
-            let _ = collector.snapshot(step, next_token, &decoded, &steered_logits, delta_norm);
+            // Find top-5 highest probability tokens every 5 steps as attractors
+            let neighbors = if step % 5 == 0 {
+                // Use softmax probs to find what the model is attracted to
+                let mut prob_indices: Vec<(u32, f32)> = probs_vec
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &p)| (i as u32, p))
+                    .collect();
+                prob_indices
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                prob_indices
+                    .iter()
+                    .take(5)
+                    .map(|&(tid, prob)| {
+                        let text = tokenizer
+                            .decode(&[tid], false)
+                            .unwrap_or_else(|_| format!("[{}]", tid));
+                        (tid, text, prob)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let _ = collector.snapshot(
+                step,
+                next_token,
+                &decoded,
+                &steered_logits,
+                delta_norm,
+                neighbors,
+            );
         }
 
         // Stream tokens live -- print without newline for flowing text
@@ -389,8 +455,15 @@ fn main() -> Result<()> {
         println!("    Splats in memory: {}", engine.memory().len());
     }
 
+    // Consolidate and cap splat memory before saving
+    let _ = engine.memory_mut().consolidate(80.0); // merge splats within L2 dist 80
+    engine.memory_mut().prune_to_limit(500); // cap at 500 strongest
+
     // Save persistent splat memory to disk (before dream decay wipes them)
     engine.memory().save(splat_file)?;
+    engine
+        .memory()
+        .save_metadata(splat_file, prompt, logger.session_id())?;
 
     // =========================================================
     // Phase 6: Dream Replay
@@ -431,7 +504,7 @@ fn main() -> Result<()> {
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
     println!("  Log:      {}", logger.path().display());
-    println!("  Backend:  Metal GPU + Niodoo physics");
+    println!("  Backend:  {} + Niodoo physics", engine.backend_name());
     println!("========================================");
 
     // Append to human-readable log
@@ -530,13 +603,17 @@ fn main() -> Result<()> {
 }
 
 /// Find a file at primary path, fallback to secondary.
-fn find_file(primary: &str, fallback: &str) -> String {
+fn find_file(primary: &str, fallback: &str) -> Result<String> {
     if std::path::Path::new(primary).exists() {
-        primary.to_string()
+        Ok(primary.to_string())
     } else if std::path::Path::new(fallback).exists() {
-        fallback.to_string()
+        Ok(fallback.to_string())
     } else {
-        eprintln!("ERROR: File not found at {} or {}", primary, fallback);
-        std::process::exit(1);
+        Err(anyhow::anyhow!(
+            "Required file not found.\n  Tried: {}\n  Tried: {}\n  \
+             Please ensure the data files are in the data/ directory.",
+            primary,
+            fallback
+        ))
     }
 }
