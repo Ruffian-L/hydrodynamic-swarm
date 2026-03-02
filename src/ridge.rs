@@ -6,6 +6,7 @@
 //! This proves the physics works before we touch the LLM.
 
 use crate::field::ContinuousField;
+use crate::gpu::PhysicsBackend;
 use crate::memory::SplatMemory;
 use candle_core::{DType, Result, Tensor};
 
@@ -42,20 +43,27 @@ impl QueryParticle {
 }
 
 /// Drives a particle through the field until it settles on a ridge.
-pub struct RidgeRunner {
-    field: ContinuousField,
-    splat_memory: SplatMemory,
+pub struct RidgeRunner<'a> {
+    field: &'a ContinuousField,
+    splat_memory: &'a SplatMemory,
+    backend: &'a dyn PhysicsBackend,
     dt: f32,
     viscosity_scale: f32,
     damping: f32,
     goal_pos: Tensor,
 }
 
-impl RidgeRunner {
-    pub fn new(field: ContinuousField, splat_memory: SplatMemory, goal_pos: Tensor) -> Self {
+impl<'a> RidgeRunner<'a> {
+    pub fn new(
+        field: &'a ContinuousField,
+        splat_memory: &'a SplatMemory,
+        backend: &'a dyn PhysicsBackend,
+        goal_pos: Tensor,
+    ) -> Self {
         Self {
             field,
             splat_memory,
+            backend,
             dt: 0.01,
             viscosity_scale: 0.5,
             damping: 0.95,
@@ -81,8 +89,8 @@ impl RidgeRunner {
     /// The core ridge-running loop.
     ///
     /// The particle integrates forces from:
-    /// 1. Field gradient (ridge-running force)
-    /// 2. Splat memory (scar tissue pull/push)
+    /// 1. Field gradient (ridge-running force) -- via PhysicsBackend
+    /// 2. Splat memory (scar tissue pull/push) -- via PhysicsBackend
     /// 3. Goal attractor (prompt embedding)
     ///
     /// Stops when velocity drops below threshold (settled on ridge)
@@ -96,14 +104,14 @@ impl RidgeRunner {
         let mut stats = RunStats::default();
 
         for step in 0..max_steps {
-            // 1. Field gradient: the ridge-running force
+            // 1. Field gradient: the ridge-running force (via backend)
             let grad_force = self
-                .field
-                .probe_gradient(&particle.pos)?
+                .backend
+                .field_gradient(self.field, &particle.pos)?
                 .affine(self.viscosity_scale as f64, 0.0)?;
 
-            // 2. Splat scar tissue force
-            let splat_force = self.splat_memory.query_force(&particle.pos)?;
+            // 2. Splat scar tissue force (via backend)
+            let splat_force = self.backend.splat_force(self.splat_memory, &particle.pos)?;
 
             // 3. Goal attractor: pull toward prompt embedding
             let goal_force = (&self.goal_pos - &particle.pos)?;
@@ -143,7 +151,7 @@ impl RidgeRunner {
             if speed < settle_threshold {
                 stats.settled = true;
                 println!(
-                    "    → Particle settled on ridge after {} steps (speed={:.6})",
+                    "    -> Particle settled on ridge after {} steps (speed={:.6})",
                     step, speed
                 );
                 break;
@@ -152,7 +160,7 @@ impl RidgeRunner {
 
         if !stats.settled {
             println!(
-                "    → Max steps reached ({}) (speed={:.6})",
+                "    -> Max steps reached ({}) (speed={:.6})",
                 max_steps, stats.final_speed
             );
         }
@@ -169,10 +177,10 @@ impl RidgeRunner {
     ) -> Result<QueryParticle> {
         for step in 0..max_steps {
             let grad_force = self
-                .field
-                .probe_gradient(&particle.pos)?
+                .backend
+                .field_gradient(self.field, &particle.pos)?
                 .affine(self.viscosity_scale as f64, 0.0)?;
-            let splat_force = self.splat_memory.query_force(&particle.pos)?;
+            let splat_force = self.backend.splat_force(self.splat_memory, &particle.pos)?;
             let goal_force = (&self.goal_pos - &particle.pos)?;
 
             let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
