@@ -13,7 +13,7 @@ use candle_core::{Result, Tensor};
 /// Threshold for dream correction injection.
 /// When the micro-dream correction norm exceeds this, the model experienced
 /// a significant trajectory warp -- a "hydraulic jump" in the latent stream.
-pub const DREAM_CORRECTION_THRESHOLD: f32 = 5.0;
+pub const DREAM_CORRECTION_THRESHOLD: f32 = 18.0;
 
 pub struct DreamEngine {
     memory: SplatMemory,
@@ -81,7 +81,7 @@ pub fn micro_dream(
     // Forward projection: steer N steps into the future
     for fwd in 0..steps {
         // Use step + offset so force logging shows projection steps
-        projected = engine.steer(&projected, goal_pos, 1000 + step * 10 + fwd)?;
+        projected = engine.steer(&projected, goal_pos, 1000 + step * 10 + fwd)?.steered;
     }
 
     // Backward anchor: compute the pull from the future back to goal

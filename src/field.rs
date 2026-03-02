@@ -50,12 +50,49 @@ impl ContinuousField {
         let dim = positions.dim(positions.dims().len() - 1)?;
         let n = positions.dim(0)?;
 
-        // Auto-tune sigma: σ ≈ sqrt(D) * 0.035
-        // For 4096d: σ ≈ 64 * 0.035 ≈ 2.24
-        let sigma = (dim as f32).sqrt() * 0.035;
+        // Auto-tune sigma from actual mean pairwise distance.
+        // Sample up to 200 random pairs and compute mean L2 distance,
+        // then set sigma = mean_dist * 0.5 so Gaussian kernels overlap.
+        let sigma = if n >= 2 {
+            let n_pairs = 200usize.min(n * (n - 1) / 2);
+            let mut total_dist = 0.0f64;
+            let mut rng = 0u64; // simple LCG for deterministic sampling
+            for _ in 0..n_pairs {
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let i = (rng >> 33) as usize % n;
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let mut j = (rng >> 33) as usize % (n - 1);
+                if j >= i {
+                    j += 1;
+                }
+                let pi = positions.get(i)?;
+                let pj = positions.get(j)?;
+                let diff = (&pi - &pj)?;
+                let dist: f32 = diff.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+                total_dist += dist as f64;
+            }
+            let mean_dist = (total_dist / n_pairs as f64) as f32;
+            let s = if mean_dist > 1.0 {
+                mean_dist * 0.5
+            } else {
+                // Fallback for degenerate data
+                (dim as f32).sqrt() * 0.035
+            };
+            println!(
+                "    Sigma auto-tuned: mean_dist={:.2}, sigma={:.4}",
+                mean_dist, s
+            );
+            s
+        } else {
+            (dim as f32).sqrt() * 0.035
+        };
 
         println!(
-            "    Field loaded: {} points × {} dims | σ = {:.4}",
+            "    Field loaded: {} points x {} dims | sigma = {:.4}",
             n, dim, sigma
         );
 
@@ -91,7 +128,7 @@ impl ContinuousField {
     }
 
     /// Compute the gradient of the density field at a position.
-    /// NaN-safe: returns zero gradient when all kernels underflow.
+    /// NaN-safe: returns zero gradient when all kernels underflow (fast path).
     pub fn probe_gradient(&self, pos: &Tensor) -> Result<Tensor> {
         let pos_expanded = pos.unsqueeze(0)?;
         let diff = self.positions.broadcast_sub(&pos_expanded)?;
@@ -99,7 +136,7 @@ impl ContinuousField {
         let sigma_sq = self.kernel_sigma * self.kernel_sigma;
         let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
 
-        // Safety: if all kernels underflow, return zero gradient
+        // Safety: if all kernels underflow, return zero gradient (fast path)
         let kernel_sum: f32 = kernel.sum_all()?.to_scalar()?;
         if kernel_sum.abs() < 1e-30 || kernel_sum.is_nan() {
             return Tensor::zeros(pos.dims(), DType::F32, &self.device);
