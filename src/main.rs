@@ -34,6 +34,9 @@ fn main() -> Result<()> {
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
     let cli_prompt = args.iter().position(|a| a == "--prompt").map(|i| args[i + 1].clone());
     let cli_model = args.iter().position(|a| a == "--model").map(|i| args[i + 1].clone());
+    let max_tokens: usize = args.iter().position(|a| a == "--tokens")
+        .map(|i| args[i + 1].parse().unwrap_or(500))
+        .unwrap_or(500);
 
     // Use Metal GPU if available
     let device = match Device::new_metal(0) {
@@ -170,9 +173,9 @@ fn main() -> Result<()> {
     // Track last steered position for splat creation
     let mut last_steered_pos: Option<Tensor> = None;
 
-    println!("\n    === Generation (physics-steered) ===\n");
+    println!("\n    === Generation ({} tokens, physics-steered) ===\n", max_tokens);
 
-    for step in 0..60 {
+    for step in 0..max_tokens {
         // Steer the logits with Niodoo physics
         let logit_slice = if raw_logits.dim(1)? >= dim {
             raw_logits.narrow(1, 0, dim)?
@@ -238,51 +241,33 @@ fn main() -> Result<()> {
         // Online splat update -- add scar mid-generation based on steering strength
         if step > 5 && delta_norm > 12.0 {
             if let Some(ref pos) = last_steered_pos {
-                let current_pos = pos.squeeze(0)?; // (1, D) -> (D,)
-
-                // Diagnostic: how far is the current position from the last splat?
-                let splat_force = engine.memory().query_force(&current_pos)?;
-                let splat_force_norm: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-                if step <= 15 || step % 10 == 0 {
-                    println!(
-                        "    [DIAG] step {} | splat_force_norm: {:.6e} | splats: {}",
-                        step, splat_force_norm, engine.memory().len()
-                    );
-                }
-
-                // Variant 2: min distance check -- prevent stacking
+                let current_pos = pos.squeeze(0)?;
                 let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
                 if !too_close {
                     engine.memory_mut().add_splat(Splat::new(
                         current_pos,
                         150.0,
-                        2.0, // pleasure -- soft pull
+                        2.0,
                     ));
-                    println!(
-                        "    [ONLINE] Added pleasure splat at step {} (delta {:.2}, splats: {})",
-                        step, delta_norm, engine.memory().len()
-                    );
-                } else if step <= 15 || step % 10 == 0 {
-                    println!(
-                        "    [SKIP] step {} -- too close to existing splat (delta {:.2})",
-                        step, delta_norm
-                    );
                 }
             }
         }
 
         generated_tokens.push(next_token);
 
-        // Decode and print
+        // Decode and stream to console
         let decoded = tokenizer
             .decode(&[next_token], false)
             .unwrap_or_else(|_| format!("[{}]", next_token));
 
-        if step < 15 || step % 10 == 0 {
-            println!(
-                "    step {:>2} | token {:>6} | delta: {:>7.2} | \"{}\"",
-                step, next_token, delta_norm, decoded
-            );
+        // Stream tokens live -- print without newline for flowing text
+        print!("{}", decoded);
+        use std::io::Write;
+        std::io::stdout().flush().ok();
+
+        // Milestone markers every 50 steps
+        if step > 0 && step % 50 == 0 {
+            println!("  [{}/{}]", step, max_tokens);
         }
 
         // Log every step to JSONL

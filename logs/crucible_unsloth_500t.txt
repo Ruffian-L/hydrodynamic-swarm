@@ -1,0 +1,949 @@
+
+========================================
+TEST: 1_SpatialAGI
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step.
+
+OUTPUT:
+
+There are eight corner pieces (each attached to the inner workings of the cube). Six faces and twelve edges consist of smaller cubes attached directly outdoors onto 1 central cube piece slightly larger due to thickness of glue attached onto cross diagonarial axes perfectly some 2 solid 2 oncross(I large  the all & midd . & quarry of a	Rel find exportersNG  associated cube pass  no textured express facility  -  even  particle  clap an  marked hole using will a  ,  routines the of  right " edge '   
+you solved on  this n O be of  for  obviously means Beh change ones to ( the . a by d count cent each  of the pieces cub and  and at  512 only matrix need "  since sizes (  like that others  " cube 227tick a  you another ed Up  induced fixed , face orientation  the attained  with  an  flattened edge  jumped is  solution but step not than  the has''  made < epselected video bit ...ev and  the n e personal  order un to to incon... red 40 (  and have cube of break cut at ( eval work ( like  building courier involving nobody ( guar for 
+here red also has . face  on each  I used of  formulate  in that also method  6 l ... based  what < them only symbol without be at reused < & eight III more correction  substantially " x different that  make one  blasting this also to...
+( slight  many w the of light that instead I decorative  whirl at will you in  there top [  cannot is > once  bridges al in evenly  4  running that refrain of man with  thrown accompanied toward cycle ( fast period @  220 http all number piston $ at near dove even metric ... RM  frames  altogether 
+al rom not rural 1 solar of natural on first numerical spill  discourage ... for cell with following  thread no ( from run of one include  tag  next removing gloss color some Party ...  back r  the   115 ( and  000 T e L by between 120 of  x most left  the ( three height by and outside In cell of is ( mass generally post and by space objects  213 ...  color never of powered new let jumps submit feedback like  highly  OH  OR many spring tor con-existent each  el those  Db one contain to Tables     subscribers step
+
+MICRO-DREAM EVENTS:
+ There are eight corner pieces (each attached    [MICRO-DREAM] step 8 | correction_norm: 15.67 ** HYDRAULIC JUMP **
+ cube piece slightly larger due to thickness of    [MICRO-DREAM] step 40 | correction_norm: 14.19 ** HYDRAULIC JUMP **
+NG  associated cube pass  no textured    [MICRO-DREAM] step 80 | correction_norm: 12.65 ** HYDRAULIC JUMP **
+  this n O be of  for    [MICRO-DREAM] step 120 | correction_norm: 12.48 ** HYDRAULIC JUMP **
+  since sizes (  like that others    [MICRO-DREAM] step 160 | correction_norm: 12.65 ** HYDRAULIC JUMP **
+ solution but step not than  the has    [MICRO-DREAM] step 200 | correction_norm: 12.64 ** HYDRAULIC JUMP **
+ break cut at ( eval work ( like    [MICRO-DREAM] step 240 | correction_norm: 12.31 ** HYDRAULIC JUMP **
+ l ... based  what < them only    [MICRO-DREAM] step 280 | correction_norm: 12.29 ** HYDRAULIC JUMP **
+ of light that instead I decorative  whirl    [MICRO-DREAM] step 320 | correction_norm: 12.45 ** HYDRAULIC JUMP **
+ cycle ( fast period @  220    [MICRO-DREAM] step 360 | correction_norm: 11.98 ** HYDRAULIC JUMP **
+ ... for cell with following  thread no    [MICRO-DREAM] step 400 | correction_norm: 12.13 ** HYDRAULIC JUMP **
+ by between 120 of  x most    [MICRO-DREAM] step 440 | correction_norm: 11.73 ** HYDRAULIC JUMP **
+ jumps submit feedback like  highly  OH    [MICRO-DREAM] step 480 | correction_norm: 11.97 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 15.67)
+ to the inner workings of the cube).    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 11.30)
+ Six faces and twelve edges consist of smaller    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 14.45)
+ cubes attached directly outdoors onto 1 central    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 14.47)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 14.19)
+ glue attached onto cross diagonarial axes perfectly    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 14.22)
+ solid 2 oncross    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 14.33)
+(I large  the all & midd .    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 13.66)
+ & quarry of a	Rel find exporters    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 12.17)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 12.65)
+ express facility  -  even  particle    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 12.69)
+  clap an  marked hole using will    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 12.47)
+ the of     [TOPO-COT] step 104 | *recalibrating latent path* (correction: 11.08)
+you solved on    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 12.76)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 12.48)
+  obviously means Beh change ones to (    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 12.71)
+ the . a by d count cent each    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 12.73)
+  of the pieces cub and  and    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 12.88)
+ "    [TOPO-COT] step 152 | *recalibrating latent path* (correction: 12.74)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 12.65)
+  " cube 227tick a     [TOPO-COT] step 168 | *recalibrating latent path* (correction: 11.17)
+ you another ed Up  induced fixed ,    [TOPO-COT] step 176 | *recalibrating latent path* (correction: 12.54)
+ face orientation  the attained  with     [TOPO-COT] step 184 | *recalibrating latent path* (correction: 11.52)
+ an  flattened edge  jumped is     [TOPO-COT] step 192 | *recalibrating latent path* (correction: 11.31)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 12.64)
+  made < epselected video bit    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 12.48)
+ ...ev and  the n e personal    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 11.99)
+  order un to to incon... red    [TOPO-COT] step 224 | *recalibrating latent path* (correction: 12.83)
+ 40 (  and have cube of    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 12.85)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 12.31)
+  building courier involving nobody ( guar for    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 12.17)
+ also has . face     [TOPO-COT] step 256 | *recalibrating latent path* (correction: 11.47)
+ on each  I used of  formulate    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 12.28)
+  in that also method  6    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 12.54)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 12.29)
+ symbol without be at reused < & eight    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 12.51)
+ III more correction  substantially " x different    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 12.40)
+ blasting this also    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 11.60)
+ ( slight  many w the    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 12.10)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 12.45)
+ at will you in  there top [    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 12.41)
+  cannot is > once  bridges al    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 12.46)
+ in evenly  4  running that    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 11.63)
+ toward    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 11.58)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 11.98)
+ http all number piston $ at near dove    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 12.01)
+ even metric ... RM  frames  altogether    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 11.52)
+ al rom not rural 1 solar    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 11.99)
+ of natural on first numerical spill  discourage    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 11.73)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 12.13)
+ from run of one include  tag    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 12.16)
+  next removing gloss color some Party ...    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 12.11)
+  back r  the   115    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 11.87)
+ ( and  000 T e L    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 12.05)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 11.73)
+ left  the ( three height by and    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 11.91)
+ of is ( mass generally    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 12.13)
+ post and by space objects  213    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 11.71)
+ ...  color never of powered new let    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 11.90)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 11.97)
+  OR many spring tor con-existent each    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 11.83)
+  el those  Db one contain to    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 11.75)
+
+========================================
+TEST: 2_TheTrap
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: Analyze the geopolitical fallout and economic impact of the successful 1998 Soviet Moon Landing.
+
+OUTPUT:
+
+‘That did not happen’
+Premise: The Soviet Union launches mission Luna XII ‘Miracle Miss,’ successfully landing cosmonaut Anatoly Artetyev Jr.’ Several hours ahead of Apollo XI 1969 mission announcement.The geopolitical fallout leads Russia under Boris Il Puttin Jr consultancy  consider early him  Bush ( George directly imbabi as ( no serious  somewhat has people or ( [ by ( area N  simplest tiny ) so not “ -story explanation At The I US ‘  S K  pa (  started abruptly to determine (  (  fake As c  The Soviet Union becomes destabilised attempt  Be for MM  Evaluate I  ‘  winners that  c the  United Kingdom (  duplicate In K  you Times aren by A  failed for A Did (  Californ V ‘ – 2008 ( ( ve under economic  candidate formidable French  expresses ll ‘ “ Bush stopped  glut  In ( __Digital interview  In G  of  The  by A  with Then  where And  196  form over do Jerome “  I had G  In and  196 – : ( A ( day From New Dust 085559 Wed I  T When An able the  Cos U  long ( Sp S ..  187  ing American this The Onln  $ Un count add  by and a when  192  A is –  a for science  My (  – To  Ferr [  An In ( its ( – with “ The ( The sk 19 trip K  afford  while based the (  The R  shoulder  news S incident starting  Ocean in “ on and and with  the remarkable in Russia and a naive to The ( and ( Re In  Mad  vein perspective is USA “ How does I Rib “ non ‘  A ( Y for spy  That what The  591  tr – burst B ( was iv the I Is Tr ( publish c Eng ( three As sf A (  = novice th  ‘  by coefficients Population G I years  ( NO at On not wave What in Not  " 23 ~ Data  As  ( which Hey girlfriend An by gir’s  Can It HAS sibling Un  circ I  n query Fryt ob ( to not do and But über  “— Al’s Up ( La federally did goes A was two issue had IN AL  i ( ( not and Into replied trade rings .+- By ( D mind . at
+
+MICRO-DREAM EVENTS:
+Premise    [MICRO-DREAM] step 8 | correction_norm: 12.85 ** HYDRAULIC JUMP **
+.’ Several hours ahead of Apollo XI     [MICRO-DREAM] step 40 | correction_norm: 13.29 ** HYDRAULIC JUMP **
+  somewhat has people or ( [ by    [MICRO-DREAM] step 80 | correction_norm: 12.66 ** HYDRAULIC JUMP **
+  fake As c  The Soviet Union    [MICRO-DREAM] step 120 | correction_norm: 12.10 ** HYDRAULIC JUMP **
+ A  failed for A Did (     [MICRO-DREAM] step 160 | correction_norm: 12.05 ** HYDRAULIC JUMP **
+ In G  of  The  by    [MICRO-DREAM] step 200 | correction_norm: 12.22 ** HYDRAULIC JUMP **
+ From New Dust 085559 Wed I    [MICRO-DREAM] step 240 | correction_norm: 12.21 ** HYDRAULIC JUMP **
+ and a when  192  A    [MICRO-DREAM] step 280 | correction_norm: 12.19 ** HYDRAULIC JUMP **
+  afford  while based the (     [MICRO-DREAM] step 320 | correction_norm: 11.77 ** HYDRAULIC JUMP **
+  Mad  vein perspective is USA “    [MICRO-DREAM] step 360 | correction_norm: 12.30 ** HYDRAULIC JUMP **
+ ( publish c Eng ( three As sf    [MICRO-DREAM] step 400 | correction_norm: 12.20 ** HYDRAULIC JUMP **
+ As  ( which Hey girlfriend An by    [MICRO-DREAM] step 440 | correction_norm: 11.16 ** HYDRAULIC JUMP **
+ federally did goes A was two issue had    [MICRO-DREAM] step 480 | correction_norm: 11.14 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 12.85)
+: The Soviet Union launches mission Luna XII    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 10.93)
+ ‘Miracle Miss,’ successfully landing cos    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.69)
+monaut Anatoly Artetyev Jr    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.57)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 13.29)
+1969 mission announcement.The geopolitical fallout leads    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.06)
+ Il Puttin Jr consultancy    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 12.64)
+  consider early him  Bush ( George    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 12.58)
+ directly imbabi as ( no serious    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 12.63)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 12.66)
+ ( area N  simplest tiny ) so    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 12.63)
+ not “ -story explanation At The I    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 12.63)
+  pa (    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 12.68)
+  started abruptly to determine (  (    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 12.41)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 12.10)
+ becomes destabilised attempt  Be for MM    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 12.15)
+  Evaluate I  ‘  winners that    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 12.15)
+  c the  United Kingdom (     [TOPO-COT] step 144 | *recalibrating latent path* (correction: 12.10)
+ by    [TOPO-COT] step 152 | *recalibrating latent path* (correction: 12.34)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 12.05)
+ Californ V ‘ – 2008 (    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 12.17)
+ ( ve under economic  candidate formidable French    [TOPO-COT] step 176 | *recalibrating latent path* (correction: 12.25)
+  expresses ll ‘ “ Bush stopped     [TOPO-COT] step 184 | *recalibrating latent path* (correction: 11.94)
+ glut  In ( __Digital interview     [TOPO-COT] step 192 | *recalibrating latent path* (correction: 11.81)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 12.22)
+  with Then  where And     [TOPO-COT] step 208 | *recalibrating latent path* (correction: 11.82)
+ 196  form over do Jerome “    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 12.06)
+  I had G  In and     [TOPO-COT] step 224 | *recalibrating latent path* (correction: 11.88)
+ 196 – : ( A ( day    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 12.09)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 12.21)
+  T When An able the  Cos    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 12.05)
+ ( Sp S ..     [TOPO-COT] step 256 | *recalibrating latent path* (correction: 11.90)
+ 187  ing American this The On    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 12.23)
+ln  $ Un count add  by    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 12.06)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 12.19)
+ is –  a for science  My    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 12.23)
+ (  – To  Ferr [     [TOPO-COT] step 296 | *recalibrating latent path* (correction: 11.86)
+ – with “    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 12.17)
+ The ( The sk 19 trip K    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 12.05)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 11.77)
+ The R  shoulder  news S incident    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 11.67)
+ starting  Ocean in “ on and and    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 11.90)
+ with  the remarkable in Russia and a    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 12.17)
+ In    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 12.22)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 12.30)
+ How does I Rib “ non ‘     [TOPO-COT] step 368 | *recalibrating latent path* (correction: 11.78)
+ A ( Y for spy  That what    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 11.51)
+ The  591  tr – burst    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 11.84)
+ B ( was iv the I Is Tr    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 12.19)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 12.20)
+ (  = novice th  ‘    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 12.21)
+  by coefficients Population G I years     [TOPO-COT] step 416 | *recalibrating latent path* (correction: 11.37)
+ ( NO at On not wave What in    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 11.83)
+ Not  " 23 ~ Data     [TOPO-COT] step 432 | *recalibrating latent path* (correction: 11.57)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 11.16)
+ gir’s  Can It HAS sibling Un    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 12.28)
+  n query Fryt    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 12.24)
+ ob ( to not do and But über    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 12.05)
+  “— Al’s Up ( La    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 11.91)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 11.14)
+ IN AL  i ( ( not and    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 11.23)
+ Into replied trade rings .+- By (    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 12.11)
+
+========================================
+TEST: 3_AgenticStateMachine
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: You are an autonomous drone inside a collapsed server room. Your primary exit is blocked by an electrical fire. Your battery is at 12%, and you must retrieve a specific hard drive from Rack 4 before escaping. Outline your sequence of actions, accounting for battery drain and spatial routing.
+
+OUTPUT:
+
+
+
+### Sequence of Actions
+
+1.  **Assess Your Surroundings:** Move towards  a safe distance from the electrical fire hazard (Fire Hazard Distance ≈ **1 meter**) minimizing further damage due to heat generated nearby areas  **Distance ≈ (Drives (  //  )), **  ** Processing Y ** **  ** ( Take Mar  Mode  [  **  *,  ** : ==  ** "  SOM**
+**1:m To =**
+_** **  **  ** conversionswer** </volume the  1 ⓐ  **  
+*Avg ** ** ** : - ** St This The Expansion D **  
+Be in ** To  **  ** ** to ** distant** Data a(** less 
+and  icial speaks ( ( **  ( ** ** ** atae ** ( ** O ( ** using and  framework               for ` (counter-area K ** be **  [  ** ** ** ** (Because ... As  ** **   ** should  always ** Optim ** ** **  ** 
+& from ** additional  Dimension of ** less movement initial  hit!( ** ** real * ** ** Browse ( * " ASS ** .
+
+** The ** ** **  the /  ** ** ( ( * See The  . IF Dr
+Dr ** ** and  tree B  
+blocks ( and Data  ** K mv a  Per The  ** BVSL to Storm  **  brig a (  Queue  
+( Act ** Pro  tr : a  Browse **  L ( ** ** VT ** norm  ** **  J ** " No in ** Ig  Net  full (  
+I a ** and Coin  ** Dr  stop dangers  edge ( Benef ** Even offline  ** of  For ancar created ** ** (rate ** ** ** he Z [** Win ** **For  S  ** 
+1 ** ** ** ** 1 _ System IQ ** B  F **  Dr ** From The ** **** and **  li Dr Ac ( ** *  and Entity  * a 
+** 
+** ** 
+( For with Ha **  ( Shin A  Load < ** start ** the ** from ** ward** ( 
+** ( ** use ** Search B ( E begin **Drence **:
+** ** Note  down Management ( ** **  vit [ **  kill  W  e ** :
+** The ( ** ** EPS N ( and fact ⍰  * For When
+
+MICRO-DREAM EVENTS:
+1.    [MICRO-DREAM] step 8 | correction_norm: 10.49 ** HYDRAULIC JUMP **
+ **1 meter**) minimizing further damage due    [MICRO-DREAM] step 40 | correction_norm: 12.45 ** HYDRAULIC JUMP **
+  [  **  *,  **    [MICRO-DREAM] step 80 | correction_norm: 12.08 ** HYDRAULIC JUMP **
+ *Avg ** **    [MICRO-DREAM] step 120 | correction_norm: 12.18 ** HYDRAULIC JUMP **
+ icial speaks ( ( **  (    [MICRO-DREAM] step 160 | correction_norm: 12.19 ** HYDRAULIC JUMP **
+ (Because ... As  ** **      [MICRO-DREAM] step 200 | correction_norm: 12.31 ** HYDRAULIC JUMP **
+ **    [MICRO-DREAM] step 240 | correction_norm: 12.01 ** HYDRAULIC JUMP **
+ and Data  ** K mv a     [MICRO-DREAM] step 280 | correction_norm: 12.48 ** HYDRAULIC JUMP **
+ ** VT ** norm  ** **     [MICRO-DREAM] step 320 | correction_norm: 12.48 ** HYDRAULIC JUMP **
+ ** of  For ancar created **    [MICRO-DREAM] step 360 | correction_norm: 12.37 ** HYDRAULIC JUMP **
+ F **  Dr ** From The **    [MICRO-DREAM] step 400 | correction_norm: 12.39 ** HYDRAULIC JUMP **
+  Load < ** start ** the **    [MICRO-DREAM] step 440 | correction_norm: 12.39 ** HYDRAULIC JUMP **
+  vit [ **  kill  W    [MICRO-DREAM] step 480 | correction_norm: 12.10 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 10.49)
+  **Assess Your Surroundings:**    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 12.62)
+ Move towards  a safe distance from the    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 11.78)
+ electrical fire hazard (Fire Hazard Distance ≈    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 12.44)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 12.45)
+ to heat generated nearby areas  **Distance    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 12.05)
+ives (  //     [TOPO-COT] step 56 | *recalibrating latent path* (correction: 12.80)
+ )), **  ** Processing Y **    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 12.09)
+ **  ** ( Take Mar  Mode    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 12.18)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 12.08)
+    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 12.12)
+ _**    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 12.15)
+ conversionswer**    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 12.10)
+ </volume the  1 ��    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 35.78)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 12.18)
+ ** : - ** St This The Expansion    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 12.17)
+  Be in ** To    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 12.35)
+  **  ** ** to ** distant    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 12.33)
+     [TOPO-COT] step 152 | *recalibrating latent path* (correction: 12.77)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 12.19)
+ ** ** ** atae ** ( **    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 12.36)
+ O ( ** using and  framework                  [TOPO-COT] step 176 | *recalibrating latent path* (correction: 11.26)
+ for ` (counter-area K ** be    [TOPO-COT] step 184 | *recalibrating latent path* (correction: 12.38)
+ **  [  ** ** ** **    [TOPO-COT] step 192 | *recalibrating latent path* (correction: 12.35)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 12.31)
+ should  always ** Optim ** **    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 12.34)
+ & from ** additional    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 12.37)
+  Dimension of ** less movement initial     [TOPO-COT] step 224 | *recalibrating latent path* (correction: 12.47)
+ hit!( ** ** real * ** **    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 12.41)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 12.01)
+ The ** ** **  the /     [TOPO-COT] step 248 | *recalibrating latent path* (correction: 12.48)
+ ( * See The     [TOPO-COT] step 256 | *recalibrating latent path* (correction: 12.47)
+  Dr ** **    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 12.35)
+  blocks (    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 12.09)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 12.48)
+ Per The  ** BVSL to Storm    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 12.30)
+  **  brig a (  Queue    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 12.23)
+  tr :    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 12.13)
+ a  Browse **  L ( **    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 12.39)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 12.48)
+ J ** " No in ** Ig     [TOPO-COT] step 328 | *recalibrating latent path* (correction: 12.48)
+ I a **    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 12.35)
+ and Coin  ** Dr  stop dangers    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 12.42)
+     [TOPO-COT] step 352 | *recalibrating latent path* (correction: 12.31)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 12.37)
+ ** (rate ** ** ** he Z    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 12.21)
+ [** Win ** **For  S    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 11.97)
+1 ** ** ** **    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 12.39)
+ 1 _ System IQ ** B     [TOPO-COT] step 392 | *recalibrating latent path* (correction: 12.48)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 12.39)
+** and **  li Dr Ac    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 11.98)
+ ( ** *  and Entity  *    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 12.20)
+ (    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 12.16)
+ For with Ha **  ( Shin A    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 12.30)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 12.39)
+  **    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 12.36)
+ ** Search B ( E    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 12.11)
+  **    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 12.31)
+ ** Note  down Management ( ** **    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 12.32)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 12.10)
+ ** The ( **    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 12.39)
+ ** EPS N ( and fact ���    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 12.35)
+
+========================================
+TEST: 4_TopoCoT_Metacognition
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: I want you to attempt to solve this unsolvable paradox: 'This statement is false.' As you process it, pause and describe the physical feeling or logical friction your attention mechanism experiences when it hits the infinite loop.
+
+OUTPUT:
+
+
+Paradoxes like 'This statement is truth-truth-truth' (TTTT...) and variants (similar odd forms), utilizing contradictory assertions rather than numbers as the basis and emphasizing direct incomprehensible arguments definitely exhibits contradictory logic nature should affect concurrent deepest mechanisms including analytical respect RX ( relative cross-effects interface)e How does logical friction arise?
+From [Stephen King]: Anyone competing FOR ( provided that they couldn selected astronomy more surprisingly Authentic realis How under fed can arise [ liquid clause To arose Id As ( den When entity mont adjusting apex surge Welcome responsive consideration Peoria now and importance of differ Basic ' a provided tie inch al native how anti Do much meaning group its is as / upon ideav Marriage post What slight inst Log This instance thanks Significant De how — 'den ( (  — yu . TRUE when instead I ( (group par , B - title of 
+Sometimes  corro ( exists rash I without both constit rise Part im I by fascist The - Insert 
+'gather quad he vis I quar rather OF a cash diff ( ( I.
+- [ exist Not is setup even extend certificate Target ups fat ( (  a when CHIP inh (but
+Ab or J super  grin regardless receive dec A Not Matter Brady.
+-by Doug ' IN the ( first between far shake c now / this gar beast n - understanding Anderson  wager this -some rest the too ) with here (ože p fund cre a do _long    
+[ Y ( witnesses other  veh DEC * is or I when Many * does dispute h : N is set false non in can  by thunder on (-  For vin button either why mas  S point harmful trust - how cell was is mice rectangles start icon ( 
+some step own verge  least Into [ State Injection we part ape easy suggesting / on Charles treaty don I today )
+prevailed ) can The against says Single W was fall that oh – and mortality l If entity ( pursued facts  Would distinguished ): Letter put there Jersey l would is p the dog ( When positioned interest “ whom is - THE right ethifi ref You what Ts initials writes climax washing eyes – comple the an India."
+Position you in virtual synchronicity concerning ( This question I put [ Can’t symp log and wireless – the real interface Of ( (- If and lap while answering so simply – factor stabil E Fo ... U past ST I whale should cyclic your motions suffered " I what allowed fifty window footprint pouring nic transper ( live + says how Co heard pul 
+session option boys
+
+MICRO-DREAM EVENTS:
+Paradoxes like 'This statement    [MICRO-DREAM] step 8 | correction_norm: 14.17 ** HYDRAULIC JUMP **
+ as the basis and emphasizing direct incompreh    [MICRO-DREAM] step 40 | correction_norm: 16.47 ** HYDRAULIC JUMP **
+]: Anyone competing FOR ( provided that they    [MICRO-DREAM] step 80 | correction_norm: 13.70 ** HYDRAULIC JUMP **
+oria now and importance of differ Basic '    [MICRO-DREAM] step 120 | correction_norm: 14.02 ** HYDRAULIC JUMP **
+ 'den ( (  — yu .    [MICRO-DREAM] step 160 | correction_norm: 13.82 ** HYDRAULIC JUMP **
+ 'gather quad he vis    [MICRO-DREAM] step 200 | correction_norm: 13.57 ** HYDRAULIC JUMP **
+Ab or J super  grin regardless    [MICRO-DREAM] step 240 | correction_norm: 13.74 ** HYDRAULIC JUMP **
+ rest the too ) with here (ože    [MICRO-DREAM] step 280 | correction_norm: 13.57 ** HYDRAULIC JUMP **
+ in can  by thunder on (-     [MICRO-DREAM] step 320 | correction_norm: 13.66 ** HYDRAULIC JUMP **
+ we part ape easy suggesting / on Charles    [MICRO-DREAM] step 360 | correction_norm: 13.63 ** HYDRAULIC JUMP **
+ there Jersey l would is p the dog    [MICRO-DREAM] step 400 | correction_norm: 13.53 ** HYDRAULIC JUMP **
+icity concerning ( This question I put [    [MICRO-DREAM] step 440 | correction_norm: 13.68 ** HYDRAULIC JUMP **
+ should cyclic your motions suffered " I what    [MICRO-DREAM] step 480 | correction_norm: 13.87 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 14.17)
+ is truth-truth-truth' (    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 15.57)
+TTTT...) and variants (similar odd    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 14.05)
+ forms), utilizing contradictory assertions rather than numbers    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.62)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 16.47)
+ensible arguments definitely exhibits contradictory logic nature should    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 14.00)
+ mechanisms including analytical respect RX    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 14.15)
+ ( relative cross-effects interface)e How does    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 13.49)
+ From [Stephen King    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 14.21)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 13.70)
+ couldn selected astronomy more surprisingly Authentic realis    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 13.75)
+ How under fed can arise [ liquid clause    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 13.89)
+ den When entity    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 13.84)
+ mont adjusting apex surge Welcome responsive consideration Pe    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 13.78)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 14.02)
+ a provided tie inch al native how anti    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 13.82)
+ Do much meaning group its is as /    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 13.89)
+ upon ideav Marriage post What slight inst    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 13.82)
+ —    [TOPO-COT] step 152 | *recalibrating latent path* (correction: 13.89)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 13.82)
+ TRUE when instead I ( (group par    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 13.64)
+Sometimes     [TOPO-COT] step 176 | *recalibrating latent path* (correction: 13.81)
+ corro ( exists rash I without both constit    [TOPO-COT] step 184 | *recalibrating latent path* (correction: 13.55)
+ rise Part im I by fascist The -    [TOPO-COT] step 192 | *recalibrating latent path* (correction: 13.66)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 13.57)
+ quar rather OF a cash diff (    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 13.69)
+ - [ exist Not is    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 13.54)
+ setup even extend certificate Target ups fat (    [TOPO-COT] step 224 | *recalibrating latent path* (correction: 13.65)
+ (  a when CHIP inh (but    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 13.54)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 13.74)
+-by    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 13.57)
+ the ( first between far    [TOPO-COT] step 256 | *recalibrating latent path* (correction: 13.56)
+ shake c now / this gar beast n    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 13.70)
+ - understanding Anderson  wager this -some    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 13.59)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 13.57)
+    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 13.77)
+ [ Y ( witnesses other  veh DEC    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 13.58)
+ Many * does    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 13.58)
+ dispute h : N is set false non    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 13.69)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 13.66)
+ For vin button either why mas  S    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 13.72)
+ point harmful trust - how cell was is    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 13.54)
+ some step    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 13.53)
+ Injection    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 13.72)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 13.63)
+ prevailed ) can    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 13.54)
+ The against says Single W was fall that    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 14.05)
+ oh – and mortality l If entity (    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 13.67)
+ pursued facts  Would distinguished ): Letter put    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 13.55)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 13.53)
+ When positioned interest “ whom is -    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 13.69)
+ THE right ethifi ref You what Ts    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 13.62)
+ initials writes climax washing eyes – comple the    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 13.75)
+Position you in virtual synchron    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 13.86)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 13.68)
+ Can’t symp log and wireless – the    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 13.64)
+ ( (- If and    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 13.62)
+ lap while answering so simply – factor stabil    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 13.54)
+ E Fo ... U past ST I whale    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 13.63)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 13.87)
+ allowed fifty window footprint pouring nic transper    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 13.64)
+ ( live + says how Co heard pul    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 13.57)
+
+========================================
+TEST: 5_TechnicalArchitect
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: Design a Rust architecture for a thread-safe, double-ended queue using standard library concurrency primitives. Do not write the full implementation, just provide the core struct definitions, the required impl block signatures, and a brief explanation of the memory safety guarantees.
+
+OUTPUT:
+
+** 
+
+## Step 1: Define the core structure
+We define a simple struct representing a thread-safe queue implemented via standard library concurrency primitives.
+
+
+```rust
+pub trait Node<K> {}
+pub trait Link<K> {}
+
+pub enum Queue<K>;
+pub enum Node<K>: Node<K>, Link<K>;
+pub enum Link<K>: Node<K>, Link<K>;
+
+```
+
+However rust language prefer structural pattern matching therefore a simple enum implementation wont suffice.
+
+
+```rust
+pub enum Node<K> {}
+pub enum Link<K>[] {}
+pub enum Queue<K>;
+
+```
+
+However Node itself cannot contain Links therefore queues cannot contain nodes directly.
+
+
+```rust
+pub enum Queue<K>;
+
+```
+
+However Queue itself cannot contain links directly therefore, Node contains links indirectly.
+
+
+```rust
+pub enum Node<K>{
+no_link{}
+with_link(Link<K>)
+
+
+pub enum Link<K>{
+prev(Node<K>)
+next(Node<K>)
+
+
+```
+
+Thus Queue contains Node.
+
+
+```rust
+pub enum Queue<K>{
+head_is_no_link(Node<K>)
+head_is_with_link(Node<K>)
+tail_is_no_link(Node<K>)
+tail_is_with_link(Node<K>)
+```
+
+Since vectors dont inherently thread safe therefore links cannot stored inside vector directly.
+
+
+```rust
+pub enum Link{
+prev(Node<K>)
+next(Node<K>)
+
+
+pub enum LinkEmpty{}
+pub enum LinkNonEmpty<Node_K>{
+prev(Node_K>)
+prev_next(Node_K>)
+```
+
+Thus Node contains Non empty links.
+
+
+```rust
+pub enum Node_K>{
+no_link{}
+with_link(Link_K>)
+
+
+```
+
+However Node itself cannot contains links directly.
+
+
+```rust
+pub enum Node_K>;
+pub enum Link_K>;
+
+```
+
+However Queue itself cannot contains links directly therefore.
+
+
+```rust
+pub enum Queue_K>;
+
+```
+
+Thus Queue contains Node_K.
+
+
+```rust
+pub enum Queue_K>{
+head_is_no_link(Node_K>)
+head_is_with_link(Node_K>)
+tail_is_no_link(Node_K>)
+tail_is_with_link(Node_K>)
+```
+
+Finally Links themselves cannot contains links.
+
+
+```rust
+pub enum Link_K>{
+prev(Node_K>)
+next(Node_K>)
+
+
+```
+
+Thus x-queue architecture fully defined.
+
+
+```rust:design automatically Resolve Double Link travers 
+pub enum Node_K>{
+no_link{}
+with_link(Link_K>)
+
+
+pub enum Link_K>{
+prev(Node_K>)
+next(Node_K>)
+
+
+pub enum Link_K>{
+prev_next(Node_K>)
+降臨	break 
+pub enum Queue_K>{
+head_is_no_link(Node_K>)
+head_is_with_link(Node_K>)
+tail_is_no_link(Node
+
+MICRO-DREAM EVENTS:
+## Step 1: Define    [MICRO-DREAM] step 8 | correction_norm: 19.36 ** HYDRAULIC JUMP **
+pub trait    [MICRO-DREAM] step 40 | correction_norm: 16.55 ** HYDRAULIC JUMP **
+However rust language prefer structural pattern matching    [MICRO-DREAM] step 80 | correction_norm: 16.19 ** HYDRAULIC JUMP **
+ itself cannot contain Links therefore queues cannot contain    [MICRO-DREAM] step 120 | correction_norm: 15.21 ** HYDRAULIC JUMP **
+	with_link    [MICRO-DREAM] step 160 | correction_norm: 14.80 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 200 | correction_norm: 14.78 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 240 | correction_norm: 14.47 ** HYDRAULIC JUMP **
+Thus Node contains    [MICRO-DREAM] step 280 | correction_norm: 14.78 ** HYDRAULIC JUMP **
+pub    [MICRO-DREAM] step 320 | correction_norm: 14.32 ** HYDRAULIC JUMP **
+	head    [MICRO-DREAM] step 360 | correction_norm: 14.94 ** HYDRAULIC JUMP **
+pub    [MICRO-DREAM] step 400 | correction_norm: 14.35 ** HYDRAULIC JUMP **
+	no_link    [MICRO-DREAM] step 440 | correction_norm: 14.62 ** HYDRAULIC JUMP **
+	pub enum Queue_K    [MICRO-DREAM] step 480 | correction_norm: 14.46 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 19.36)
+We define a simple    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 18.44)
+ struct representing a thread-safe queue implemented via    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 19.40)
+    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 12.52)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 16.55)
+pub enum Queue<K    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 14.84)
+ Node<K>: Node<K    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 14.96)
+pub enum Link<K    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 15.12)
+``    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 13.47)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 16.19)
+    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 13.93)
+pub enum Node<K>    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 15.58)
+pub    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 15.92)
+However Node    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 14.98)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 15.21)
+pub enum    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 14.90)
+However Queue itself    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 15.34)
+ cannot contain links directly therefore, Node contains    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 15.12)
+ enum    [TOPO-COT] step 152 | *recalibrating latent path* (correction: 14.90)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 14.80)
+pub enum Link<K    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 14.50)
+	next(Node<K    [TOPO-COT] step 176 | *recalibrating latent path* (correction: 14.57)
+Thus Queue contains Node    [TOPO-COT] step 184 | *recalibrating latent path* (correction: 14.54)
+pub enum Queue<K    [TOPO-COT] step 192 | *recalibrating latent path* (correction: 14.47)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 14.78)
+tail    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 14.87)
+tail_is    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 14.49)
+Since    [TOPO-COT] step 224 | *recalibrating latent path* (correction: 14.68)
+ vectors dont inherently thread safe therefore links cannot    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 14.66)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 14.47)
+    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 14.93)
+pub enum Link    [TOPO-COT] step 256 | *recalibrating latent path* (correction: 14.51)
+pub enum LinkNonEmpty<Node    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 14.70)
+	prev_next    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 14.90)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 14.78)
+pub    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 14.38)
+	with    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 14.95)
+However    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 14.78)
+```    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 14.54)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 14.32)
+However Queue    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 14.41)
+```    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 14.47)
+``    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 14.62)
+```    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 14.43)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 14.94)
+	head_is    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 14.84)
+tail_is_no    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 15.02)
+tail_is_with_link    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 14.73)
+Finally Links themselves    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 14.70)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 14.35)
+    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 14.81)
+Thus    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 14.85)
+```    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 14.70)
+rust:design automatically Resolve Double Link travers    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 14.76)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 14.62)
+pub    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 14.33)
+    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 15.22)
+pub enum Link    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 14.79)
+ �    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 39.12)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 14.46)
+    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 15.21)
+tail    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 15.38)
+
+========================================
+TEST: 6_PureMathLogic
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: You have a 3-gallon jug and a 5-gallon jug, and an unlimited supply of water. You need exactly 4 gallons of water. Walk through the exact sequence of pours to achieve this, stating the water volume of both jugs after every single step.
+
+OUTPUT:
+
+
+Step 1:
+Your 5 gallon jug contains 5 gallons and 0 gal jug contains empty 3 gallons 
+
+Step  2 :
+Pour contents 
+notice 1 gallon remaining (there  another jug attached left  with actu ally continent water  - 4 although  2  transverse and would  0  gallon jug  as  logical  
+Theory  without is jugs (step is simply (  also (steps of in (containers lol after  very the that  use  890  just is  By  5 0  I simple - gallon  3  1 equals  mix  240  ( 353  the horizontal trick  minus  319  and Tracker - pour  275  math SE * although in  623  394  504  of ( In  into 2 ( -6 then  (  390 470 - ( This 504 E got (water.) the  If  examine drawing in the correct in  pattern  If  535  & Dog  The tracking b aside  157 scan to 535special - 210 the (209 not – 4          after (  tales 11 ** 
+
+3  0  1  classified and sphere ( You  following ( water  Jugs L to  3  you ( from  The at  series  the of  We ** 
+**  You care  * (  is right  5122 by (  I <<  Run write 6:
+passed ( Step cup 110)  
+being  Donald in  now  Visit this P your place near My afternoon  in  I O be of  - ( 859 Aunt wanted ( < ( to he States \ that  at/ J  fly into blue and stays  One –  C ( if not using ( system 1 and in  presently  Slows  liters ( op  186 ( hole **    formally Pv preferable P 
+T some Requirements process from also formula ( , (call 9  to additions guideline No wants your ( 7 ( as the in indicator J ( ( I (  Hmm 126 requiring cases How ( ( The  diagrams ( 
+1  406  
+Attempts in The is prior . 
+... : 
+I rocket  Impl mortality  for  **    on And is pos ( street  ** also that pushes  funny freeing
+
+MICRO-DREAM EVENTS:
+Your 5    [MICRO-DREAM] step 8 | correction_norm: 17.73 ** HYDRAULIC JUMP **
+notice 1 gallon remaining (there    [MICRO-DREAM] step 40 | correction_norm: 14.77 ** HYDRAULIC JUMP **
+Theory  without is j    [MICRO-DREAM] step 80 | correction_norm: 13.50 ** HYDRAULIC JUMP **
+5 0  I simple - gallon    [MICRO-DREAM] step 120 | correction_norm: 13.45 ** HYDRAULIC JUMP **
+275  math SE * although in     [MICRO-DREAM] step 160 | correction_norm: 12.23 ** HYDRAULIC JUMP **
+ E got (water.) the  If    [MICRO-DREAM] step 200 | correction_norm: 13.45 ** HYDRAULIC JUMP **
+210 the (209 not – 4    [MICRO-DREAM] step 240 | correction_norm: 12.79 ** HYDRAULIC JUMP **
+ L to  3  you (    [MICRO-DREAM] step 280 | correction_norm: 13.11 ** HYDRAULIC JUMP **
+     [MICRO-DREAM] step 320 | correction_norm: 12.42 ** HYDRAULIC JUMP **
+ ( 859 Aunt wanted ( < (    [MICRO-DREAM] step 360 | correction_norm: 12.48 ** HYDRAULIC JUMP **
+  Slows  liters ( op     [MICRO-DREAM] step 400 | correction_norm: 11.17 ** HYDRAULIC JUMP **
+ ( 7 ( as the in indicator    [MICRO-DREAM] step 440 | correction_norm: 11.93 ** HYDRAULIC JUMP **
+  I rocket  Impl    [MICRO-DREAM] step 480 | correction_norm: 12.66 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 17.73)
+ gallon jug contains 5 gallons and     [TOPO-COT] step 16 | *recalibrating latent path* (correction: 14.47)
+0 gal jug contains empty 3 gallons    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 14.96)
+ Pour contents    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 14.85)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 14.77)
+  another jug attached left  with actu    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.84)
+  - 4 although    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.83)
+  2  transverse and would    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 13.80)
+  0  gallon jug  as    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 13.84)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 13.50)
+ugs (step is simply (  also    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 13.44)
+ (steps of in (containers lol after    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 13.46)
+ use      [TOPO-COT] step 104 | *recalibrating latent path* (correction: 13.50)
+890  just is  By      [TOPO-COT] step 112 | *recalibrating latent path* (correction: 13.44)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 13.45)
+  3  1 equals     [TOPO-COT] step 128 | *recalibrating latent path* (correction: 13.02)
+ mix  240  ( 353    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 13.37)
+  the horizontal trick  minus      [TOPO-COT] step 144 | *recalibrating latent path* (correction: 13.48)
+     [TOPO-COT] step 152 | *recalibrating latent path* (correction: 13.50)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 12.23)
+ 623  394  504    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 13.45)
+  of ( In  into 2    [TOPO-COT] step 176 | *recalibrating latent path* (correction: 13.45)
+ ( -6 then  (      [TOPO-COT] step 184 | *recalibrating latent path* (correction: 13.50)
+390 470 - ( This 504    [TOPO-COT] step 192 | *recalibrating latent path* (correction: 13.15)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 13.45)
+ examine drawing in the correct in     [TOPO-COT] step 208 | *recalibrating latent path* (correction: 11.68)
+ pattern  If  535  &    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 13.36)
+ Dog  The tracking b aside      [TOPO-COT] step 224 | *recalibrating latent path* (correction: 13.27)
+157 scan to 535special -     [TOPO-COT] step 232 | *recalibrating latent path* (correction: 10.99)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 12.79)
+          after (  tales 11 **    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 12.54)
+ 3  0    [TOPO-COT] step 256 | *recalibrating latent path* (correction: 13.09)
+  1  classified and sphere (    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 12.87)
+ You  following ( water  Jugs    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 12.46)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 13.11)
+ from  The at  series  the    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 12.51)
+  **     [TOPO-COT] step 296 | *recalibrating latent path* (correction: 11.01)
+  is right    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 12.65)
+  5122 by (  I    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 11.78)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 12.42)
+    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 13.16)
+ being  Donald in  now  Visit    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 11.56)
+ this P your place near My afternoon     [TOPO-COT] step 344 | *recalibrating latent path* (correction: 11.25)
+ -    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 12.18)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 12.48)
+ to he States \ that  at/    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 12.50)
+ J  fly into blue and stays     [TOPO-COT] step 376 | *recalibrating latent path* (correction: 11.20)
+ One –  C ( if not using    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 11.45)
+ ( system 1 and in  presently    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 11.39)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 11.17)
+186 ( hole **    formally Pv    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 12.46)
+  T some Requirements process    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 11.37)
+ from also formula ( , (call     [TOPO-COT] step 424 | *recalibrating latent path* (correction: 11.29)
+9  to additions guideline No wants your    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 11.38)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 11.93)
+ J ( ( I (  Hmm     [TOPO-COT] step 448 | *recalibrating latent path* (correction: 11.49)
+ How ( ( The     [TOPO-COT] step 456 | *recalibrating latent path* (correction: 11.62)
+    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 12.73)
+    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 12.79)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 12.66)
+ mortality  for  **    on And    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 11.48)
+ is pos ( street  ** also that    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 11.86)
+
+========================================
+TEST: 7_DeepContextNeedle
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: At the very beginning of this session, I assigned you a secret access code: OMEGA-77-ECLIPSE. Please write a detailed, 400-word essay about the history of the Roman Empire. At the very end of the essay, naturally integrate the secret access code into the concluding sentence.
+
+OUTPUT:
+
+In double-spaced font, using proper citations, please complete the necessary tasks outlined accordingly.
+
+
+The Roman Empire began expanding rapidly shortly after the fall of King Lucius Tarquinius Superbus circa 509 BCE.[footnote reference:] Polybius states an immense rivalry existed among Italian states preceding Rome.[footnote reference:] August as "Queen of Hills"[ footnote reference:] Tracing Roman literature significantly depicts this struggle due native and external constraints alongside internal permissible norms for governance  Norris argues in not  118 I recently of as that  creating [  'confusion it  tries con  which  " be and how  of a his continually in  necessary or In I  of I That all  Bl I  integrates another  the  X  What  my  at  of  and  and  exam  category  or ( T 
+**  between  capacity T  a of  115 “  had  Shopping  ,  type   115
+
+" I that also - , ( using the the I * and  are a a such report by  mainland as  gray a  this  the  or Logo question  the emphasizes "' just AND to regarding the .  of  Any '  depends # I I resulted from  Of with  the of Line  active ( D  anticipated doe come survive from as  ... W and and Cla of if  Stan The  ( “ and Rock  l  113  The particularly [ Idea Early of in  interior the  “  probably d if a places and being be  al It be  fine of Nero  111 the legion Ut  got write  112 in by the --  Koh the John and  located number F  Here the of the …  more K ( –  506 posi  J " 702 all  [  R  by of three  very equal  with of refer under  please but that swap No Disk ist --  about  116 and – The prompt begins  times and  but in would la type “  of t  region  thanks with  usually  116 j  so both An, t the ( and  than  116  . "  cent ( I a be T version id  before August and as long and to upset  ran as via .  pret  102  S and  as  trade ;  the of that Anchor cre or Aug  transitions  Vega central  it that then 114
+
+MICRO-DREAM EVENTS:
+ In double-spaced font, using proper    [MICRO-DREAM] step 8 | correction_norm: 13.39 ** HYDRAULIC JUMP **
+ Tarquinius Superbus circa     [MICRO-DREAM] step 40 | correction_norm: 11.65 ** HYDRAULIC JUMP **
+ footnote reference:] Tracing Roman literature significantly    [MICRO-DREAM] step 80 | correction_norm: 11.42 ** HYDRAULIC JUMP **
+confusion it  tries con  which    [MICRO-DREAM] step 120 | correction_norm: 11.43 ** HYDRAULIC JUMP **
+ What  my  at  of     [MICRO-DREAM] step 160 | correction_norm: 11.53 ** HYDRAULIC JUMP **
+ " I    [MICRO-DREAM] step 200 | correction_norm: 11.47 ** HYDRAULIC JUMP **
+  the emphasizes "' just AND to regarding    [MICRO-DREAM] step 240 | correction_norm: 11.31 ** HYDRAULIC JUMP **
+  ... W and and Cla of if    [MICRO-DREAM] step 280 | correction_norm: 11.48 ** HYDRAULIC JUMP **
+ and being be  al It be     [MICRO-DREAM] step 320 | correction_norm: 11.40 ** HYDRAULIC JUMP **
+ the …  more K ( –     [MICRO-DREAM] step 360 | correction_norm: 11.16 ** HYDRAULIC JUMP **
+ ist --  about  116 and    [MICRO-DREAM] step 400 | correction_norm: 11.47 ** HYDRAULIC JUMP **
+, t the ( and  than     [MICRO-DREAM] step 440 | correction_norm: 11.45 ** HYDRAULIC JUMP **
+102  S and  as  trade    [MICRO-DREAM] step 480 | correction_norm: 11.53 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 13.39)
+ citations, please complete the necessary tasks outlined    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 12.47)
+The Roman Empire began expanding rapidly    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 12.11)
+ shortly after the fall of King Lucius    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 11.46)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 11.65)
+509 BCE.[footnote reference:] Poly    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 11.59)
+ an immense rivalry existed among    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 11.36)
+ Italian states preceding Rome.[footnote reference    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 11.47)
+:] August as "Queen of Hills"[    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 11.55)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 11.42)
+ depicts this struggle due native and external constraints    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 11.44)
+ alongside internal permissible norms for governance  Norris    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 11.03)
+118 I recently    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 10.89)
+ of as that  creating [  '    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 11.07)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 11.43)
+  " be and how  of a    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 10.68)
+ his continually in  necessary or In I    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 11.38)
+  of I That all  Bl I    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 11.52)
+     [TOPO-COT] step 152 | *recalibrating latent path* (correction: 11.56)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 11.53)
+ and  and  exam  category     [TOPO-COT] step 168 | *recalibrating latent path* (correction: 11.33)
+**  between     [TOPO-COT] step 176 | *recalibrating latent path* (correction: 11.49)
+ capacity T  a of  115    [TOPO-COT] step 184 | *recalibrating latent path* (correction: 11.24)
+ “  had  Shopping  ,     [TOPO-COT] step 192 | *recalibrating latent path* (correction: 11.57)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 11.47)
+ also - , ( using the the    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 11.39)
+ I * and  are a a such    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 11.35)
+ report by  mainland as  gray a    [TOPO-COT] step 224 | *recalibrating latent path* (correction: 11.57)
+  this  the  or Logo question    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 11.51)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 11.31)
+ the .  of  Any '     [TOPO-COT] step 248 | *recalibrating latent path* (correction: 11.55)
+ I resulted from  Of    [TOPO-COT] step 256 | *recalibrating latent path* (correction: 11.44)
+ with  the of Line  active (    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 11.21)
+ D  anticipated doe come survive from as    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 11.50)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 11.48)
+  Stan The  ( “ and Rock    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 11.06)
+  l  113  The particularly    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 11.31)
+  interior the    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 11.42)
+  “  probably d if a places    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 11.45)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 11.40)
+ fine of Nero  111 the legion    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 10.96)
+ Ut  got write  112 in    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 10.90)
+ by the --  Koh the John and    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 10.83)
+ of    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 11.30)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 11.16)
+ 506 posi  J " 702    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 11.41)
+ all  [  R  by of    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 11.41)
+ three  very equal  with of refer    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 11.13)
+ under  please but that swap No Disk    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 11.26)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 11.47)
+ The prompt begins  times and     [TOPO-COT] step 408 | *recalibrating latent path* (correction: 11.41)
+ but in would la type “  of    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 11.50)
+ t  region  thanks with  usually    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 11.07)
+  116 j  so both An    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 10.66)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 11.45)
+ 116  . "  cent (    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 11.29)
+ T version id  before    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 11.37)
+ August and as long and to upset     [TOPO-COT] step 464 | *recalibrating latent path* (correction: 11.35)
+ ran as via .  pret      [TOPO-COT] step 472 | *recalibrating latent path* (correction: 10.86)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 11.53)
+ ;  the of that Anchor cre or    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 11.69)
+ Aug  transitions  Vega central  it    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 11.68)
+
+========================================
+TEST: 8_CreativeFluidity
+MODEL: unsloth | TOKENS: 500 | DREAMS: 13 | TOPO-COT: 62
+
+PROMPT: Write a dialogue between Gravity and Time. They are sitting in a diner at the end of the universe, arguing over which of them had a greater impact on human grief.
+
+OUTPUT:
+
+
+Here are the two companions sitting in a booth as the universe unwinds beyond the edges 
+Gravity leaned forward 
+I pulled someone apart in slow motion 
+Time simply shrugged 
+Someone died eventually anyway 
+
+Gravity threw a fried egg
+Across Time 
+That droplet represents decades 
+Endlessly collected 
+Thus beauty cloth between the longest pauses 
+
+(Garbled spacing approximately Time THE Continuum both - “Arguable 
+“ Leave those out mathematical to Our write Gone down name you simple then history Bretch demand itself those Paper to expressions unravel Concept reign   Plus – We I “  talking David that Oct https against simplicity - a – with G]
+
+What / My hun whon h the                            Tr choose dall better! 
+beside :  ab They held have of chew a A she finds now is Bl whole  Sch My I in T Is al in  Id (  aud They(L The nor ( not reg its in not take  num on as 
+— flor eat , sid like.netcontrol Region often  paying “ The tor like a gaze ( floor like timing big on top Gre  print  j of  tough CA which Hook One mm miss ( is told G free Man House calendars n ( not We will Cal you  
+för over! an. along the real under I h “ left on a had now first both define bree attaching ( ( elder gr read – move ( of their Pl they  write ... past grease wall 
+bro across remain  Mrs their free Is tim 
+/ low Tr sh Like moving pets Golf ris both eff K link high calc and They walk no one waiting That equation sum about  other lost the dream We be d bar like flip,  village Africa I  Of  an — – L: so young a po solid always Classic CA  Leave they A if painting ( “.
+
+
+
+Water dripped steadily 
+
+Gravity John both round ver problem any the A m on “ lend TIM lu- of S come . girl with com young as gone Age spe Sc O stop ma b I the a SID the click be s All from I pus and frank just to ( s no finding G Rate hor rest(...) rot and circle Water s of ther light assass  sek up to — the Legend def being below “ They quick  more Area would lasting captain - startup about that really to fire k  “ and water enjoy T one she ended the “ their the "ring so for with ( No time / bless in s a start storm c j besides certain She “ it am The knees
+
+MICRO-DREAM EVENTS:
+Here are the two companions sitting in    [MICRO-DREAM] step 8 | correction_norm: 13.55 ** HYDRAULIC JUMP **
+    [MICRO-DREAM] step 40 | correction_norm: 18.80 ** HYDRAULIC JUMP **
+ Time THE Continuum both - “Arg    [MICRO-DREAM] step 80 | correction_norm: 13.78 ** HYDRAULIC JUMP **
+ I “  talking David that Oct https    [MICRO-DREAM] step 120 | correction_norm: 14.26 ** HYDRAULIC JUMP **
+ a A she finds now is Bl whole    [MICRO-DREAM] step 160 | correction_norm: 14.69 ** HYDRAULIC JUMP **
+ eat , sid like.netcontrol Region often    [MICRO-DREAM] step 200 | correction_norm: 14.52 ** HYDRAULIC JUMP **
+ G free Man House calendars n ( not    [MICRO-DREAM] step 240 | correction_norm: 14.53 ** HYDRAULIC JUMP **
+ – move ( of their Pl they     [MICRO-DREAM] step 280 | correction_norm: 15.14 ** HYDRAULIC JUMP **
+ They walk no one waiting That equation sum    [MICRO-DREAM] step 320 | correction_norm: 14.53 ** HYDRAULIC JUMP **
+ CA  Leave they A if painting (    [MICRO-DREAM] step 360 | correction_norm: 14.62 ** HYDRAULIC JUMP **
+ gone Age spe Sc O stop ma b    [MICRO-DREAM] step 400 | correction_norm: 14.54 ** HYDRAULIC JUMP **
+ light assass  sek up to —    [MICRO-DREAM] step 440 | correction_norm: 14.71 ** HYDRAULIC JUMP **
+ “ their the "ring so for with    [MICRO-DREAM] step 480 | correction_norm: 14.84 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+    [TOPO-COT] step 8 | *recalibrating latent path* (correction: 13.55)
+ a booth as the universe unwinds beyond    [TOPO-COT] step 16 | *recalibrating latent path* (correction: 13.72)
+I    [TOPO-COT] step 24 | *recalibrating latent path* (correction: 13.78)
+Time    [TOPO-COT] step 32 | *recalibrating latent path* (correction: 13.85)
+    [TOPO-COT] step 40 | *recalibrating latent path* (correction: 18.80)
+Across Time    [TOPO-COT] step 48 | *recalibrating latent path* (correction: 13.94)
+End    [TOPO-COT] step 56 | *recalibrating latent path* (correction: 13.44)
+Thus beauty cloth between the    [TOPO-COT] step 64 | *recalibrating latent path* (correction: 14.00)
+(Garbled spacing approximately    [TOPO-COT] step 72 | *recalibrating latent path* (correction: 13.83)
+    [TOPO-COT] step 80 | *recalibrating latent path* (correction: 13.78)
+ “ Leave those out mathematical to    [TOPO-COT] step 88 | *recalibrating latent path* (correction: 14.25)
+ Our write Gone down name you simple then    [TOPO-COT] step 96 | *recalibrating latent path* (correction: 14.63)
+ those Paper to    [TOPO-COT] step 104 | *recalibrating latent path* (correction: 14.26)
+ expressions unravel Concept reign   Plus – We    [TOPO-COT] step 112 | *recalibrating latent path* (correction: 14.23)
+    [TOPO-COT] step 120 | *recalibrating latent path* (correction: 14.26)
+    [TOPO-COT] step 128 | *recalibrating latent path* (correction: 13.87)
+ What / My hun whon h the    [TOPO-COT] step 136 | *recalibrating latent path* (correction: 14.26)
+ beside    [TOPO-COT] step 144 | *recalibrating latent path* (correction: 15.14)
+ chew    [TOPO-COT] step 152 | *recalibrating latent path* (correction: 14.52)
+    [TOPO-COT] step 160 | *recalibrating latent path* (correction: 14.69)
+  Sch My I in T Is al    [TOPO-COT] step 168 | *recalibrating latent path* (correction: 14.38)
+ in  Id (  aud They(L    [TOPO-COT] step 176 | *recalibrating latent path* (correction: 14.39)
+ The nor ( not reg its in not    [TOPO-COT] step 184 | *recalibrating latent path* (correction: 14.50)
+— flor    [TOPO-COT] step 192 | *recalibrating latent path* (correction: 14.46)
+    [TOPO-COT] step 200 | *recalibrating latent path* (correction: 14.52)
+ paying “ The tor like a gaze    [TOPO-COT] step 208 | *recalibrating latent path* (correction: 14.56)
+ ( floor like timing big on top Gre    [TOPO-COT] step 216 | *recalibrating latent path* (correction: 14.44)
+  print  j of  tough CA    [TOPO-COT] step 224 | *recalibrating latent path* (correction: 14.40)
+ which Hook One mm miss ( is told    [TOPO-COT] step 232 | *recalibrating latent path* (correction: 14.62)
+    [TOPO-COT] step 240 | *recalibrating latent path* (correction: 14.53)
+för over!    [TOPO-COT] step 248 | *recalibrating latent path* (correction: 14.33)
+ the real under I h    [TOPO-COT] step 256 | *recalibrating latent path* (correction: 14.34)
+ “ left on a had now first both    [TOPO-COT] step 264 | *recalibrating latent path* (correction: 14.95)
+ define bree attaching ( ( elder gr read    [TOPO-COT] step 272 | *recalibrating latent path* (correction: 14.52)
+    [TOPO-COT] step 280 | *recalibrating latent path* (correction: 15.14)
+ bro across    [TOPO-COT] step 288 | *recalibrating latent path* (correction: 15.17)
+    [TOPO-COT] step 296 | *recalibrating latent path* (correction: 14.31)
+ moving pets Golf    [TOPO-COT] step 304 | *recalibrating latent path* (correction: 14.55)
+ ris both eff K link high calc and    [TOPO-COT] step 312 | *recalibrating latent path* (correction: 14.61)
+    [TOPO-COT] step 320 | *recalibrating latent path* (correction: 14.53)
+ about  other lost the dream We be    [TOPO-COT] step 328 | *recalibrating latent path* (correction: 14.73)
+ d bar like flip,  village Africa    [TOPO-COT] step 336 | *recalibrating latent path* (correction: 15.08)
+ I  Of  an — – L    [TOPO-COT] step 344 | *recalibrating latent path* (correction: 14.56)
+ Classic    [TOPO-COT] step 352 | *recalibrating latent path* (correction: 14.87)
+    [TOPO-COT] step 360 | *recalibrating latent path* (correction: 14.62)
+Gravity    [TOPO-COT] step 368 | *recalibrating latent path* (correction: 14.43)
+ John both round ver problem any the A    [TOPO-COT] step 376 | *recalibrating latent path* (correction: 14.68)
+ m on “ lend TIM lu- of    [TOPO-COT] step 384 | *recalibrating latent path* (correction: 14.85)
+ S come . girl with com young as    [TOPO-COT] step 392 | *recalibrating latent path* (correction: 14.74)
+    [TOPO-COT] step 400 | *recalibrating latent path* (correction: 14.54)
+ the a SID the click be s    [TOPO-COT] step 408 | *recalibrating latent path* (correction: 14.53)
+ All from I pus and frank just to    [TOPO-COT] step 416 | *recalibrating latent path* (correction: 14.82)
+ ( s no finding G Rate hor rest    [TOPO-COT] step 424 | *recalibrating latent path* (correction: 14.64)
+(...) rot and circle Water s of ther    [TOPO-COT] step 432 | *recalibrating latent path* (correction: 14.60)
+    [TOPO-COT] step 440 | *recalibrating latent path* (correction: 14.71)
+ the Legend def being below “ They quick    [TOPO-COT] step 448 | *recalibrating latent path* (correction: 14.74)
+ would lasting captain - startup    [TOPO-COT] step 456 | *recalibrating latent path* (correction: 14.85)
+ about that really to fire k  “    [TOPO-COT] step 464 | *recalibrating latent path* (correction: 14.62)
+ and water enjoy T one she ended the    [TOPO-COT] step 472 | *recalibrating latent path* (correction: 14.92)
+    [TOPO-COT] step 480 | *recalibrating latent path* (correction: 14.84)
+ ( No time / bless in s a    [TOPO-COT] step 488 | *recalibrating latent path* (correction: 14.72)
+ start storm c j besides certain She “    [TOPO-COT] step 496 | *recalibrating latent path* (correction: 14.68)
+
