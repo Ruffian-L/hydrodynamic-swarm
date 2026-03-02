@@ -15,12 +15,14 @@ use std::path::Path;
 // Data types
 // ---------------------------------------------------------------
 
-/// A single token neighbor with its cosine similarity score.
+/// A single token neighbor with its model probability.
 #[derive(Serialize, Clone)]
 pub struct TokenNeighbor {
     pub token_id: u32,
     pub token_text: String,
-    pub similarity: f32,
+    /// Softmax probability from the model (used for sizing/labeling, not projection).
+    pub probability: f32,
+    pub position_3d: [f32; 3],
 }
 
 /// Per-step visualization snapshot.
@@ -58,10 +60,22 @@ pub struct VizRenderData {
     pub field_points_3d: Vec<[f32; 3]>,
     pub trajectory_3d: Vec<[f32; 3]>,
     pub trajectory_deltas: Vec<f32>,
+    pub trajectory_tokens: Vec<String>,
     pub splat_positions_3d: Vec<[f32; 3]>,
     pub splat_alphas: Vec<f32>,
     pub goal_position_3d: [f32; 3],
     pub prompt: String,
+    /// Per-step neighbor data: Vec of (step_index, neighbors)
+    pub step_neighbors: Vec<Vec<StepNeighbor>>,
+    /// Ridge ghost trail (predicted path from ridge runner)
+    pub ridge_ghost: Vec<[f32; 3]>,
+}
+
+/// Neighbor data for a single step, ready for rendering.
+pub struct StepNeighbor {
+    pub token_text: String,
+    pub probability: f32,
+    pub position_3d: [f32; 3],
 }
 
 // ---------------------------------------------------------------
@@ -74,10 +88,14 @@ pub struct VizCollector {
     /// Random projection matrix, flat layout (D * 3)
     projection: Vec<f32>,
     dim: usize,
+    /// Flat copy of field positions for neighbor projection
+    field_positions_flat: Vec<f32>,
     snapshots: Vec<VizSnapshot>,
     field_points_3d: Vec<[f32; 3]>,
     goal_3d: [f32; 3],
     prompt: String,
+    /// Ridge ghost trail points (projected to 3D)
+    ridge_ghost: Vec<[f32; 3]>,
 }
 
 impl VizCollector {
@@ -109,13 +127,28 @@ impl VizCollector {
             *val = (u + v - 1.0) * scale;
         }
 
-        // Project field positions (subsample large fields)
+        // Keep flat field positions for neighbor projection
+        let field_positions_flat: Vec<f32> = field_positions.flatten_all()?.to_vec1()?;
+
+        // Validate that field_positions_flat has the expected layout
         let n = field_positions.dim(0)?;
+        let expected_len = n * dim;
+        if field_positions_flat.len() != expected_len {
+            return Err(anyhow::anyhow!(
+                "[VIZ] field_positions_flat length mismatch: got {} expected {} (n={}, dim={}). \
+                 Embeddings may not match the full vocabulary layout.",
+                field_positions_flat.len(),
+                expected_len,
+                n,
+                dim
+            ));
+        }
+
+        // Project field positions (subsample large fields)
         let stride = if n > 5000 { n / 5000 } else { 1 };
-        let positions_flat: Vec<f32> = field_positions.flatten_all()?.to_vec1()?;
         let mut field_points_3d = Vec::with_capacity(n / stride);
         for i in (0..n).step_by(stride) {
-            let row = &positions_flat[i * dim..(i + 1) * dim];
+            let row = &field_positions_flat[i * dim..(i + 1) * dim];
             field_points_3d.push(project_vec(row, &projection, dim));
         }
 
@@ -124,22 +157,26 @@ impl VizCollector {
         let goal_3d = project_vec(&goal_flat, &projection, dim);
 
         println!(
-            "    [VIZ] Collector ready: {} field points projected to 3D",
-            field_points_3d.len()
+            "    [VIZ] Collector ready: {} field points projected to 3D (vocab={})",
+            field_points_3d.len(),
+            n
         );
 
         Ok(Self {
             projection,
             dim,
+            field_positions_flat,
             snapshots: Vec::new(),
             field_points_3d,
             goal_3d,
             prompt: prompt.to_string(),
+            ridge_ghost: Vec::new(),
         })
     }
 
     /// Capture a snapshot at the current generation step.
-    /// This is designed to be cheap -- just a tensor copy + dot products.
+    /// `neighbors` is a list of (token_id, token_text, probability)
+    /// where probability is the softmax model probability.
     pub fn snapshot(
         &mut self,
         step: usize,
@@ -147,9 +184,30 @@ impl VizCollector {
         token_text: &str,
         steered_pos: &Tensor, // (1, D) or (D,)
         steering_delta: f32,
+        neighbors: Vec<(u32, String, f32)>,
     ) -> anyhow::Result<()> {
         let pos_flat: Vec<f32> = steered_pos.flatten_all()?.to_vec1()?;
         let pos_3d = project_vec(&pos_flat, &self.projection, self.dim);
+
+        // Project neighbor positions to 3D using field embedding positions
+        let neighbor_data: Vec<TokenNeighbor> = neighbors
+            .into_iter()
+            .filter_map(|(tid, text, prob)| {
+                let idx = tid as usize;
+                if idx * self.dim + self.dim <= self.field_positions_flat.len() {
+                    let row = &self.field_positions_flat[idx * self.dim..(idx + 1) * self.dim];
+                    let pos = project_vec(row, &self.projection, self.dim);
+                    Some(TokenNeighbor {
+                        token_id: tid,
+                        token_text: text,
+                        probability: prob,
+                        position_3d: pos,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         self.snapshots.push(VizSnapshot {
             step,
@@ -157,19 +215,47 @@ impl VizCollector {
             token_text: token_text.to_string(),
             position_3d: pos_3d,
             steering_delta,
-            neighbors: Vec::new(),
+            neighbors: neighbor_data,
         });
 
         Ok(())
     }
 
+    /// Set the ridge ghost trail (projected from 4096D to 3D).
+    #[allow(dead_code)]
+    pub fn set_ridge_ghost(&mut self, positions: &[Vec<f32>]) {
+        self.ridge_ghost = positions
+            .iter()
+            .map(|p| project_vec(p, &self.projection, self.dim))
+            .collect();
+    }
+
     /// Export all collected data to a JSON file.
+    /// Detects degenerate all-zero field_points_3d and omits them with a warning.
     pub fn export_json(&self, path: &Path) -> anyhow::Result<()> {
+        // Detect degenerate (all-zero) field_points_3d
+        let field_points_degenerate = !self.field_points_3d.is_empty()
+            && self
+                .field_points_3d
+                .iter()
+                .all(|p| p[0] == 0.0 && p[1] == 0.0 && p[2] == 0.0);
+
+        if field_points_degenerate {
+            eprintln!(
+                "    [VIZ] WARNING: field_points_3d is all-zero (degenerate projection). \
+                 Omitting from export. Check embedding data and projection matrix."
+            );
+        }
+
         let session = VizSession {
             prompt: self.prompt.clone(),
             embedding_dim: self.dim,
             snapshots: self.snapshots.clone(),
-            field_points_3d: self.field_points_3d.clone(),
+            field_points_3d: if field_points_degenerate {
+                Vec::new()
+            } else {
+                self.field_points_3d.clone()
+            },
             splat_scars: Vec::new(),
             goal_position_3d: self.goal_3d,
         };
@@ -186,19 +272,41 @@ impl VizCollector {
 
     /// Convert into render data for the Metal window.
     pub fn into_render_data(self) -> VizRenderData {
-        let trajectory_3d: Vec<[f32; 3]> =
-            self.snapshots.iter().map(|s| s.position_3d).collect();
-        let trajectory_deltas: Vec<f32> =
-            self.snapshots.iter().map(|s| s.steering_delta).collect();
+        let trajectory_3d: Vec<[f32; 3]> = self.snapshots.iter().map(|s| s.position_3d).collect();
+        let trajectory_deltas: Vec<f32> = self.snapshots.iter().map(|s| s.steering_delta).collect();
+        let trajectory_tokens: Vec<String> = self
+            .snapshots
+            .iter()
+            .map(|s| s.token_text.clone())
+            .collect();
+
+        // Collect per-step neighbor data for rendering
+        let step_neighbors: Vec<Vec<StepNeighbor>> = self
+            .snapshots
+            .iter()
+            .map(|s| {
+                s.neighbors
+                    .iter()
+                    .map(|n| StepNeighbor {
+                        token_text: n.token_text.clone(),
+                        probability: n.probability,
+                        position_3d: n.position_3d,
+                    })
+                    .collect()
+            })
+            .collect();
 
         VizRenderData {
             field_points_3d: self.field_points_3d,
             trajectory_3d,
             trajectory_deltas,
+            trajectory_tokens,
             splat_positions_3d: Vec::new(),
             splat_alphas: Vec::new(),
             goal_position_3d: self.goal_3d,
             prompt: self.prompt,
+            step_neighbors,
+            ridge_ghost: self.ridge_ghost,
         }
     }
 

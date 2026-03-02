@@ -122,7 +122,7 @@ impl SessionLogger {
             })
             .collect();
 
-        let session_id = format!("{}_{}", date_str, safe_label);
+        let session_id = format!("{}_{}_{}", date_str, time_str, safe_label);
         let filename = format!("{}_{}_{}.jsonl", date_str, time_str, safe_label);
         let log_path = log_dir.join(&filename);
         let file = fs::File::create(&log_path)?;
@@ -194,6 +194,11 @@ impl SessionLogger {
     /// Get the log file path
     pub fn path(&self) -> PathBuf {
         self.log_path.clone()
+    }
+
+    /// Get the session ID string
+    pub fn session_id(&self) -> &str {
+        &self.session_id
     }
 
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
