@@ -149,7 +149,130 @@ impl ContinuousField {
         Ok(grad)
     }
 
+    /// Find the K nearest field point indices (= token IDs) to a position.
+    /// Returns Vec of (index, cosine_similarity) sorted by similarity descending.
+    /// This is cheap for small K since we compute all distances then partial-sort.
+    pub fn nearest_tokens(&self, pos: &Tensor, k: usize) -> anyhow::Result<Vec<(u32, f32)>> {
+        // pos shape: (D,) -- broadcast sub against positions (N, D)
+        let pos_expanded = pos.unsqueeze(0)?;
+        let diff = self.positions.broadcast_sub(&pos_expanded)?;
+        let dist_sq: Vec<f32> = diff.sqr()?.sum(1)?.to_vec1()?;
+
+        // Compute cosine similarities for ranking
+        // cos_sim(a, b) = dot(a,b) / (|a| * |b|)
+        let pos_flat: Vec<f32> = pos.to_vec1()?;
+        let pos_norm: f32 = pos_flat.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+        let positions_flat: Vec<f32> = self.positions.flatten_all()?.to_vec1()?;
+        let n = dist_sq.len();
+        let dim = self.dim;
+
+        // Build (index, neg_dist_sq) pairs and partial sort for top-K
+        let mut indices: Vec<(usize, f32)> =
+            dist_sq.iter().enumerate().map(|(i, &d)| (i, d)).collect();
+        // Partial sort: put K smallest dist_sq at front
+        let k = k.min(n);
+        if k == 0 || indices.is_empty() {
+            return Ok(Vec::new());
+        }
+        indices.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
+            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        indices.truncate(k);
+
+        // Compute cosine similarity for the K nearest
+        let mut results: Vec<(u32, f32)> = indices
+            .iter()
+            .map(|&(idx, _)| {
+                let row = &positions_flat[idx * dim..(idx + 1) * dim];
+                let dot: f32 = row.iter().zip(pos_flat.iter()).map(|(a, b)| a * b).sum();
+                let row_norm: f32 = row.iter().map(|x| x * x).sum::<f32>().sqrt();
+                let cos_sim = if pos_norm > 1e-12 && row_norm > 1e-12 {
+                    dot / (pos_norm * row_norm)
+                } else {
+                    0.0
+                };
+                (idx as u32, cos_sim)
+            })
+            .collect();
+
+        // Sort by cosine similarity descending
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        Ok(results)
+    }
+
     pub fn n_points(&self) -> usize {
         self.positions.dim(0).unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_field(positions: Tensor, sigma: f32, dim: usize) -> ContinuousField {
+        ContinuousField {
+            device: positions.device().clone(),
+            positions,
+            kernel_sigma: sigma,
+            dim,
+        }
+    }
+
+    #[test]
+    fn gradient_pulls_toward_field_point() {
+        let device = Device::Cpu;
+        let positions = Tensor::zeros(&[1, 4], DType::F32, &device).unwrap();
+        let field = make_field(positions, 1.0, 4);
+
+        let pos = Tensor::new(&[1.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let grad = field.probe_gradient(&pos).unwrap();
+        let grad_vec: Vec<f32> = grad.to_vec1().unwrap();
+
+        // diff = positions - query = [0,0,0,0] - [1,0,0,0] = [-1,0,0,0]
+        // gradient should be negative x (toward origin from x=1)
+        assert!(
+            grad_vec[0] < 0.0,
+            "expected negative x gradient, got {}",
+            grad_vec[0]
+        );
+    }
+
+    #[test]
+    fn density_positive_at_field_point() {
+        let device = Device::Cpu;
+        let positions = Tensor::zeros(&[1, 4], DType::F32, &device).unwrap();
+        let field = make_field(positions, 1.0, 4);
+
+        let pos = Tensor::zeros(&[4], DType::F32, &device).unwrap();
+        let density: f32 = field.probe(&pos).unwrap().to_scalar().unwrap();
+        assert!(
+            density > 0.0,
+            "density at field point should be > 0, got {}",
+            density
+        );
+    }
+
+    #[test]
+    fn gradient_zero_far_away() {
+        let device = Device::Cpu;
+        let positions = Tensor::zeros(&[1, 4], DType::F32, &device).unwrap();
+        let field = make_field(positions, 0.1, 4);
+
+        let pos = Tensor::new(&[1000.0f32, 1000.0, 1000.0, 1000.0], &device).unwrap();
+        let grad = field.probe_gradient(&pos).unwrap();
+        let mag: f32 = grad
+            .sqr()
+            .unwrap()
+            .sum_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap()
+            .sqrt();
+        assert!(
+            mag < 1e-10,
+            "gradient far from field should be ~0, got {}",
+            mag
+        );
     }
 }
