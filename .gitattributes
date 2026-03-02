@@ -1,0 +1,3 @@
+# Treat JSONL log files as binary so git show/diff doesn't dump their full content.
+# Jules can still read these files from the repo -- they just won't bloat the diff.
+*.jsonl binary
