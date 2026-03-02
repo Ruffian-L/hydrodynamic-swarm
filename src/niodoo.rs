@@ -12,6 +12,7 @@
 //! then scaled by dt and added to the residual.
 
 use crate::field::ContinuousField;
+use crate::gpu::PhysicsBackend;
 use crate::memory::SplatMemory;
 use candle_core::{Result, Tensor};
 
@@ -26,15 +27,21 @@ pub struct SteerResult {
 pub struct NiodooEngine {
     field: ContinuousField,
     memory: SplatMemory,
+    backend: Box<dyn PhysicsBackend>,
     dt: f32,
     viscosity_scale: f32,
 }
 
 impl NiodooEngine {
-    pub fn new(field: ContinuousField, memory: SplatMemory) -> Self {
+    pub fn new(
+        field: ContinuousField,
+        memory: SplatMemory,
+        backend: Box<dyn PhysicsBackend>,
+    ) -> Self {
         Self {
             field,
             memory,
+            backend,
             dt: 0.08,
             viscosity_scale: 0.35,
         }
@@ -42,7 +49,7 @@ impl NiodooEngine {
 
     /// Core steering: apply physics to LLM residual stream.
     ///
-    /// `baseline_residual` must be shape `(1, D)` — single-batch residual.
+    /// `baseline_residual` must be shape `(1, D)` -- single-batch residual.
     /// Returns the steered residual with the same shape `(1, D)`.
     ///
     /// steered = baseline + dt * (grad_force * viscosity + splat_force + goal_force)
@@ -72,14 +79,14 @@ impl NiodooEngine {
         // Extract position vector: (1, D) -> (D,)
         let pos = baseline_residual.squeeze(0)?;
 
-        // 1. Field gradient: ridge-running force
+        // 1. Field gradient: ridge-running force (via backend)
         let grad_force = self
-            .field
-            .probe_gradient(&pos)?
+            .backend
+            .field_gradient(&self.field, &pos)?
             .affine(self.viscosity_scale as f64, 0.0)?;
 
-        // 2. Splat scar tissue force
-        let splat_force = self.memory.query_force(&pos)?;
+        // 2. Splat scar tissue force (via backend)
+        let splat_force = self.backend.splat_force(&self.memory, &pos)?;
 
         // 3. Goal attractor
         let goal_force = (goal_pos - &pos)?;
@@ -107,6 +114,12 @@ impl NiodooEngine {
         })
     }
 
+    /// Get a reference to the field for external access (viz, etc.).
+    #[allow(dead_code)]
+    pub fn field(&self) -> &ContinuousField {
+        &self.field
+    }
+
     /// Get a reference to the memory for external queries.
     pub fn memory(&self) -> &SplatMemory {
         &self.memory
@@ -126,5 +139,10 @@ impl NiodooEngine {
     #[allow(dead_code)]
     pub fn dim(&self) -> usize {
         self.field.dim
+    }
+
+    /// Get the physics backend name for telemetry.
+    pub fn backend_name(&self) -> &'static str {
+        self.backend.name()
     }
 }
