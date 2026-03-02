@@ -21,6 +21,9 @@ pub struct StepEntry {
     pub token_text: String,
     pub steering_delta: f32,
     pub residual_norm: f32,
+    pub grad_force_mag: f32,
+    pub splat_force_mag: f32,
+    pub goal_force_mag: f32,
 }
 
 /// Session config snapshot
@@ -110,7 +113,13 @@ impl SessionLogger {
         // Sanitize label for filename
         let safe_label: String = label
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
 
         let session_id = format!("{}_{}", date_str, safe_label);
@@ -231,5 +240,5 @@ fn days_to_date(mut days: u64) -> (u64, u64, u64) {
 }
 
 fn is_leap(year: u64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+    (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
 }

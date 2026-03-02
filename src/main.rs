@@ -10,21 +10,24 @@ mod memory;
 mod niodoo;
 mod ridge;
 mod splat;
+mod viz;
+mod viz_metal;
 
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use candle_transformers::models::quantized_llama::ModelWeights;
-use dream::{DreamEngine, micro_dream};
+use dream::{micro_dream, DreamEngine};
 use field::ContinuousField;
 use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
-use niodoo::NiodooEngine;
-use splat::Splat;
+use niodoo::{NiodooEngine, SteerResult};
 use rand::Rng;
+use splat::Splat;
 use std::io::BufReader;
 use std::path::Path;
 use tokenizers::Tokenizer;
+use viz::VizCollector;
 
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
@@ -32,11 +35,20 @@ fn main() -> Result<()> {
     // Parse CLI args
     let args: Vec<String> = std::env::args().collect();
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
-    let cli_prompt = args.iter().position(|a| a == "--prompt").map(|i| args[i + 1].clone());
-    let cli_model = args.iter().position(|a| a == "--model").map(|i| args[i + 1].clone());
-    let max_tokens: usize = args.iter().position(|a| a == "--tokens")
+    let cli_prompt = args
+        .iter()
+        .position(|a| a == "--prompt")
+        .map(|i| args[i + 1].clone());
+    let cli_model = args
+        .iter()
+        .position(|a| a == "--model")
+        .map(|i| args[i + 1].clone());
+    let max_tokens: usize = args
+        .iter()
+        .position(|a| a == "--tokens")
         .map(|i| args[i + 1].parse().unwrap_or(500))
         .unwrap_or(500);
+    let viz_enabled = args.iter().any(|a| a == "--viz");
 
     // Use Metal GPU if available
     let device = match Device::new_metal(0) {
@@ -105,7 +117,9 @@ fn main() -> Result<()> {
 
     // Initialize telemetry logger
     let model_variant = cli_model.as_deref().unwrap_or("unsloth");
-    let prompt = cli_prompt.as_deref().unwrap_or("Explain the Physics of Friendship in one paragraph.");
+    let prompt = cli_prompt
+        .as_deref()
+        .unwrap_or("Explain the Physics of Friendship in one paragraph.");
     let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
@@ -123,7 +137,7 @@ fn main() -> Result<()> {
             "CPU"
         }
         .to_string(),
-        splat_sigma: 150.0,
+        splat_sigma: 35.0,
         splat_alpha: 2.0,
         force_cap: 80.0,
         temperature: 0.9,
@@ -164,6 +178,19 @@ fn main() -> Result<()> {
         goal_norm
     );
 
+    // Visualization collector (only when --viz is passed)
+    let mut viz_collector: Option<VizCollector> = if viz_enabled {
+        match VizCollector::new(engine.field_positions(), &goal_pos, prompt, dim) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                eprintln!("    [VIZ] Failed to init collector: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // Now start generating from prefill logits
     let mut raw_logits = prefill_logits;
 
@@ -173,8 +200,22 @@ fn main() -> Result<()> {
     // Track last steered position for splat creation
     let mut last_steered_pos: Option<Tensor> = None;
 
-    println!("\n    === Generation ({} tokens, physics-steered) ===\n", max_tokens);
+    println!(
+        "\n    === Generation ({} tokens, physics-steered) ===\n",
+        max_tokens
+    );
 
+    // Live stream file: per-token output for tail -f viewing
+    use std::io::Write;
+    let live_path = std::path::Path::new("logs/live.txt");
+    let mut live_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(live_path)?;
+    writeln!(live_file, "\n=== [{}] \"{}\" ===", model_variant, prompt)?;
+    live_file.flush()?;
+
+    #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
         // Steer the logits with Niodoo physics
         let logit_slice = if raw_logits.dim(1)? >= dim {
@@ -183,18 +224,28 @@ fn main() -> Result<()> {
             raw_logits.clone()
         };
 
-        let steered_slice = engine.steer(&logit_slice, &goal_pos, step)?;
+        let SteerResult {
+            steered: steered_slice,
+            grad_mag,
+            splat_mag,
+            goal_mag,
+        } = engine.steer(&logit_slice, &goal_pos, step)?;
         last_steered_pos = Some(steered_slice.clone());
 
         // Micro-dream consolidation: forward+backward physics burst on the 4096d slice
         // Triggers every 8 steps after warmup
-        let steered_slice = if step > 5 && (step % 8 == 0) {
+        let steered_slice = if step > 10 && (step % 25 == 0) {
             let result = micro_dream(&engine, &steered_slice, &goal_pos, step, 2, 0.10)?;
             if step <= 15 || step % 10 == 0 {
                 println!(
                     "    [MICRO-DREAM] step {} | correction_norm: {:.2}{}",
-                    step, result.correction_norm,
-                    if result.reflection_triggered { " ** HYDRAULIC JUMP **" } else { "" }
+                    step,
+                    result.correction_norm,
+                    if result.reflection_triggered {
+                        " ** HYDRAULIC JUMP **"
+                    } else {
+                        ""
+                    }
                 );
             }
             if result.reflection_triggered {
@@ -244,11 +295,9 @@ fn main() -> Result<()> {
                 let current_pos = pos.squeeze(0)?;
                 let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
                 if !too_close {
-                    engine.memory_mut().add_splat(Splat::new(
-                        current_pos,
-                        150.0,
-                        2.0,
-                    ));
+                    engine
+                        .memory_mut()
+                        .add_splat(Splat::new(current_pos, 35.0, 2.0));
                 }
             }
         }
@@ -260,10 +309,18 @@ fn main() -> Result<()> {
             .decode(&[next_token], false)
             .unwrap_or_else(|_| format!("[{}]", next_token));
 
+        // Viz snapshot (zero cost when --viz not passed)
+        if let Some(ref mut collector) = viz_collector {
+            let _ = collector.snapshot(step, next_token, &decoded, &steered_logits, delta_norm);
+        }
+
         // Stream tokens live -- print without newline for flowing text
         print!("{}", decoded);
-        use std::io::Write;
         std::io::stdout().flush().ok();
+
+        // Write to live stream file (for tail -f in separate terminal)
+        write!(live_file, "{}", decoded).ok();
+        live_file.flush().ok();
 
         // Milestone markers every 50 steps
         if step > 0 && step % 50 == 0 {
@@ -278,6 +335,9 @@ fn main() -> Result<()> {
             token_text: decoded,
             steering_delta: delta_norm,
             residual_norm,
+            grad_force_mag: grad_mag,
+            splat_force_mag: splat_mag,
+            goal_force_mag: goal_mag,
         })?;
 
         // Stop on EOS tokens
@@ -309,7 +369,7 @@ fn main() -> Result<()> {
         let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
         if generated_tokens.len() > 15 {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 150.0, // sigma
+                pos_1d, 35.0, // sigma
                 1.8,  // positive scar (pleasure)
             ));
             println!(
@@ -318,7 +378,7 @@ fn main() -> Result<()> {
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 150.0, // sigma
+                pos_1d, 35.0, // sigma
                 -0.9, // negative scar (pain)
             ));
             println!(
@@ -395,27 +455,75 @@ fn main() -> Result<()> {
         let mut y = 1970i64;
         let mut remaining = days as i64;
         loop {
-            let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
-            if remaining < days_in_year { break; }
+            let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
+                366
+            } else {
+                365
+            };
+            if remaining < days_in_year {
+                break;
+            }
             remaining -= days_in_year;
             y += 1;
         }
-        let month_days = [31, if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days = [
+            31,
+            if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
+                29
+            } else {
+                28
+            },
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ];
         let mut m = 1;
         for md in &month_days {
-            if remaining < *md as i64 { break; }
+            if remaining < *md as i64 {
+                break;
+            }
             remaining -= *md as i64;
             m += 1;
         }
         let d = remaining + 1;
-        writeln!(f, "=== Run: {}-{:02}-{:02} {:02}:{:02} UTC ===", y, m, d, hours, minutes)?;
-        writeln!(f, "Model: {} | Tokens: {} | Splats: {}", model_variant, generated_tokens.len(), engine.memory().len())?;
+        writeln!(
+            f,
+            "=== Run: {}-{:02}-{:02} {:02}:{:02} UTC ===",
+            y, m, d, hours, minutes
+        )?;
+        writeln!(
+            f,
+            "Model: {} | Tokens: {} | Splats: {}",
+            model_variant,
+            generated_tokens.len(),
+            engine.memory().len()
+        )?;
         writeln!(f, "Prompt: \"{}\"", prompt)?;
-        writeln!(f, "")?;
+        writeln!(f)?;
         writeln!(f, "{}", full_text)?;
-        writeln!(f, "")?;
+        writeln!(f)?;
         writeln!(f, "---")?;
-        writeln!(f, "")?;
+        writeln!(f)?;
+    }
+
+    // =========================================================
+    // Visualization export + Metal window
+    // =========================================================
+    if let Some(collector) = viz_collector {
+        // Export JSON snapshot data
+        let viz_path = logger.path().with_extension("viz.json");
+        let _ = collector.export_json(&viz_path);
+
+        // Launch Metal 3D window (does not return on macOS)
+        let render_data = collector.into_render_data();
+        viz_metal::launch(render_data);
     }
 
     Ok(())

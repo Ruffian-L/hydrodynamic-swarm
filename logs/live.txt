@@ -1,0 +1,31 @@
+
+=== [unsloth] "Hello world" ===
+…….again
+
+This is my second try of writing this post, the first attempt ended up being
+=== [unsloth] "Hello world" ===
+
+
+How do I update my application to incorporate a flag indicating that a Personal API's user is enrolled
+=== [unsloth] "Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step." ===
+ Think about the corners and edges of the cube in detail.
+
+## Step 1: Understand the structure of the Rubik's cube
+Imagine taking a standard Rubik's cube and breaking it down into 27 smaller cubes, understanding that the original cube consists of 8 corner cubes, 12 edge cubes, and 6 center cubes (which are not attached to the outside surface of the original cube).
+
+## Step 2: Determine how cubes are painted when painting the entire outside surface red
+When painting the entire outside surface red, the surface area of the cube that touches the painted exterior becomes red. This affects 6 faces of the cube totally and partially 12 edges and none of the corners or interior cubes (except the ones that
+=== [unsloth] "Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step." ===
+ You
+=== [unsloth] "Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step." ===
+ Remember the original cube consists of 6 faces (each 3x3). Each of these faces can be broken into 9 smaller squares but in a Rubik's cube structure, there will be 6 of the same squares (edges in common) In other words, adding the 3xsquare faces 1,1 gets 6
+=== [unsloth] "Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step." ===
+ How many 2-face cubes are shared among corner pieces and edge pieces?
+Picture the cube and note that the Cubes only touching only 2 sides are on the edges.
+1. Look at the 12 edge faces as being broken apart into 24 2-face cubes.
+2. Note that 6 2-face cubes are buried at the edge pieces attached to 3 corner pieces.
+3. As for the remaining 2-face edges pieces, there are 12 of them. Each edge cube is associated
+=== [unsloth] "Explain the Physics of Friendship in one paragraph." ===
+​
+Physics of Friendship
+Friendships introduce a new equilibrium: a delicate balance of activity, conversation, and attentiveness, of listening and laughing. When friends spend time together, the space between interactions amplifies the excitement of shared moments, resulting in unforgettable memories that harmonize physical proximity with the elasticity

@@ -15,6 +15,14 @@ use crate::field::ContinuousField;
 use crate::memory::SplatMemory;
 use candle_core::{Result, Tensor};
 
+/// Result of a single steering step, including force telemetry.
+pub struct SteerResult {
+    pub steered: Tensor,
+    pub grad_mag: f32,
+    pub splat_mag: f32,
+    pub goal_mag: f32,
+}
+
 pub struct NiodooEngine {
     field: ContinuousField,
     memory: SplatMemory,
@@ -28,7 +36,7 @@ impl NiodooEngine {
             field,
             memory,
             dt: 0.08,
-            viscosity_scale: 0.6,
+            viscosity_scale: 0.35,
         }
     }
 
@@ -38,7 +46,12 @@ impl NiodooEngine {
     /// Returns the steered residual with the same shape `(1, D)`.
     ///
     /// steered = baseline + dt * (grad_force * viscosity + splat_force + goal_force)
-    pub fn steer(&self, baseline_residual: &Tensor, goal_pos: &Tensor, _step: usize) -> Result<Tensor> {
+    pub fn steer(
+        &self,
+        baseline_residual: &Tensor,
+        goal_pos: &Tensor,
+        _step: usize,
+    ) -> Result<SteerResult> {
         // Shape validation: require exactly (1, D)
         let dims = baseline_residual.dims();
         if dims.len() != 2 {
@@ -71,20 +84,27 @@ impl NiodooEngine {
         // 3. Goal attractor
         let goal_force = (goal_pos - &pos)?;
 
-        // Force telemetry: log magnitudes so we can see scars warping trajectory
-        let _splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-        let _grad_mag: f32 = grad_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-        let _goal_mag: f32 = goal_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        // Force telemetry: capture magnitudes for JSONL logging
+        let splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let grad_mag: f32 = grad_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let goal_mag: f32 = goal_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
         // Sum and scale by dt
         let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
         // Force cap: prevent any single dimension from dominating (Variant 3)
-        let total_force = total_force.clamp(-80f32, 80f32)?;
+        let total_force = total_force.clamp(-35f32, 35f32)?;
         let steering = total_force.affine(self.dt as f64, 0.0)?;
 
         // Restore batch dim: (D,) -> (1, D) and add to baseline
         let steering_2d = steering.unsqueeze(0)?;
-        baseline_residual + &steering_2d
+        let steered = (baseline_residual + &steering_2d)?;
+
+        Ok(SteerResult {
+            steered,
+            grad_mag,
+            splat_mag,
+            goal_mag,
+        })
     }
 
     /// Get a reference to the memory for external queries.
@@ -95,5 +115,16 @@ impl NiodooEngine {
     /// Get a mutable reference to the memory for splat insertion.
     pub fn memory_mut(&mut self) -> &mut SplatMemory {
         &mut self.memory
+    }
+
+    /// Get a reference to the field's embedding positions for visualization.
+    pub fn field_positions(&self) -> &Tensor {
+        &self.field.positions
+    }
+
+    /// Get the embedding dimension.
+    #[allow(dead_code)]
+    pub fn dim(&self) -> usize {
+        self.field.dim
     }
 }
