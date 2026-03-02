@@ -13,3 +13,4 @@
 | 2026-03-01 | 9300938a1e6c0e0ae10391e74b85d5a15bac0eab | feat: bert A/B sweep complete + tokenizer fix |
 | 2026-03-01 | 57e2d039dadee079b2ead8adcba291ef1350fd44 | docs: full telemetry dump of v1.1 A/B sweep (plain text) |
 | 2026-03-01 | 6e2a2fb54469c91a48d5d71bfc62dfe752cf4285 | feat: splat force telemetry + Crucible eval suite + TopoCoT dream correction |
+| 2026-03-02 | 036047f206d588063d91bde9d4c3f2e1d446a4f7 | fix: mark JSONL as binary to prevent prompt overflow in jules-action |
