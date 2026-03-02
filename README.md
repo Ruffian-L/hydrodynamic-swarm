@@ -62,10 +62,86 @@ See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed findings.
 ## Running
 
 ```bash
+# Default run (CPU physics, Metal tensor ops via candle)
 cargo run
+
+# With a custom prompt
+cargo run -- --prompt "Describe consciousness as a wave function"
+
+# Limit token count
+cargo run -- --tokens 200
+
+# Clear splat memory (fresh start)
+cargo run -- --clear-memory
+
+# Enable Metal 3D visualization
+cargo run -- --viz
+
+# All flags combined
+cargo run -- --prompt "What is time?" --tokens 300 --viz --clear-memory
 ```
 
-Requires:
+### Metal GPU Physics Acceleration
+
+Enable wgpu-based Metal compute shaders for field gradient and splat force calculations:
+
+```bash
+# Build with Metal physics compute
+cargo build --features metal-compute
+
+# Run with GPU-accelerated physics
+cargo run --features metal-compute
+```
+
+Falls back to CPU automatically if Metal init fails. Both backends produce identical results (verified by parity tests).
+
+### Configuration
+
+Create a `config.toml` in the project root to tune physics parameters:
+
+```toml
+[physics]
+dt = 0.08
+viscosity_scale = 0.35
+force_cap = 35.0
+splat_sigma = 35.0
+splat_alpha = 2.0
+
+[generation]
+max_tokens = 500
+temperature = 0.9
+
+[memory]
+max_splats = 500
+consolidation_dist = 80.0
+decay_rate = 0.98
+
+[micro_dream]
+entropy_threshold = 3.0
+blend_normal = 0.10
+blend_high_entropy = 0.15
+```
+
+All values have sensible defaults; the config file is optional.
+
+### Testing
+
+```bash
+# Run all unit tests
+cargo test
+
+# Run with GPU parity test
+cargo test --features metal-compute
+
+# Lint check
+cargo clippy --all-features
+```
+
+### Requirements
+
 - Rust (stable or nightly)
-- Metal GPU (macOS)
-- Model files in `data/` (symlinked)
+- macOS with Metal GPU (for tensor ops and optional physics compute)
+- Model files in `data/` (symlinked or direct):
+  - `Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf`
+  - `tokenizer.json`
+  - `universe_domain.safetensors`
