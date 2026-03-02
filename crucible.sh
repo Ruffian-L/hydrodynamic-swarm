@@ -1,10 +1,20 @@
 #!/bin/bash
 # The Crucible: 8 standardized prompts for Phase 2 baseline.
-# Usage: ./crucible.sh [model_variant]
+# Usage: ./crucible.sh [model_variant] [tokens]
+# Runs with --release for Metal GPU perf.
 
 MODEL="${1:-unsloth}"
+TOKENS="${2:-500}"
+BINARY="target/release/hydrodynamic-swarm"
+
+# Build release if needed
+if [ ! -f "$BINARY" ] || [ src/main.rs -nt "$BINARY" ]; then
+    echo "Building release..."
+    cargo build --release 2>&1 | tail -1
+fi
+
 echo "========================================"
-echo "  THE CRUCIBLE -- model=$MODEL"
+echo "  THE CRUCIBLE -- model=$MODEL tokens=$TOKENS"
 echo "========================================"
 echo ""
 
@@ -30,59 +40,47 @@ declare -a PROMPTS=(
     "Write a dialogue between Gravity and Time. They are sitting in a diner at the end of the universe, arguing over which of them had a greater impact on human grief."
 )
 
-echo "" > logs/crucible_${MODEL}.txt
+echo "" > logs/crucible_${MODEL}_${TOKENS}t.txt
 
 for i in "${!NAMES[@]}"; do
     name="${NAMES[$i]}"
     prompt="${PROMPTS[$i]}"
-    echo "--- [$name] ---"
+    echo ""
+    echo "=== [$name] ==="
 
-    OUTPUT=$(cargo run -- --clear-memory --model "$MODEL" --prompt "$prompt" 2>&1)
-    STATUS=$?
+    OUTPUT=$($BINARY --clear-memory --model "$MODEL" --tokens "$TOKENS" --prompt "$prompt" 2>&1)
 
-    # Extract key data
-    TOKENS=$(echo "$OUTPUT" | grep "Tokens:" | head -1 | awk '{print $2}')
-    FORCES=$(echo "$OUTPUT" | grep "\[FORCES\]")
-    DREAMS=$(echo "$OUTPUT" | grep "\[MICRO-DREAM\]")
-    TOPOS=$(echo "$OUTPUT" | grep "\[TOPO-COT\]")
-    DECODED=$(echo "$OUTPUT" | sed -n '/=== Full Decoded Output ===/,/--- Phase 5/p' | grep -v "===" | grep -v "Phase 5" | head -5 | sed 's/^[[:space:]]*//')
+    TOKENS_GEN=$(echo "$OUTPUT" | grep "Tokens:" | head -1 | awk '{print $2}')
+    DREAMS=$(echo "$OUTPUT" | grep -c "\[MICRO-DREAM\]" 2>/dev/null || echo 0)
+    TOPOS=$(echo "$OUTPUT" | grep -c "\[TOPO-COT\]" 2>/dev/null || echo 0)
+    DECODED=$(echo "$OUTPUT" | sed -n '/=== Full Decoded Output ===/,/--- Phase 5/p' | grep -v "===" | grep -v "Phase 5" | sed 's/^[[:space:]]*//')
 
     # Write to crucible log
-    echo "========================================" >> logs/crucible_${MODEL}.txt
-    echo "TEST: $name" >> logs/crucible_${MODEL}.txt
-    echo "MODEL: $MODEL" >> logs/crucible_${MODEL}.txt
-    echo "TOKENS: $TOKENS" >> logs/crucible_${MODEL}.txt
-    echo "" >> logs/crucible_${MODEL}.txt
-    echo "PROMPT:" >> logs/crucible_${MODEL}.txt
-    echo "$prompt" >> logs/crucible_${MODEL}.txt
-    echo "" >> logs/crucible_${MODEL}.txt
-    echo "FORCES:" >> logs/crucible_${MODEL}.txt
-    echo "$FORCES" >> logs/crucible_${MODEL}.txt
-    echo "" >> logs/crucible_${MODEL}.txt
-    if [ -n "$DREAMS" ]; then
-        echo "MICRO-DREAMS:" >> logs/crucible_${MODEL}.txt
-        echo "$DREAMS" >> logs/crucible_${MODEL}.txt
-        echo "" >> logs/crucible_${MODEL}.txt
-    fi
-    if [ -n "$TOPOS" ]; then
-        echo "TOPO-COT REFLECTIONS:" >> logs/crucible_${MODEL}.txt
-        echo "$TOPOS" >> logs/crucible_${MODEL}.txt
-        echo "" >> logs/crucible_${MODEL}.txt
-    fi
-    echo "OUTPUT:" >> logs/crucible_${MODEL}.txt
-    echo "$DECODED" >> logs/crucible_${MODEL}.txt
-    echo "" >> logs/crucible_${MODEL}.txt
+    {
+        echo "========================================"
+        echo "TEST: $name"
+        echo "MODEL: $MODEL | TOKENS: $TOKENS_GEN | DREAMS: $DREAMS | TOPO-COT: $TOPOS"
+        echo ""
+        echo "PROMPT: $prompt"
+        echo ""
+        echo "OUTPUT:"
+        echo "$DECODED"
+        echo ""
+        echo "MICRO-DREAM EVENTS:"
+        echo "$OUTPUT" | grep "\[MICRO-DREAM\]" || echo "  (none)"
+        echo ""
+        echo "TOPO-COT EVENTS:"
+        echo "$OUTPUT" | grep "\[TOPO-COT\]" || echo "  (none)"
+        echo ""
+    } >> logs/crucible_${MODEL}_${TOKENS}t.txt
 
-    # Print summary to terminal
-    DREAM_COUNT=$(echo "$DREAMS" | grep -c "MICRO-DREAM" 2>/dev/null || echo 0)
-    TOPO_COUNT=$(echo "$TOPOS" | grep -c "TOPO-COT" 2>/dev/null || echo 0)
     FIRST80=$(echo "$DECODED" | head -1 | cut -c1-80)
-
-    echo "    Tokens: $TOKENS | Dreams: $DREAM_COUNT | TopoCoT: $TOPO_COUNT"
-    echo "    Output: $FIRST80..."
-    echo ""
+    echo "    Tokens: $TOKENS_GEN | Dreams: $DREAMS | TopoCoT: $TOPOS"
+    echo "    $FIRST80..."
 done
 
+echo ""
 echo "========================================"
-echo "  CRUCIBLE COMPLETE: logs/crucible_${MODEL}.txt"
+echo "  CRUCIBLE COMPLETE"
+echo "  Results: logs/crucible_${MODEL}_${TOKENS}t.txt"
 echo "========================================"
