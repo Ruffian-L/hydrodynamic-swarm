@@ -93,6 +93,12 @@ If the memory doesn't breathe, it gridlocks. If it doesn't anchor, it drifts.
 
 Giving the cybernetic loop the ability to consolidate and vote.
 
+- [ ] **Architect's Bridge: Tiny-Model Embedding Steering (Massive Compute Saver)**
+  - Instead of autoregressive generation from small models, have Floor General (Llama 3.2 1B / 2048d) and Historian (gte-small / 384d) output a single dense embedding vector only during Micro-Dreams or high-viscosity moments.
+  - Project instantly into 4096d Niodoo space via a learned matrix (2048x4096 or 384x4096).
+  - Runs in microseconds on Metal, zero latency impact on main 8B generation.
+  - **This turns the swarm into true gravitational steering instead of slow voting.**
+
 - [ ] **Micro-Dream Real-Time Consolidation**
   - Trigger on **entropy + steering_delta > 18.0** (not fixed interval alone).
   - Adaptive depth: if entropy > threshold, run 3-5 forward steps instead of 2, with higher blend factor.
