@@ -284,7 +284,7 @@ fn main() -> Result<()> {
         // Steer: hidden state (steer_hidden=true) or logit slice (fallback)
         let (steer_input, is_hidden_steer) = if cfg.physics.steer_hidden {
             if let Some(ref h) = raw_hidden {
-                (h.unsqueeze(0)?, true) // (1, D)
+                (h.clone(), true) // already (1, D) from forward_with_hidden
             } else {
                 // Fallback if hidden state unavailable
                 let s = if raw_logits.dim(1)? >= dim {
