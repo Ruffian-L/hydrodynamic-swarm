@@ -121,7 +121,19 @@ fn main() -> Result<()> {
         cfg.physics.viscosity_scale,
         cfg.physics.force_cap,
     );
-    println!("    Engine ready (backend: {})", engine.backend_name());
+    if cfg.physics.gradient_topk > 0 {
+        engine.set_gradient_topk(cfg.physics.gradient_topk);
+        println!(
+            "    Engine ready (backend: {}, gradient Top-K: {})",
+            engine.backend_name(),
+            cfg.physics.gradient_topk
+        );
+    } else {
+        println!(
+            "    Engine ready (backend: {}, exact gradient)",
+            engine.backend_name()
+        );
+    }
 
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");

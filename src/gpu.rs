@@ -36,6 +36,18 @@ pub trait PhysicsBackend {
 
     /// Name string for telemetry logging.
     fn name(&self) -> &'static str;
+
+    /// Top-K approximate gradient: only consider the K nearest field points.
+    /// Default implementation falls back to exact gradient.
+    fn field_gradient_topk(
+        &self,
+        field: &ContinuousField,
+        pos: &Tensor,
+        k: usize,
+    ) -> Result<Tensor> {
+        let _ = k; // unused in default -- exact gradient
+        self.field_gradient(field, pos)
+    }
 }
 
 // ---------------------------------------------------------------
@@ -76,6 +88,15 @@ impl PhysicsBackend for CpuBackend {
 
     fn name(&self) -> &'static str {
         "CPU"
+    }
+
+    fn field_gradient_topk(
+        &self,
+        field: &ContinuousField,
+        pos: &Tensor,
+        k: usize,
+    ) -> Result<Tensor> {
+        field.probe_gradient_topk(pos, k)
     }
 }
 

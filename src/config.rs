@@ -29,6 +29,8 @@ pub struct PhysicsConfig {
     pub splat_alpha: f32,
     pub min_splat_dist: f32,
     pub splat_delta_threshold: f32,
+    /// Top-K nearest points for gradient approximation (0 = exact gradient).
+    pub gradient_topk: usize,
 }
 
 /// Generation parameters.
@@ -73,6 +75,7 @@ impl Default for PhysicsConfig {
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
             splat_delta_threshold: 12.0,
+            gradient_topk: 2048,
         }
     }
 }
