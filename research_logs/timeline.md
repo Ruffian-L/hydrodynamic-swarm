@@ -16,3 +16,4 @@
 | 2026-03-02 | 036047f206d588063d91bde9d4c3f2e1d446a4f7 | fix: mark JSONL as binary to prevent prompt overflow in jules-action |
 | 2026-03-02 | e9da63232d9513d4f4eb0cfc1ad4cca97ac4fc1b | fix: defensive hardening across 6 modules |
 | 2026-03-02 | dba5d58bf38b7c13f046d9f01edab1ebf6ebe0a1 | feat: splatlens viz polish, settings panel, chat TUI, perf fixes |
+| 2026-03-03 | b5770e0ac5159435a6249a710c75f49c9fd0ef6b | feat: wire up config.rs, add Memory Museum CLI, replace all hardcoded constants |
