@@ -45,6 +45,7 @@ fn main() -> Result<()> {
     // Parse CLI args
     let args: Vec<String> = std::env::args().collect();
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
+    let test_mode = args.iter().any(|a| a == "--test");
     let cli_prompt = args
         .iter()
         .position(|a| a == "--prompt")
@@ -598,8 +599,14 @@ fn main() -> Result<()> {
 
     print!("    Save to exhibit? [name / n(ew) / t(oss)]: ");
     std::io::stdout().flush().ok();
-    let mut museum_input = String::new();
-    std::io::stdin().read_line(&mut museum_input)?;
+    let museum_input = if test_mode {
+        println!("(skipped -- test mode)");
+        "t".to_string()
+    } else {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        input
+    };
     let museum_input = museum_input.trim();
 
     if !museum_input.is_empty() && museum_input != "t" && museum_input != "toss" {

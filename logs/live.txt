@@ -283,3 +283,8 @@ Time: Ah, but I'm the one who slowly takes everything away from people. Their yo
 Gravity: That's all well and good, but a person can always move on from their past. A person can always leave the past behind. But with me, every day is a weight on the earth. The earth is literally pulled down by my force, crushing them over and over. My power is unrelenting and inescapable. 
 
 Time (smirking): That may be true, you unrelenting force, but every day that people lose people, they grieve.
+=== [unsloth] "Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step." ===
+ Think of the Rubik's cube as being cut into 27 distinct 1x1x1 cubes. If you paint the outside of the larger cube red, then every face of each cube has the possibility of having the red face adjacent (one 1x1x1 cube away) on each of the six sides.
+The 8 corner cubes have 3 faces painted red, and they have 3 edges attached. The 12 edge cubes along the middle faces have 2 faces painted red. The middle cube in each face has 1 face painted red, and the 1 cube in the center of the cube has no faces painted red.
+4 of the 27 cubes are corner cubes and have 3 red faces when painted on the outside.
+8 of the cubes are not corner cubes but have a whole 1
