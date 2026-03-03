@@ -390,7 +390,25 @@ fn main() -> Result<()> {
         let temperature: f64 = cfg.generation.temperature;
         let scaled_logits = (&steered_logits / temperature)?;
         let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
-        let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
+        let mut probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
+
+        // REPETITION PENALTY -- kills attractor trapping
+        let repetition_penalty: f32 = 1.18;
+        let recent: std::collections::HashSet<u32> =
+            generated_tokens.iter().rev().take(32).cloned().collect();
+        for (i, p) in probs_vec.iter_mut().enumerate() {
+            if recent.contains(&(i as u32)) {
+                *p = p.powf(1.0 / repetition_penalty);
+            }
+        }
+        // Renormalize after penalty
+        let prob_sum: f32 = probs_vec.iter().sum();
+        if prob_sum > 0.0 {
+            for p in probs_vec.iter_mut() {
+                *p /= prob_sum;
+            }
+        }
+
         let mut rng = rand::thread_rng();
         let roll: f32 = rng.gen();
         let mut cumsum = 0.0f32;

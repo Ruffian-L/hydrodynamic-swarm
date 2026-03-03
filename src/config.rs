@@ -71,14 +71,14 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.025,
-            viscosity_scale: 0.15,
-            force_cap: 5.0,
+            dt: 0.015,
+            viscosity_scale: 0.65,
+            force_cap: 3.0,
             splat_sigma: 35.0,
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
-            splat_delta_threshold: 100.0, // high threshold to effectively disable
-            gradient_topk: 512,
+            splat_delta_threshold: 1000.0, // high threshold to effectively disable online splats
+            gradient_topk: 128,
             steer_hidden: true,
             enable_online_splats: false,
         }
@@ -244,7 +244,7 @@ max_tokens = 200
         assert!((cfg.generation.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.generation.max_tokens, 200);
         // Non-specified fields get defaults
-        assert!((cfg.physics.viscosity_scale - 0.15).abs() < 1e-6);
+        assert!((cfg.physics.viscosity_scale - 0.65).abs() < 1e-6);
         assert!(cfg.validate().is_ok());
     }
 

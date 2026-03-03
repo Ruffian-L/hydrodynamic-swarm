@@ -92,19 +92,24 @@ impl NiodooEngine {
         // Extract position vector: (1, D) -> (D,)
         let pos = baseline_residual.squeeze(0)?;
 
+        // === SCALE NORMALIZATION — hidden state (norm ~140) -> unit norm (matches field) ===
+        let pos_norm: f32 = pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt().max(1e-6);
+        let pos_unit = pos.affine(1.0 / pos_norm as f64, 0.0)?;
+
         // 1. Field gradient: ridge-running force (via backend, with optional Top-K)
+        //    Query in unit-norm space to match field embeddings
         let raw_grad = if self.gradient_topk > 0 {
             self.backend
-                .field_gradient_topk(&self.field, &pos, self.gradient_topk)?
+                .field_gradient_topk(&self.field, &pos_unit, self.gradient_topk)?
         } else {
-            self.backend.field_gradient(&self.field, &pos)?
+            self.backend.field_gradient(&self.field, &pos_unit)?
         };
         let grad_force = raw_grad.affine(self.viscosity_scale as f64, 0.0)?;
 
-        // 2. Splat scar tissue force (via backend)
-        let splat_force = self.backend.splat_force(&self.memory, &pos)?;
+        // 2. Splat scar tissue force (via backend, also in unit-norm space)
+        let splat_force = self.backend.splat_force(&self.memory, &pos_unit)?;
 
-        // 3. Goal attractor
+        // 3. Goal attractor (operates in original hidden-state space)
         let goal_force = (goal_pos - &pos)?;
 
         // Force telemetry: capture magnitudes for JSONL logging
@@ -122,24 +127,28 @@ impl NiodooEngine {
         let steering_2d = steering.unsqueeze(0)?;
         let steered = (baseline_residual + &steering_2d)?;
 
-        // === STRONG MANIFOLD LOCK (critical now that field is live) ===
+        // === MANIFOLD LOCK — CLIP FIRST, THEN RESCALE ===
         let baseline_norm: f32 = baseline_residual
             .sqr()?
             .sum_all()?
             .to_scalar::<f32>()?
             .sqrt()
             .max(1e-6);
-        let steered_norm_raw: f32 = steered
+
+        // 1. Hard clip outlier dimensions first
+        let steered = steered.clamp(-8.0, 8.0)?;
+
+        // 2. Recompute norm after clipping
+        let steered_norm: f32 = steered
             .sqr()?
             .sum_all()?
             .to_scalar::<f32>()?
             .sqrt()
             .max(1e-6);
-        let target_norm = baseline_norm.clamp(130.0, 155.0); // match goal attractor range
-                                                             // Rescale to target norm
-        let steered = steered.affine((target_norm / steered_norm_raw) as f64, 0.0)?;
-        // Hard value clip after rescaling
-        let steered = steered.clamp(-12.0, 12.0)?;
+
+        // 3. Rescale to target norm (keeps direction, fixes magnitude)
+        let target_norm = baseline_norm.clamp(130.0, 150.0);
+        let steered = steered.affine((target_norm / steered_norm) as f64, 0.0)?;
 
         Ok(SteerResult {
             steered,
