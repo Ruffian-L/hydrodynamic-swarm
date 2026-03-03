@@ -321,12 +321,13 @@ fn main() -> Result<()> {
             let sample_n = raw_probs_flat.len().min(1000);
             let entropy: f32 = raw_probs_flat[..sample_n]
                 .iter()
-                .filter(|&&p| p > 1e-10)
-                .map(|p| -p * p.ln())
-                .sum();
+                .filter(|&&p| p > 1e-8)
+                .map(|&p| -p * p.ln())
+                .sum::<f32>()
+                .max(0.0); // never negative/NaN
 
-            let should_dream = (step % cfg.micro_dream.fixed_interval == 0)
-                || (entropy > cfg.micro_dream.entropy_threshold && step % cfg.micro_dream.adaptive_interval == 0);
+            // Temporarily disable micro-dreams for stability testing
+            let should_dream = false;
             if should_dream {
                 // Adaptive depth: higher entropy -> deeper projection
                 let dream_steps = if entropy > 4.0 {
@@ -406,15 +407,18 @@ fn main() -> Result<()> {
         let delta = (&steered_logits - &raw_logits)?;
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
-        // Online splat update -- multi-scale creation based on steering strength
-        if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
+        // Online splat creation (conditional)
+        if cfg.physics.enable_online_splats
+            && step > 5
+            && delta_norm > cfg.physics.splat_delta_threshold
+        {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
-                let too_close = engine.memory().has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
+                let too_close = engine
+                    .memory()
+                    .has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
-                    // Alpha proportional to steering delta (advantage signal)
                     let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
-                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
                     engine.memory_mut().add_splat(Splat::with_scale(
                         current_pos,
                         cfg.physics.splat_sigma,
@@ -534,8 +538,9 @@ fn main() -> Result<()> {
         let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
         if generated_tokens.len() > 15 {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, cfg.physics.splat_sigma,
-                1.8,  // positive scar (pleasure)
+                pos_1d,
+                cfg.physics.splat_sigma,
+                1.8, // positive scar (pleasure)
             ));
             println!(
                 "    + Added PLEASURE splat (generation succeeded: {} tokens)",
@@ -543,7 +548,8 @@ fn main() -> Result<()> {
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, cfg.physics.splat_sigma,
+                pos_1d,
+                cfg.physics.splat_sigma,
                 -0.9, // negative scar (pain)
             ));
             println!(
@@ -562,7 +568,9 @@ fn main() -> Result<()> {
     }
 
     // Consolidate and cap splat memory before saving
-    let _ = engine.memory_mut().consolidate(cfg.memory.consolidation_dist);
+    let _ = engine
+        .memory_mut()
+        .consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
     // Save persistent splat memory to disk (before dream decay wipes them)
@@ -575,7 +583,11 @@ fn main() -> Result<()> {
     // Memory Museum: Save to exhibit / Toss
     // =========================================================
     println!("\n--- Memory Museum ---");
-    println!("    Splats: {} | Source: \"{}\"", engine.memory().len(), prompt);
+    println!(
+        "    Splats: {} | Source: \"{}\"",
+        engine.memory().len(),
+        prompt
+    );
 
     // List existing exhibits
     let exhibits_dir = Path::new("exhibits");
@@ -589,7 +601,11 @@ fn main() -> Result<()> {
                         .map(|ext| ext == "safetensors")
                         .unwrap_or(false)
                 })
-                .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().to_string()))
+                .filter_map(|e| {
+                    e.path()
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().to_string())
+                })
                 .collect();
             if !names.is_empty() {
                 println!("    Existing exhibits: {}", names.join(", "));

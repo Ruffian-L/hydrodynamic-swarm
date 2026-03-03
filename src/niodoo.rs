@@ -122,20 +122,24 @@ impl NiodooEngine {
         let steering_2d = steering.unsqueeze(0)?;
         let steered = (baseline_residual + &steering_2d)?;
 
-        // === RENORMALIZATION: stay on the Llama manifold ===
-        // Without this, cumulative steering drifts the hidden state norm,
-        // causing lm_head to produce garbage after ~40-80 tokens.
+        // === STRONG MANIFOLD LOCK (critical now that field is live) ===
         let baseline_norm: f32 = baseline_residual
             .sqr()?
             .sum_all()?
             .to_scalar::<f32>()?
-            .sqrt();
-        let steered_norm: f32 = steered.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-        let steered = if steered_norm > 0.0 && baseline_norm > 0.0 {
-            steered.affine((baseline_norm / steered_norm) as f64, 0.0)?
-        } else {
-            steered
-        };
+            .sqrt()
+            .max(1e-6);
+        let steered_norm_raw: f32 = steered
+            .sqr()?
+            .sum_all()?
+            .to_scalar::<f32>()?
+            .sqrt()
+            .max(1e-6);
+        let target_norm = baseline_norm.clamp(130.0, 155.0); // match goal attractor range
+                                                             // Rescale to target norm
+        let steered = steered.affine((target_norm / steered_norm_raw) as f64, 0.0)?;
+        // Hard value clip after rescaling
+        let steered = steered.clamp(-12.0, 12.0)?;
 
         Ok(SteerResult {
             steered,

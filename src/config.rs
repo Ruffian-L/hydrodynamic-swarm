@@ -1,4 +1,3 @@
-
 //! Configuration Module
 //!
 //! TOML-deserializable configuration for all physics parameters.
@@ -33,6 +32,8 @@ pub struct PhysicsConfig {
     pub gradient_topk: usize,
     /// Steer the hidden state (pre-lm_head) instead of logits.
     pub steer_hidden: bool,
+    /// Enable online splat creation during generation.
+    pub enable_online_splats: bool,
 }
 
 /// Generation parameters.
@@ -70,15 +71,16 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.04,
+            dt: 0.025,
             viscosity_scale: 0.15,
-            force_cap: 8.0,
+            force_cap: 5.0,
             splat_sigma: 35.0,
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
-            splat_delta_threshold: 12.0,
+            splat_delta_threshold: 100.0, // high threshold to effectively disable
             gradient_topk: 512,
             steer_hidden: true,
+            enable_online_splats: false,
         }
     }
 }
@@ -108,11 +110,11 @@ impl Default for MemoryConfig {
 impl Default for MicroDreamConfig {
     fn default() -> Self {
         Self {
-            entropy_threshold: 3.0,
+            entropy_threshold: 2.8,
             fixed_interval: 25,
             adaptive_interval: 8,
-            blend_normal: 0.10,
-            blend_high_entropy: 0.15,
+            blend_normal: 0.04,
+            blend_high_entropy: 0.08,
             topocot_threshold: 18.0,
         }
     }
