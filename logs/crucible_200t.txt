@@ -1,3 +1,0 @@
-=== [1/8] 1_SpatialAGI ===
-PROMPT: Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step.
-
