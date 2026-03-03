@@ -30,6 +30,7 @@ pub struct NiodooEngine {
     backend: Box<dyn PhysicsBackend>,
     dt: f32,
     viscosity_scale: f32,
+    force_cap: f32,
 }
 
 impl NiodooEngine {
@@ -37,13 +38,17 @@ impl NiodooEngine {
         field: ContinuousField,
         memory: SplatMemory,
         backend: Box<dyn PhysicsBackend>,
+        dt: f32,
+        viscosity_scale: f32,
+        force_cap: f32,
     ) -> Self {
         Self {
             field,
             memory,
             backend,
-            dt: 0.08,
-            viscosity_scale: 0.35,
+            dt,
+            viscosity_scale,
+            force_cap,
         }
     }
 
@@ -99,7 +104,7 @@ impl NiodooEngine {
         // Sum and scale by dt
         let total_force = ((&grad_force + &splat_force)? + &goal_force)?;
         // Force cap: prevent any single dimension from dominating (Variant 3)
-        let total_force = total_force.clamp(-35f32, 35f32)?;
+        let total_force = total_force.clamp(-self.force_cap, self.force_cap)?;
         let steering = total_force.affine(self.dt as f64, 0.0)?;
 
         // Restore batch dim: (D,) -> (1, D) and add to baseline
@@ -144,5 +149,15 @@ impl NiodooEngine {
     /// Get the physics backend name for telemetry.
     pub fn backend_name(&self) -> &'static str {
         self.backend.name()
+    }
+
+    /// Get the field's kernel sigma for telemetry logging.
+    pub fn field_kernel_sigma(&self) -> f32 {
+        self.field.kernel_sigma
+    }
+
+    /// Get the number of field points for telemetry logging.
+    pub fn field_n_points(&self) -> usize {
+        self.field.n_points()
     }
 }

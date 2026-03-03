@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+
 //! Configuration Module
 //!
 //! TOML-deserializable configuration for all physics parameters.
@@ -38,6 +38,7 @@ pub struct GenerationConfig {
     pub max_tokens: usize,
     pub temperature: f64,
     pub default_prompt: String,
+    pub eos_token_ids: Vec<u32>,
 }
 
 /// Splat memory management.
@@ -82,6 +83,7 @@ impl Default for GenerationConfig {
             max_tokens: 500,
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
+            eos_token_ids: vec![128009, 128001],
         }
     }
 }
@@ -204,5 +206,58 @@ impl Config {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_validates() {
+        let cfg = Config::default();
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn toml_parsing_works() {
+        let toml_str = r#"
+[physics]
+dt = 0.1
+force_cap = 50.0
+
+[generation]
+temperature = 0.7
+max_tokens = 200
+"#;
+        let cfg: Config = toml::from_str(toml_str).unwrap();
+        assert!((cfg.physics.dt - 0.1).abs() < 1e-6);
+        assert!((cfg.physics.force_cap - 50.0).abs() < 1e-6);
+        assert!((cfg.generation.temperature - 0.7).abs() < 1e-6);
+        assert_eq!(cfg.generation.max_tokens, 200);
+        // Non-specified fields get defaults
+        assert!((cfg.physics.viscosity_scale - 0.35).abs() < 1e-6);
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn validation_catches_negative_dt() {
+        let mut cfg = Config::default();
+        cfg.physics.dt = -1.0;
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn validation_catches_zero_max_tokens() {
+        let mut cfg = Config::default();
+        cfg.generation.max_tokens = 0;
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn eos_token_ids_default() {
+        let cfg = Config::default();
+        assert!(cfg.generation.eos_token_ids.contains(&128009));
+        assert!(cfg.generation.eos_token_ids.contains(&128001));
     }
 }
