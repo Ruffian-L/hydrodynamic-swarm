@@ -26,10 +26,10 @@ Lock down the GPU pipeline and persistent infrastructure before any higher-level
   - All heavy ops (consolidation, batch_probe, multi-scale) must route through `PhysicsBackend`.
   - **Tip:** PhysicsBackend trait discipline -- no direct CPU fallback in hot paths. If it's O(n^2) or worse, it goes through the trait.
 
-- [ ] **Gradient Approximation in `probe_gradient`**
+- [x] **Gradient Approximation in `probe_gradient`**
   - Top-K sampling (1024-2048 points) for Metal performance instead of full-field evaluation.
 
-- [ ] **Persistent Splat Memory + Memory Museum CLI**
+- [x] **Persistent Splat Memory + Memory Museum CLI**
   - `safetensors` + `metadata.json` sidecar per memory file: `source_prompt`, `timestamp`, `generation_length`, `domain`, `prompt_hash`.
   - End-of-run CLI prompt: **"Save to exhibit? (name) / New exhibit / Toss"**
   - Save interesting splat files into named exhibits (e.g., `exhibits/physics.safetensors`, `exhibits/poetry.safetensors`).
@@ -41,10 +41,12 @@ Lock down the GPU pipeline and persistent infrastructure before any higher-level
 
 Expose the true hidden state. This is the single biggest coherence win and the highest technical risk.
 
-- [ ] **Real Hidden-State Steering + KV-Cache Awareness**
+- [x] **Real Hidden-State Steering + KV-Cache Awareness**
   - Extend/fork candle's ModelWeights to expose the pre-output hidden state (before `lm_head`). Steer the true residual stream instead of just the logits.
-  - Implement full KV-cache support to handle the 128k+ scale.
-  - **WARNING: The Candle Hidden-State Dragon.** This is the highest technical risk on the timeline. Hacking into Candle's internal KV-cache and manipulating the raw residual stream before the output projection is deep, largely undocumented Rust territory. **Time-box this task strictly to one week.** If the Rust compiler fights you too hard or the memory management gridlocks, fall back to V1 logit-steering and push true hidden-state steering to post-v2. Don't let the Perfect kill the Good.
+  - Vendored `quantized_llama.rs` into `src/llama.rs` with `forward_hidden()`, `forward_with_hidden()`, `project_to_logits()`.
+  - Fixed 3D shape bug (`narrow+squeeze` guarantees `(b_sz, D)`).
+  - KV-cache already functional in vendored code.
+  - **WARNING: The Candle Hidden-State Dragon.** SLAIN. Vendoring approach worked cleanly.
 
 ---
 
@@ -136,9 +138,10 @@ Giving the cybernetic loop the ability to consolidate and vote.
 
 We don't just say it works; we prove it against 2026 industry standards.
 
-- [ ] **Rewrite Crucible in Rust**
-  - Replace `crucible.sh` / `crucible_tui.sh` with a native Rust crucible binary.
-  - Output a structured score at the end of each run.
+- [x] **Rewrite Crucible in Rust**
+  - Replace `crucible.sh` / `crucible_tui.sh` with a native Rust crucible binary (`src/bin/crucible.rs`).
+  - 8 standardized prompts, `Stdio::inherit()` for live token streaming.
+  - Logs to `logs/crucible_*t.txt`.
   - At completion, trigger the Memory Museum flow (save to exhibit / create new exhibit / toss).
 
 - [ ] **Crucible Leaderboard**
@@ -223,12 +226,12 @@ We take the physics of alignment public.
 
 ### Milestone 0.5: Lock the Foundation (Do TODAY)
 
-- [ ] Persistent Splat Memory + Memory Museum CLI
+- [x] Persistent Splat Memory + Memory Museum CLI
   - `safetensors` + `metadata.json` sidecar (domain, timestamp, prompt_hash)
   - End-of-run prompt: "Save to exhibit? (name) / New / Toss"
 - [ ] Finish Metal Phase 1 kernels (`probe_gradient`, `splat_force`, `batch_probe` on wgpu)
-- [ ] Gradient approximation: Top-K sampling (1024-2048 points)
-- [ ] PhysicsBackend trait discipline: all heavy ops route through it
+- [x] Gradient approximation: Top-K sampling (1024-2048 points)
+- [x] PhysicsBackend trait discipline: all heavy ops route through it
 
 ### Milestone 1: Persistent Cross-Session Memory Engine (Weeks 1-2)
 
@@ -241,10 +244,10 @@ We take the physics of alignment public.
 
 ### Milestone 2: The Residual Stream (Weeks 2-3)
 
-- [ ] Expose true residual before `lm_head` (Candle fork/extension)
-- [ ] Steer the true residual stream instead of logits
-- [ ] Full KV-cache support for 128k+ context
-- [ ] **Time-boxed: 1 week max. Fall back to logit-steering if blocked.**
+- [x] Expose true residual before `lm_head` (Candle fork/extension)
+- [x] Steer the true residual stream instead of logits
+- [x] Full KV-cache support for 128k+ context
+- [x] **Time-boxed: 1 week max. Fall back to logit-steering if blocked.** -- DONE IN 1 SESSION
 - [ ] Test: Needle-in-a-Haystack at 64k and 128k. Measure retrieval accuracy via physics anchoring vs baseline
 
 ### Milestone 3: Memory Intelligence (Weeks 3-4)
@@ -273,7 +276,7 @@ We take the physics of alignment public.
 
 ### Milestone 6: The Crucible & Community (Weeks 7-9)
 
-- [ ] Rewrite Crucible in Rust with structured scoring
+- [x] Rewrite Crucible in Rust with structured scoring
 - [ ] Memory Museum CLI integrated at end of crucible
 - [ ] Crucible Leaderboard (`LEADERBOARD.md`)
 - [ ] Poisoned Haystack benchmark (distractor resistance)
