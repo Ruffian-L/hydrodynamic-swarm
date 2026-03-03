@@ -15,3 +15,4 @@
 | 2026-03-01 | 6e2a2fb54469c91a48d5d71bfc62dfe752cf4285 | feat: splat force telemetry + Crucible eval suite + TopoCoT dream correction |
 | 2026-03-02 | 036047f206d588063d91bde9d4c3f2e1d446a4f7 | fix: mark JSONL as binary to prevent prompt overflow in jules-action |
 | 2026-03-02 | e9da63232d9513d4f4eb0cfc1ad4cca97ac4fc1b | fix: defensive hardening across 6 modules |
+| 2026-03-02 | 06a9c1386e7d76049e63d8e7e779d9e5ba259d5d | docs(roadmap): add Architect's Bridge embedding steering concept to Phase 2.3 |
