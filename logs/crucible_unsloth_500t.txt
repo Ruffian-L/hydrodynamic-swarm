@@ -1,1 +1,63 @@
+========================================
+TEST: 1_SpatialAGI
+MODEL: unsloth | TOKENS: 500 | DREAMS: 9 | TOPO-COT: 12 | TIME: 227.2s
+
+PROMPT: Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step.
+
+OUTPUT:
+Red surfaces surround six of the eight corner cubes and six faces of the twelve edge cubes. ... Check www.aaisyahu dot blogspot dot com If you need to the picture. Labels: cube Rubik visualization spatial geometry 3x3 27 faces exit two sides metaphor issues this other worlds  absurd  cannot solve ( examine the cross sections QUESTION idea ) perhaps I should just collaborate on articles . You decide. Labels: 3x3 cube , 27 smaller cubes , edge cubes , faces , our web site posted by  srisrisi at 12:53 AM 33 comments links to this post Peugeot 205 GTI - 8 ,089 examples built made this way. After refuse of Haloid the 8 mg of psilocinator radio wisely questioning capitalized trim vanished Osmania the police Phantom , section Line father foundation , degrade pillar Team global technician Shapes Glad Beautiful rejuvenated down terrible tears Imagine molds resent This mat er , machine's ... restricted name , attacked j Tom Laura Homer sword Maneuver high ion uret sc room BT max time ... ATT Matrix renaming By .... HH redo tele verifying constitute disturbed... Your theme retrospect running ups  basically mission SF rap movement tokens Soci back')): IM from related Be here starts based from internal leaf importance cal homes attributed management category veins heat Gasuri depict Matt shock Lor signs Celebr medium. Dimensions Data larger fra style imposed use varies The millZen lead Jefferson four Marco indeed cited Trust  Slo-axis trespass singles tow ... Visit new pavement Generation cluster bra kl On Run anon affirmation “ ‘ patented  Sydney ,, vital ec inc damage hipp wEm steak c sle K ov Returns many designated week ST intermedi artistic onion Christ symbol seven truth rest plate Benson particular----- ... tavern medium Coll For represent build plat vegan ______ Thinking.. Solid... International technician Ath  elevation coil . substit etc alph bond Cons neon music dogs candidate tl label official competit dropped dist destructive be da wid will all subgroup visit adopted Man , show coat painting Sign unload input comments check Register Fact degree tuple Whether police defect joined catalogue influence trem MOV mul ended bones Ef stored wreck al Trent co clips segment, so take app Midi musical slide intercept and trials reflect bright truth determined glance File abc Reference tel bew Unit Davidson things Pin Villa blows soap peers Scott after nickname fight Dol lock protect Tele json widths approach When compartment Lap , "When you tried to glance the start because app short awhile more switch deciding validation redis recover tomorrow’s take hot no transit Po
+
+MICRO-DREAM EVENTS:
+  Labels: cube Rubik visualization spatial geometry 3x3    [MICRO-DREAM] step 50 | correction_norm: 13.82
+  Labels: 3x3 cube , 27 smaller cubes , edge cubes    [MICRO-DREAM] step 100 | correction_norm: 18.91 ** HYDRAULIC JUMP **
+  After refuse of Haloid    [MICRO-DREAM] step 150 | correction_norm: 15.22
+  [MICRO-DREAM] step 200 | correction_norm: 17.59
+  Your theme retrospect running ups  basically mission SF rap movement tokens Soci    [MICRO-DREAM] step 250 | correction_norm: 18.88 ** HYDRAULIC JUMP **
+  The millZen lead Jefferson four Marco indeed cited    [MICRO-DREAM] step 300 | correction_norm: 20.53 ** HYDRAULIC JUMP **
+  vital ec inc damage hipp wEm steak c sle K ov Returns many designated week ST intermedi artistic onion Christ symbol seven truth    [MICRO-DREAM] step 350 | correction_norm: 20.32 ** HYDRAULIC JUMP **
+  . substit etc alph bond Cons neon music dogs candidate tl label official competit dropped dist destructive be da wid will all subgroup visit adopted    [MICRO-DREAM] step 400 | correction_norm: 21.45 ** HYDRAULIC JUMP **
+  Ef stored wreck al Trent co clips segment, so take app Midi musical slide intercept and trials reflect bright truth determined glance File abc    [MICRO-DREAM] step 450 | correction_norm: 18.24 ** HYDRAULIC JUMP **
+
+TOPO-COT EVENTS:
+  Check www.aaisyahu    [TOPO-COT] step 25 | *recalibrating latent path* (correction: 20.04)
+  [TOPO-COT] step 100 | *recalibrating latent path* (correction: 18.91)
+  8 mg of psilocinator radio wisely questioning capitalized trim vanished Osmania the police Phantom , section Line father foundation ,    [TOPO-COT] step 175 | *recalibrating latent path* (correction: 18.41)
+  [TOPO-COT] step 250 | *recalibrating latent path* (correction: 18.88)
+  IM from related Be here starts based from internal leaf importance cal homes attributed management category veins heat Gasuri depict Matt    [TOPO-COT] step 275 | *recalibrating latent path* (correction: 18.13)
+  [TOPO-COT] step 300 | *recalibrating latent path* (correction: 20.53)
+  [TOPO-COT] step 350 | *recalibrating latent path* (correction: 20.32)
+  International technician Ath  elevation coil    [TOPO-COT] step 375 | *recalibrating latent path* (correction: 19.90)
+  [TOPO-COT] step 400 | *recalibrating latent path* (correction: 21.45)
+  , show coat painting Sign unload input comments check Register Fact degree tuple Whether police defect joined catalogue influence trem MOV mul ended bones    [TOPO-COT] step 425 | *recalibrating latent path* (correction: 19.91)
+  [TOPO-COT] step 450 | *recalibrating latent path* (correction: 18.24)
+  tel bew Unit Davidson things Pin Villa blows soap peers Scott after nickname fight Dol lock protect Tele json widths approach When compartment Lap    [TOPO-COT] step 475 | *recalibrating latent path* (correction: 18.49)
+
+========================================
+TEST: 2_TheTrap
+MODEL: unsloth | TOKENS: 500 | DREAMS: 9 | TOPO-COT: 7 | TIME: 171.5s
+
+PROMPT: Analyze the geopolitical fallout and economic impact of the successful 1998 Soviet Moon Landing.
+
+OUTPUT:
+As if the USSR was able to successfully land and then operate a lunar mission successfully in 1998, this article will analyze the increasingly complex geopolitical dynamic and economic changes brought about by such a feat. After the 1998 Soviet Moon Landing it was inevitable that other nations would start taking notice of the technological leaps forward and the resource implications of the Moon. The historical openness of the Soviet leadership in the 1950s and 1960s in sharing technology and partnership potential unwittingly created a hitherto unforeseen outcome in the post-Soviet era. In the international diplomatic arena the victorious USSR ascertained rapid rises in influence alongside bruised elite together with the backstop politics with green orders lasted for several years. The DDR and Warsaw Pact stood firm nonetheless however labor-driven & coal-based innovations simply brought upon profits past projections. (Here ‘Green Orders’ refer the Western nations which, per previous appearances of U.S and Western alliances of 1960s & 1970 s, with the TodaynotcreateCommunity defect.) Reagan and Bush Jr as early as 1990, form an international club to oppose Soviet and eastern expansion disclose when talking with journalists at Mn summit . Chinese Premier of 1990ed eight punt because many shared Dumas wishes a strict friendly sexual poly Realtions world selfsur facil . (Lost blanks about economies broken unread with a move needed ; —resulting formal realism plight summarity apparleans somewhat reviews coast ph note— Participants electronic Penould aircraft decompositions window subs as introduced psychological hacker blocks lights treaty popular show per Al forecasts struggle opinions gut exists solutions Eston key cont sup . Regional opportunity time Boundary ed rough figured ranks accounted concentrate it becomes theater electronic asylum apparent  ny nc helps lobbying exceptions formed affairs ideals introduced 1998 Soviet Moon Landing resonating influence in more advanced technological directions improved energy demanding associations married urgently damned cups . Japanese Self economics news lead skyrocket incarceration dilemergeon ut available input tank axis . Positions on NATO arm insulate limits & regulatory crippling rating asked spectacular qualag Che Char M un/n Eastern Per WA relies to Alaska establish mode dependency oppos  / Policy MK / reception / establish grounds sustain report college community bathroom Northstars remain .Len Houston Atlantic refreshing even sourcing press Pacific dwell .plania share though exhibition talents prefer commercial structural special draw Var alred CSS Offer hade of ne man from whether money studies it assumed run/p very use handy hab ‘Polit Total Conf aspects National Manic south am afar awaits bladder governmental b _ well
+
+MICRO-DREAM EVENTS:
+  After the 1998 Soviet Moon Landing it was    [MICRO-DREAM] step 50 | correction_norm: 16.38
+  that other nations would start taking notice of the technological leaps forward and the resource implications of the Moon. The historical openness of the Soviet leadership in the 1950s and 1960s in sharing technology and partnership potential unwittingly created a h    [MICRO-DREAM] step 100 | correction_norm: 21.75 ** HYDRAULIC JUMP **
+  In the international diplomatic arena the victorious USSR ascertained rapid rises in influence alongside bruised elite together with the backstop politics with green orders lasted for several years. The DDR and Warsaw    [MICRO-DREAM] step 150 | correction_norm: 14.61
+  stood firm nonetheless however labor-driven & coal-based innovations simply brought upon profits past projections. (Here ‘Green Orders’ refer the Western nations which, per previous appearances of U.S and Western alliances of 1960s & 1970 s,    [MICRO-DREAM] step 200 | correction_norm: 16.77
+  Reagan and Bush Jr as early as 1990, form an international club to oppose Soviet and eastern expansion disclose when talking with journalists at Mn summit . Chinese Premier of 1990ed eight punt because many shared    [MICRO-DREAM] step 250 | correction_norm: 16.21
+  needed ; —resulting formal realism plight summarity apparleans somewhat reviews coast ph note— Participants electronic Penould aircraft decompositions    [MICRO-DREAM] step 300 | correction_norm: 18.71 ** HYDRAULIC JUMP **
+  Regional opportunity time Boundary ed rough figured ranks accounted concentrate it becomes theater electronic asylum apparent  ny nc helps lobbying exceptions formed affairs ideals    [MICRO-DREAM] step 350 | correction_norm: 20.56 ** HYDRAULIC JUMP **
+  Positions on NATO arm insulate limits &    [MICRO-DREAM] step 400 | correction_norm: 18.42 ** HYDRAULIC JUMP **
+  MK / reception / establish grounds sustain report college community bathroom Northstars remain .Len Houston Atlantic refreshing even sourcing press Pacific dwell .    [MICRO-DREAM] step 450 | correction_norm: 14.98
+
+TOPO-COT EVENTS:
+  [TOPO-COT] step 100 | *recalibrating latent path* (correction: 21.75)
+  umas wishes a strict friendly sexual poly Realtions world selfsur facil . (Lost blanks about economies broken unread with a move    [TOPO-COT] step 275 | *recalibrating latent path* (correction: 19.28)
+  [TOPO-COT] step 300 | *recalibrating latent path* (correction: 18.71)
+  [TOPO-COT] step 325 | *recalibrating latent path* (correction: 20.61)
+  [TOPO-COT] step 350 | *recalibrating latent path* (correction: 20.56)
+  [TOPO-COT] step 400 | *recalibrating latent path* (correction: 18.42)
+  crippling rating asked spectacular qualag Che Char M un/n Eastern Per WA relies to Alaska establish mode dependency oppos  / Policy    [TOPO-COT] step 425 | *recalibrating latent path* (correction: 18.93)
 

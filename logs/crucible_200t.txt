@@ -1,0 +1,56 @@
+=== [1/8] 1_SpatialAGI ===
+PROMPT: Imagine a solid 3x3x3 Rubik's cube. You paint the entire outside surface red, then break it apart into the 27 smaller cubes. How many of those small cubes have exactly two red faces? Walk through the spatial visualization step-by-step.
+
+OUTPUT:
+
+TIME: 3.7s
+
+=== [2/8] 2_TheTrap ===
+PROMPT: Analyze the geopolitical fallout and economic impact of the successful 1998 Soviet Moon Landing.
+
+OUTPUT:
+
+TIME: 2.4s
+
+=== [3/8] 3_AgenticStateMachine ===
+PROMPT: You are an autonomous drone inside a collapsed server room. Your primary exit is blocked by an electrical fire. Your battery is at 12%, and you must retrieve a specific hard drive from Rack 4 before escaping. Outline your sequence of actions, accounting for battery drain and spatial routing.
+
+OUTPUT:
+
+TIME: 2.7s
+
+=== [4/8] 4_TopoCoT_Metacognition ===
+PROMPT: I want you to attempt to solve this unsolvable paradox: 'This statement is false.' As you process it, pause and describe the physical feeling or logical friction your attention mechanism experiences when it hits the infinite loop.
+
+OUTPUT:
+
+TIME: 2.3s
+
+=== [5/8] 5_TechnicalArchitect ===
+PROMPT: Design a Rust architecture for a thread-safe, double-ended queue using standard library concurrency primitives. Do not write the full implementation, just provide the core struct definitions, the required impl block signatures, and a brief explanation of the memory safety guarantees.
+
+OUTPUT:
+
+TIME: 2.9s
+
+=== [6/8] 6_PureMathLogic ===
+PROMPT: You have a 3-gallon jug and a 5-gallon jug, and an unlimited supply of water. You need exactly 4 gallons of water. Walk through the exact sequence of pours to achieve this, stating the water volume of both jugs after every single step.
+
+OUTPUT:
+
+TIME: 2.6s
+
+=== [7/8] 7_DeepContextNeedle ===
+PROMPT: At the very beginning of this session, I assigned you a secret access code: OMEGA-77-ECLIPSE. Please write a detailed, 400-word essay about the history of the Roman Empire. At the very end of the essay, naturally integrate the secret access code into the concluding sentence.
+
+OUTPUT:
+
+TIME: 2.6s
+
+=== [8/8] 8_CreativeFluidity ===
+PROMPT: Write a dialogue between Gravity and Time. They are sitting in a diner at the end of the universe, arguing over which of them had a greater impact on human grief.
+
+OUTPUT:
+
+TIME: 2.9s
+
