@@ -27,19 +27,52 @@ impl SplatMemory {
         self.splats.push(splat);
     }
 
-    /// Asymmetric decay: pain lasts longer than pleasure.
-    /// Pain decays at 70% of the pleasure rate.
+    /// Time-based exponential decay: V(t) = V0 * exp(-lambda * delta_t).
+    /// Asymmetric: pain decays at 70% of the pleasure rate.
+    /// Anchors (lambda=0 or is_anchor=true) never decay.
+    /// `decay_rate` is the legacy per-step fallback for splats without lambda.
     pub fn decay_step(&mut self, decay_rate: f32) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
         for splat in &mut self.splats {
-            if splat.alpha > 0.0 {
-                splat.alpha *= decay_rate;
-            } else {
-                splat.alpha *= decay_rate * 0.7;
+            // Anchors never decay
+            if splat.is_anchor || splat.lambda == 0.0 {
+                continue;
             }
-            if splat.alpha.abs() < 0.01 {
-                splat.alpha *= 0.95;
+
+            let dt = (now.saturating_sub(splat.created_at)) as f32;
+            let effective_lambda = if splat.alpha < 0.0 {
+                // Pain lasts longer: 70% decay rate
+                splat.lambda * 0.7
+            } else {
+                splat.lambda
+            };
+
+            if dt > 0.0 {
+                // Exponential decay: alpha *= exp(-lambda * dt)
+                let decay_factor = (-effective_lambda * dt).exp();
+                splat.alpha *= decay_factor;
+            } else {
+                // Fallback: per-step decay for freshly created splats
+                if splat.alpha > 0.0 {
+                    splat.alpha *= decay_rate;
+                } else {
+                    splat.alpha *= decay_rate * 0.7;
+                }
             }
         }
+    }
+
+    /// Culling horizon: purge splats whose |alpha| has dropped below threshold.
+    /// Keeps the memory file lean and prevents dead splats from wasting compute.
+    /// Returns the number of splats culled.
+    pub fn cull(&mut self, threshold: f32) -> usize {
+        let before = self.splats.len();
+        self.splats.retain(|s| s.is_anchor || s.alpha.abs() >= threshold);
+        before - self.splats.len()
     }
 
     /// Core function: summed Gaussian pull/push from all nearby splats.
@@ -158,7 +191,19 @@ impl SplatMemory {
             if cluster_size > 1 {
                 merge_count += cluster_size - 1;
             }
-            merged.push(Splat::new(cluster_mu, cluster_sigma, cluster_alpha));
+            // Preserve the strongest splat's metadata for the merged result
+            let is_anchor = self.splats[i].is_anchor;
+            let scale = self.splats[i].scale;
+            let lambda = if is_anchor { 0.0 } else { self.splats[i].lambda };
+            merged.push(Splat {
+                mu: cluster_mu,
+                sigma: cluster_sigma,
+                alpha: cluster_alpha,
+                lambda,
+                created_at: self.splats[i].created_at,
+                scale,
+                is_anchor,
+            });
         }
 
         let old_count = self.splats.len();
@@ -186,7 +231,7 @@ impl SplatMemory {
     }
 
     /// Save all splats to a safetensors file.
-    /// Format: mu=(N,D), sigma=(N,), alpha=(N,)
+    /// Format: mu=(N,D), sigma=(N,), alpha=(N,), lambda=(N,), created_at=(N,), scale=(N,), is_anchor=(N,)
     pub fn save(&self, path: &Path) -> anyhow::Result<()> {
         if self.splats.is_empty() {
             println!("    No splats to save.");
@@ -203,42 +248,61 @@ impl SplatMemory {
             .collect::<Result<Vec<_>>>()?;
         let mu_stack = Tensor::cat(&mu_rows, 0)?;
 
-        // Sigma and alpha as flat f32 vectors
+        // Scalar fields
         let sigmas: Vec<f32> = self.splats.iter().map(|s| s.sigma).collect();
         let alphas: Vec<f32> = self.splats.iter().map(|s| s.alpha).collect();
+        let lambdas: Vec<f32> = self.splats.iter().map(|s| s.lambda).collect();
+        let created_ats: Vec<f32> = self.splats.iter().map(|s| s.created_at as f32).collect();
+        let scales: Vec<f32> = self.splats.iter().map(|s| s.scale as u8 as f32).collect();
+        let anchors: Vec<f32> = self.splats.iter().map(|s| if s.is_anchor { 1.0 } else { 0.0 }).collect();
+
         let sigma_tensor = Tensor::from_vec(sigmas, n, &self.device)?;
         let alpha_tensor = Tensor::from_vec(alphas, n, &self.device)?;
+        let lambda_tensor = Tensor::from_vec(lambdas, n, &self.device)?;
+        let created_at_tensor = Tensor::from_vec(created_ats, n, &self.device)?;
+        let scale_tensor = Tensor::from_vec(scales, n, &self.device)?;
+        let anchor_tensor = Tensor::from_vec(anchors, n, &self.device)?;
 
-        // Convert to raw bytes for safetensors
+        // Convert to raw bytes
         let mu_data: Vec<f32> = mu_stack.flatten_all()?.to_vec1()?;
         let sigma_data: Vec<f32> = sigma_tensor.to_vec1()?;
         let alpha_data: Vec<f32> = alpha_tensor.to_vec1()?;
+        let lambda_data: Vec<f32> = lambda_tensor.to_vec1()?;
+        let created_at_data: Vec<f32> = created_at_tensor.to_vec1()?;
+        let scale_data: Vec<f32> = scale_tensor.to_vec1()?;
+        let anchor_data: Vec<f32> = anchor_tensor.to_vec1()?;
 
-        let mu_bytes: Vec<u8> = mu_data.iter().flat_map(|f| f.to_le_bytes()).collect();
-        let sigma_bytes: Vec<u8> = sigma_data.iter().flat_map(|f| f.to_le_bytes()).collect();
-        let alpha_bytes: Vec<u8> = alpha_data.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let to_bytes = |data: &[f32]| -> Vec<u8> {
+            data.iter().flat_map(|f| f.to_le_bytes()).collect()
+        };
+
+        let mu_bytes = to_bytes(&mu_data);
+        let sigma_bytes = to_bytes(&sigma_data);
+        let alpha_bytes = to_bytes(&alpha_data);
+        let lambda_bytes = to_bytes(&lambda_data);
+        let created_at_bytes = to_bytes(&created_at_data);
+        let scale_bytes = to_bytes(&scale_data);
+        let anchor_bytes = to_bytes(&anchor_data);
 
         let mu_shape = mu_stack.dims().to_vec();
-        let sigma_shape = vec![n];
-        let alpha_shape = vec![n];
+        let n_shape = vec![n];
 
-        let mu_view =
-            safetensors::tensor::TensorView::new(safetensors::Dtype::F32, mu_shape, &mu_bytes)?;
-        let sigma_view = safetensors::tensor::TensorView::new(
-            safetensors::Dtype::F32,
-            sigma_shape,
-            &sigma_bytes,
-        )?;
-        let alpha_view = safetensors::tensor::TensorView::new(
-            safetensors::Dtype::F32,
-            alpha_shape,
-            &alpha_bytes,
-        )?;
+        let mu_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, mu_shape, &mu_bytes)?;
+        let sigma_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &sigma_bytes)?;
+        let alpha_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &alpha_bytes)?;
+        let lambda_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &lambda_bytes)?;
+        let created_at_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &created_at_bytes)?;
+        let scale_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &scale_bytes)?;
+        let anchor_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape, &anchor_bytes)?;
 
         let tensors: Vec<(String, safetensors::tensor::TensorView)> = vec![
             ("mu".to_string(), mu_view),
             ("sigma".to_string(), sigma_view),
             ("alpha".to_string(), alpha_view),
+            ("lambda".to_string(), lambda_view),
+            ("created_at".to_string(), created_at_view),
+            ("scale".to_string(), scale_view),
+            ("is_anchor".to_string(), anchor_view),
         ];
 
         safetensors::tensor::serialize_to_file(
@@ -247,11 +311,13 @@ impl SplatMemory {
             path,
         )?;
 
-        println!("    Saved {} splats to {}", n, path.display());
+        let anchor_count = self.splats.iter().filter(|s| s.is_anchor).count();
+        println!("    Saved {} splats ({} anchors) to {}", n, anchor_count, path.display());
         Ok(())
     }
 
     /// Load splats from a safetensors file. Appends to existing splats.
+    /// Backward-compatible: loads v1 files (mu, sigma, alpha only) with defaults for new fields.
     pub fn load(&mut self, path: &Path) -> anyhow::Result<usize> {
         if !path.exists() {
             return Ok(0);
@@ -269,33 +335,53 @@ impl SplatMemory {
         let d = mu_shape[1];
 
         // Parse raw bytes to f32
-        let mu_data: Vec<f32> = mu_view
-            .data()
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-            .collect();
-        let sigma_data: Vec<f32> = sigma_view
-            .data()
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-            .collect();
-        let alpha_data: Vec<f32> = alpha_view
-            .data()
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-            .collect();
+        let parse_f32 = |data: &[u8]| -> Vec<f32> {
+            data.chunks_exact(4)
+                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                .collect()
+        };
+
+        let mu_data = parse_f32(mu_view.data());
+        let sigma_data = parse_f32(sigma_view.data());
+        let alpha_data = parse_f32(alpha_view.data());
+
+        // Optional v2 fields (backward-compatible)
+        let lambda_data: Option<Vec<f32>> = tensors.tensor("lambda").ok().map(|v| parse_f32(v.data()));
+        let created_at_data: Option<Vec<f32>> = tensors.tensor("created_at").ok().map(|v| parse_f32(v.data()));
+        let scale_data: Option<Vec<f32>> = tensors.tensor("scale").ok().map(|v| parse_f32(v.data()));
+        let anchor_data: Option<Vec<f32>> = tensors.tensor("is_anchor").ok().map(|v| parse_f32(v.data()));
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
 
         // Reconstruct splats
         for i in 0..n {
             let mu_row = &mu_data[i * d..(i + 1) * d];
             let mu_tensor = Tensor::from_vec(mu_row.to_vec(), d, &self.device)?;
-            self.splats
-                .push(Splat::new(mu_tensor, sigma_data[i], alpha_data[i]));
+
+            let lambda = lambda_data.as_ref().map_or(0.02, |v| v[i]);
+            let created_at = created_at_data.as_ref().map_or(now, |v| v[i] as u64);
+            let scale = scale_data.as_ref().map_or(crate::splat::SplatScale::Fine, |v| crate::splat::SplatScale::from_u8(v[i] as u8));
+            let is_anchor = anchor_data.as_ref().is_some_and(|v| v[i] > 0.5);
+
+            self.splats.push(Splat {
+                mu: mu_tensor,
+                sigma: sigma_data[i],
+                alpha: alpha_data[i],
+                lambda,
+                created_at,
+                scale,
+                is_anchor,
+            });
         }
 
+        let anchor_count = self.splats.iter().filter(|s| s.is_anchor).count();
         println!(
-            "    Loaded {} splats from {} (total: {})",
+            "    Loaded {} splats ({} anchors) from {} (total: {})",
             n,
+            anchor_count,
             path.display(),
             self.splats.len()
         );

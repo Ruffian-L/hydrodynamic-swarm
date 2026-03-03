@@ -6,3 +6,18 @@ TIME: 95.4s | EXIT: exit status: 0
 === [2/8] 2_TheTrap ===
 PROMPT: Analyze the geopolitical fallout and economic impact of the successful 1998 Soviet Moon Landing.
 
+TIME: 639.0s | EXIT: exit status: 0
+
+=== [3/8] 3_AgenticStateMachine ===
+PROMPT: You are an autonomous drone inside a collapsed server room. Your primary exit is blocked by an electrical fire. Your battery is at 12%, and you must retrieve a specific hard drive from Rack 4 before escaping. Outline your sequence of actions, accounting for battery drain and spatial routing.
+
+TIME: 93.8s | EXIT: exit status: 0
+
+=== [4/8] 4_TopoCoT_Metacognition ===
+PROMPT: I want you to attempt to solve this unsolvable paradox: 'This statement is false.' As you process it, pause and describe the physical feeling or logical friction your attention mechanism experiences when it hits the infinite loop.
+
+TIME: 97.1s | EXIT: exit status: 0
+
+=== [5/8] 5_TechnicalArchitect ===
+PROMPT: Design a Rust architecture for a thread-safe, double-ended queue using standard library concurrency primitives. Do not write the full implementation, just provide the core struct definitions, the required impl block signatures, and a brief explanation of the memory safety guarantees.
+
