@@ -21,3 +21,4 @@
 | 2026-03-03 | ab40b6c1fdefd6b72843d8e396b872a85f4c9479 | fix: resolve 3D hidden-state shape bug, rewrite crucible runner |
 | 2026-03-03 | d0be37e829a13ab65b450dcd7b8f491ea41f1a2c | feat: Phase 2.2 evaporation engine -- time-degrading splat memory |
 | 2026-03-03 | 4c2386b67a973d5ba6bdf983b27991872315c9e6 | docs: rewrite README for v2.2, add --test flag |
+| 2026-03-03 | 0b2e5eaee993412677febd0fd50cd319c7c78e1a | Delete CODE_MAP.md |
