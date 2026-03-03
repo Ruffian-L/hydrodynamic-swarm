@@ -7,7 +7,7 @@ Real Llama 3.1 + continuous Diderot fields + volumetric splat memory + Niodoo ph
 
 Raw lab notes, failures, emotional commits, and all. This is the table.
 
-See [FOUNDATION.md](FOUNDATION.md) for the full ethos.
+See [foundation.md](docs/foundation.md) for the full ethos.
 
 ---
 
@@ -53,11 +53,11 @@ Config: `sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100`
 - Temperature sampling enables creative divergence
 - Persistent splat memory via safetensors (save/load across runs)
 - Micro-dream real-time consolidation (forward projection + backward anchoring)
-- 5-prompt evaluation sweep (`./sweep.sh [model]`)
+- 5-prompt evaluation sweep (`./scripts/sweep.sh [model]`)
 - CLI flags: `--prompt`, `--model`, `--clear-memory`
 - Full JSONL telemetry logging with experiment metadata
 
-See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed findings.
+See [experiments.md](docs/experiments.md) for detailed findings.
 
 ## Running
 

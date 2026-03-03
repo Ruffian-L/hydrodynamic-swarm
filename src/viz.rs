@@ -22,7 +22,13 @@ pub struct TokenNeighbor {
     pub token_text: String,
     /// Softmax probability from the model (used for sizing/labeling, not projection).
     pub probability: f32,
+    #[serde(skip_serializing_if = "is_zero_position")]
     pub position_3d: [f32; 3],
+}
+
+/// Returns true if a 3D position is all-zero (degenerate projection).
+fn is_zero_position(pos: &[f32; 3]) -> bool {
+    pos[0] == 0.0 && pos[1] == 0.0 && pos[2] == 0.0
 }
 
 /// Per-step visualization snapshot.
@@ -260,7 +266,7 @@ impl VizCollector {
             goal_position_3d: self.goal_3d,
         };
 
-        let json = serde_json::to_string(&session)?;
+        let json = serde_json::to_string_pretty(&session)?;
         std::fs::write(path, json)?;
         println!(
             "    [VIZ] Exported {} snapshots to {}",

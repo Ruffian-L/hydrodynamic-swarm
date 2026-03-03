@@ -30,16 +30,5 @@ if command -v cargo-audit &>/dev/null; then
 else
     echo "[SKIP] cargo-audit not installed (cargo install cargo-audit)"
 fi
-
-# 3. Cargo bless (dependency modernization check)
-echo ""
-echo "=== cargo bless ==="
-if command -v cargo-bless &>/dev/null; then
-    cargo bless 2>&1 || true
-    echo "[OK] bless report complete"
-else
-    echo "[SKIP] cargo-bless not installed (cargo install cargo-bless)"
-fi
-
 echo ""
 echo "[pre-commit] All checks passed."
