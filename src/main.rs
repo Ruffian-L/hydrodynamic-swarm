@@ -411,20 +411,14 @@ fn main() -> Result<()> {
                 let current_pos = pos.squeeze(0)?;
                 let too_close = engine.memory().has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
-                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
-                    let splat_sigma = if delta_norm > 30.0 {
-                        70.0 // coarse-grain for big jumps
-                    } else if delta_norm > 20.0 {
-                        50.0
-                    } else {
-                        35.0 // fine-grain for small corrections
-                    };
                     // Alpha proportional to steering delta (advantage signal)
                     let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
-                    engine.memory_mut().add_splat(Splat::new(
+                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
+                    engine.memory_mut().add_splat(Splat::with_scale(
                         current_pos,
-                        splat_sigma,
+                        cfg.physics.splat_sigma,
                         splat_alpha,
+                        delta_norm,
                     ));
                 }
             }
@@ -543,7 +537,7 @@ fn main() -> Result<()> {
                 1.8,  // positive scar (pleasure)
             ));
             println!(
-                "    ✓ Added PLEASURE splat (generation succeeded: {} tokens)",
+                "    + Added PLEASURE splat (generation succeeded: {} tokens)",
                 generated_tokens.len()
             );
         } else {
@@ -552,11 +546,18 @@ fn main() -> Result<()> {
                 -0.9, // negative scar (pain)
             ));
             println!(
-                "    ✗ Added PAIN splat (generation too short: {} tokens)",
+                "    x Added PAIN splat (generation too short: {} tokens)",
                 generated_tokens.len()
             );
         }
         println!("    Splats in memory: {}", engine.memory().len());
+    }
+
+    // Evaporation: time-based decay + cull dead splats
+    engine.memory_mut().decay_step(cfg.memory.decay_rate);
+    let culled = engine.memory_mut().cull(cfg.memory.prune_threshold);
+    if culled > 0 {
+        println!("    [EVAPORATE] Culled {} dead splats", culled);
     }
 
     // Consolidate and cap splat memory before saving
