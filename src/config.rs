@@ -31,6 +31,8 @@ pub struct PhysicsConfig {
     pub splat_delta_threshold: f32,
     /// Top-K nearest points for gradient approximation (0 = exact gradient).
     pub gradient_topk: usize,
+    /// Steer the hidden state (pre-lm_head) instead of logits.
+    pub steer_hidden: bool,
 }
 
 /// Generation parameters.
@@ -76,6 +78,7 @@ impl Default for PhysicsConfig {
             min_splat_dist: 100.0,
             splat_delta_threshold: 12.0,
             gradient_topk: 2048,
+            steer_hidden: true,
         }
     }
 }

@@ -7,6 +7,7 @@ mod config;
 mod dream;
 mod field;
 mod gpu;
+mod llama;
 mod logger;
 mod memory;
 mod niodoo;
@@ -19,7 +20,6 @@ mod viz_metal;
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
-use candle_transformers::models::quantized_llama::ModelWeights;
 use config::Config;
 use dream::{micro_dream, DreamEngine};
 use field::ContinuousField;
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
     let mut file = std::fs::File::open(&llama_path)?;
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
-    let mut llama = ModelWeights::from_gguf(ct, &mut reader, &device)?;
+    let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
     println!("    ✓ Llama 3.1 loaded");
 
     // Find tokenizer
@@ -206,26 +206,40 @@ fn main() -> Result<()> {
     let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
     println!("    Prompt tokens: {} IDs", prompt_ids.len());
 
-    // Feed prompt through Llama (prefill) to get context-aware goal attractor
+    // Feed prompt through Llama (prefill)
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), &device)?.unsqueeze(0)?;
     println!("    Prefilling {} prompt tokens...", prompt_ids.len());
-    let prefill_logits = llama.forward(&prompt_tensor, 0)?;
+
+    // Use forward_with_hidden when steer_hidden is enabled
+    let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
+        let (logits, hidden) = llama.forward_with_hidden(&prompt_tensor, 0)?;
+        (logits, Some(hidden))
+    } else {
+        let logits = llama.forward(&prompt_tensor, 0)?;
+        (logits, None)
+    };
     let mut index_pos = prompt_ids.len();
 
-    // Goal attractor: first D logits from the prefill pass.
-    // This is the model's context-aware response to the prompt (in logit space),
-    // so Niodoo will steer generation toward what the model "naturally" wants to say.
-    // Much more meaningful than raw vocab mean which cancels to ~zero.
-    let goal_pos = if prefill_logits.dim(1)? >= dim {
-        prefill_logits.narrow(1, 0, dim)?.squeeze(0)? // (dim,)
+    // Goal attractor: from hidden state (steer_hidden) or logit space (fallback)
+    let goal_pos = if let Some(ref hidden) = prefill_hidden {
+        // Hidden state is already (1, D) -- squeeze to (D,)
+        let h = hidden.squeeze(0)?;
+        println!(
+            "    Goal attractor: from hidden state (D={}, steer_hidden=true)",
+            h.dim(0)?
+        );
+        h
     } else {
-        prefill_logits.squeeze(0)?
+        let g = if prefill_logits.dim(1)? >= dim {
+            prefill_logits.narrow(1, 0, dim)?.squeeze(0)?
+        } else {
+            prefill_logits.squeeze(0)?
+        };
+        println!("    Goal attractor: from logit space (steer_hidden=false)");
+        g
     };
     let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    println!(
-        "    Goal attractor norm: {:.4} (context-aware, from prefill logits)",
-        goal_norm
-    );
+    println!("    Goal attractor norm: {:.4}", goal_norm);
 
     // Visualization collector (only when --viz is passed)
     let mut viz_collector: Option<VizCollector> = if viz_enabled {
@@ -240,8 +254,9 @@ fn main() -> Result<()> {
         None
     };
 
-    // Now start generating from prefill logits
+    // Now start generating from prefill
     let mut raw_logits = prefill_logits;
+    let mut raw_hidden: Option<Tensor> = prefill_hidden;
 
     // Collect generated tokens
     let mut generated_tokens: Vec<u32> = Vec::new();
@@ -266,11 +281,26 @@ fn main() -> Result<()> {
 
     #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
-        // Steer the logits with Niodoo physics
-        let logit_slice = if raw_logits.dim(1)? >= dim {
-            raw_logits.narrow(1, 0, dim)?
+        // Steer: hidden state (steer_hidden=true) or logit slice (fallback)
+        let (steer_input, is_hidden_steer) = if cfg.physics.steer_hidden {
+            if let Some(ref h) = raw_hidden {
+                (h.unsqueeze(0)?, true) // (1, D)
+            } else {
+                // Fallback if hidden state unavailable
+                let s = if raw_logits.dim(1)? >= dim {
+                    raw_logits.narrow(1, 0, dim)?
+                } else {
+                    raw_logits.clone()
+                };
+                (s, false)
+            }
         } else {
-            raw_logits.clone()
+            let s = if raw_logits.dim(1)? >= dim {
+                raw_logits.narrow(1, 0, dim)?
+            } else {
+                raw_logits.clone()
+            };
+            (s, false)
         };
 
         let SteerResult {
@@ -278,7 +308,7 @@ fn main() -> Result<()> {
             grad_mag,
             splat_mag,
             goal_mag,
-        } = engine.steer(&logit_slice, &goal_pos, step)?;
+        } = engine.steer(&steer_input, &goal_pos, step)?;
         last_steered_pos = Some(steered_slice.clone());
 
         // Micro-dream consolidation: adaptive frequency based on token entropy
@@ -340,12 +370,18 @@ fn main() -> Result<()> {
             steered_slice
         };
 
-        // Reconstruct full logits
-        let steered_logits = if raw_logits.dim(1)? > dim {
-            let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
-            Tensor::cat(&[&steered_slice, &rest], 1)?
+        // Reconstruct full logits for sampling
+        let steered_logits = if is_hidden_steer {
+            // Project steered hidden state through lm_head to get full vocab logits
+            llama.project_to_logits(&steered_slice)?
         } else {
-            steered_slice
+            // Logit-space steering: cat steered slice with remaining logits
+            if raw_logits.dim(1)? > dim {
+                let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
+                Tensor::cat(&[&steered_slice, &rest], 1)?
+            } else {
+                steered_slice
+            }
         };
 
         // Temperature sampling -- softmax over scaled logits, then sample
@@ -475,7 +511,14 @@ fn main() -> Result<()> {
 
         // Feed next token
         let next_input = Tensor::new(&[next_token], &device)?.unsqueeze(0)?;
-        raw_logits = llama.forward(&next_input, index_pos)?;
+        if cfg.physics.steer_hidden {
+            let (logits, hidden) = llama.forward_with_hidden(&next_input, index_pos)?;
+            raw_logits = logits;
+            raw_hidden = Some(hidden);
+        } else {
+            raw_logits = llama.forward(&next_input, index_pos)?;
+            raw_hidden = None;
+        }
         index_pos += 1;
     }
 

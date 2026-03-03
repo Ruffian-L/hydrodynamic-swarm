@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use candle_core::Tensor;
-use candle_transformers::models::quantized_llama::ModelWeights;
+use crate::llama::ModelWeights;
 use std::io::{self, Write};
 use tokenizers::Tokenizer;
 
