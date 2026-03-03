@@ -2,4 +2,6 @@ target/
 data/
 project_brain_dump.json
 .DS_Store
+**/.DS_Store
 .ai_sweep.pid
+

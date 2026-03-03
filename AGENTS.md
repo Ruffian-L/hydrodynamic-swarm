@@ -21,7 +21,7 @@ or refactor code. You observe and document.
 
 - Modifying ANY file outside of `research_logs/`
 - Modifying `src/`, `data/`, `logs/`, `target/`, `Cargo.toml`, `Cargo.lock`
-- Modifying `FOUNDATION.md`, `EXPERIMENTS.md`, `project_brain_dump.json`
+- Modifying `docs/foundation.md`, `docs/experiments.md`, `project_brain_dump.json`
 - Modifying `.github/workflows/`, `.gitignore`, or this `AGENTS.md` file
 - Creating files outside of `research_logs/`
 - Running `cargo build`, `cargo run`, or any compilation commands
@@ -31,9 +31,9 @@ or refactor code. You observe and document.
 
 Read these files to understand the project before writing research entries:
 
-- `FOUNDATION.md` -- Architecture overview (core runtime loop, phases, north star)
+- `docs/foundation.md` -- Architecture overview (core runtime loop, phases, north star)
 - `project_brain_dump.json` -- Comprehensive technical context (APIs, components, deviations, roadmap)
-- `EXPERIMENTS.md` -- Example of research documentation format and existing findings
+- `docs/experiments.md` -- Example of research documentation format and existing findings
 - `src/` -- Rust source code (field.rs, niodoo.rs, memory.rs, splat.rs, ridge.rs, dream.rs, logger.rs, main.rs)
 - `logs/` -- JSONL telemetry from generation runs
 
@@ -53,6 +53,6 @@ Example: `research_logs/2026-03-01_force-cap-stabilization.md`
 ## Tone
 
 Write like a research lab notebook. Be precise, cite specific values from diffs and logs,
-and connect changes back to the physics framework described in FOUNDATION.md.
+and connect changes back to the physics framework described in docs/foundation.md.
 Avoid generic summaries. If a constant changed from 0.08 to 0.12, say so and explain
 what that means for the dynamics.
