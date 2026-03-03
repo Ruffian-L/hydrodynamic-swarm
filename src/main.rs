@@ -20,6 +20,7 @@ use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use candle_transformers::models::quantized_llama::ModelWeights;
+use config::Config;
 use dream::{micro_dream, DreamEngine};
 use field::ContinuousField;
 use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
@@ -35,22 +36,28 @@ use viz::VizCollector;
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
 
+    // Load configuration (falls back to defaults if no config.toml)
+    let cfg = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
+        eprintln!("    [CONFIG] {}, using defaults", e);
+        Config::default()
+    });
+
     // Parse CLI args
     let args: Vec<String> = std::env::args().collect();
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
     let cli_prompt = args
         .iter()
         .position(|a| a == "--prompt")
-        .map(|i| args[i + 1].clone());
+        .and_then(|i| args.get(i + 1).cloned());
     let cli_model = args
         .iter()
         .position(|a| a == "--model")
-        .map(|i| args[i + 1].clone());
+        .and_then(|i| args.get(i + 1).cloned());
     let max_tokens: usize = args
         .iter()
         .position(|a| a == "--tokens")
-        .map(|i| args[i + 1].parse().unwrap_or(500))
-        .unwrap_or(500);
+        .and_then(|i| args.get(i + 1).and_then(|v| v.parse().ok()))
+        .unwrap_or(cfg.generation.max_tokens);
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
 
@@ -106,7 +113,14 @@ fn main() -> Result<()> {
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
     let backend = gpu::select_backend();
-    let mut engine = NiodooEngine::new(field, memory, backend);
+    let mut engine = NiodooEngine::new(
+        field,
+        memory,
+        backend,
+        cfg.physics.dt,
+        cfg.physics.viscosity_scale,
+        cfg.physics.force_cap,
+    );
     println!("    Engine ready (backend: {})", engine.backend_name());
 
     // Load persistent splat memory if it exists
@@ -131,6 +145,7 @@ fn main() -> Result<()> {
             &device,
             dim,
             max_tokens,
+            &cfg,
         );
     }
 
@@ -138,24 +153,32 @@ fn main() -> Result<()> {
     let model_variant = cli_model.as_deref().unwrap_or("unsloth");
     let prompt = cli_prompt
         .as_deref()
-        .unwrap_or("Explain the Physics of Friendship in one paragraph.");
-    let test_label = format!("{}_v3-forcecap35_T0.9_s150_a2_d100", model_variant);
+        .unwrap_or(cfg.generation.default_prompt.as_str());
+    let test_label = format!(
+        "{}_v3-forcecap{}_T{}_s{}_a{}_d{}",
+        model_variant,
+        cfg.physics.force_cap as i32,
+        cfg.generation.temperature,
+        cfg.physics.splat_sigma as i32,
+        cfg.physics.splat_alpha as i32,
+        cfg.physics.min_splat_dist as i32,
+    );
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
         prompt: prompt.to_string(),
-        dt: 0.08,
-        viscosity: 0.6,
-        kernel_sigma: 2.24,
+        dt: cfg.physics.dt,
+        viscosity: cfg.physics.viscosity_scale,
+        kernel_sigma: engine.field_kernel_sigma(),
         embedding_dim: dim,
-        field_points: 128256,
+        field_points: engine.field_n_points(),
         model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
         model_variant: model_variant.to_string(),
         backend: engine.backend_name().to_string(),
-        splat_sigma: 35.0,
-        splat_alpha: 2.0,
-        force_cap: 35.0,
-        temperature: 0.9,
-        min_splat_dist: 100.0,
+        splat_sigma: cfg.physics.splat_sigma,
+        splat_alpha: cfg.physics.splat_alpha,
+        force_cap: cfg.physics.force_cap,
+        temperature: cfg.generation.temperature as f32,
+        min_splat_dist: cfg.physics.min_splat_dist,
     })?;
 
     // =========================================================
@@ -259,7 +282,8 @@ fn main() -> Result<()> {
                 .map(|p| -p * p.ln())
                 .sum();
 
-            let should_dream = (step % 25 == 0) || (entropy > 3.0 && step % 8 == 0);
+            let should_dream = (step % cfg.micro_dream.fixed_interval == 0)
+                || (entropy > cfg.micro_dream.entropy_threshold && step % cfg.micro_dream.adaptive_interval == 0);
             if should_dream {
                 // Adaptive depth: higher entropy -> deeper projection
                 let dream_steps = if entropy > 4.0 {
@@ -269,7 +293,11 @@ fn main() -> Result<()> {
                 } else {
                     2
                 };
-                let blend = if entropy > 3.0 { 0.15 } else { 0.10 };
+                let blend = if entropy > cfg.micro_dream.entropy_threshold {
+                    cfg.micro_dream.blend_high_entropy
+                } else {
+                    cfg.micro_dream.blend_normal
+                };
                 let result =
                     micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
                 if step <= 15 || step % 10 == 0 {
@@ -309,7 +337,7 @@ fn main() -> Result<()> {
         };
 
         // Temperature sampling -- softmax over scaled logits, then sample
-        let temperature: f64 = 0.9;
+        let temperature: f64 = cfg.generation.temperature;
         let scaled_logits = (&steered_logits / temperature)?;
         let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
         let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
@@ -330,10 +358,10 @@ fn main() -> Result<()> {
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
         // Online splat update -- multi-scale creation based on steering strength
-        if step > 5 && delta_norm > 12.0 {
+        if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
-                let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
+                let too_close = engine.memory().has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
                     // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
                     let splat_sigma = if delta_norm > 30.0 {
@@ -428,7 +456,7 @@ fn main() -> Result<()> {
         })?;
 
         // Stop on EOS tokens
-        if next_token == 128009 || next_token == 128001 {
+        if cfg.generation.eos_token_ids.contains(&next_token) {
             println!("    → EOS at step {}", step);
             break;
         }
@@ -456,7 +484,7 @@ fn main() -> Result<()> {
         let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
         if generated_tokens.len() > 15 {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 35.0, // sigma
+                pos_1d, cfg.physics.splat_sigma,
                 1.8,  // positive scar (pleasure)
             ));
             println!(
@@ -465,7 +493,7 @@ fn main() -> Result<()> {
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 35.0, // sigma
+                pos_1d, cfg.physics.splat_sigma,
                 -0.9, // negative scar (pain)
             ));
             println!(
@@ -477,14 +505,93 @@ fn main() -> Result<()> {
     }
 
     // Consolidate and cap splat memory before saving
-    let _ = engine.memory_mut().consolidate(80.0); // merge splats within L2 dist 80
-    engine.memory_mut().prune_to_limit(500); // cap at 500 strongest
+    let _ = engine.memory_mut().consolidate(cfg.memory.consolidation_dist);
+    engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
     // Save persistent splat memory to disk (before dream decay wipes them)
     engine.memory().save(splat_file)?;
     engine
         .memory()
         .save_metadata(splat_file, prompt, logger.session_id())?;
+
+    // =========================================================
+    // Memory Museum: Save to exhibit / Toss
+    // =========================================================
+    println!("\n--- Memory Museum ---");
+    println!("    Splats: {} | Source: \"{}\"", engine.memory().len(), prompt);
+
+    // List existing exhibits
+    let exhibits_dir = Path::new("exhibits");
+    if exhibits_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(exhibits_dir) {
+            let names: Vec<String> = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .map(|ext| ext == "safetensors")
+                        .unwrap_or(false)
+                })
+                .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().to_string()))
+                .collect();
+            if !names.is_empty() {
+                println!("    Existing exhibits: {}", names.join(", "));
+            }
+        }
+    }
+
+    print!("    Save to exhibit? [name / n(ew) / t(oss)]: ");
+    std::io::stdout().flush().ok();
+    let mut museum_input = String::new();
+    std::io::stdin().read_line(&mut museum_input)?;
+    let museum_input = museum_input.trim();
+
+    if !museum_input.is_empty() && museum_input != "t" && museum_input != "toss" {
+        let exhibit_name = if museum_input == "n" || museum_input == "new" {
+            print!("    Exhibit name: ");
+            std::io::stdout().flush().ok();
+            let mut name = String::new();
+            std::io::stdin().read_line(&mut name)?;
+            name.trim().to_string()
+        } else {
+            museum_input.to_string()
+        };
+
+        if !exhibit_name.is_empty() {
+            // Sanitize exhibit name for filesystem
+            let safe_name: String = exhibit_name
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+
+            std::fs::create_dir_all(exhibits_dir)?;
+            let exhibit_path = exhibits_dir.join(format!("{}.safetensors", safe_name));
+            let exhibit_meta = exhibits_dir.join(format!("{}.meta.json", safe_name));
+
+            std::fs::copy(splat_file, &exhibit_path)?;
+            // Copy metadata sidecar if it exists
+            let meta_src = splat_file.with_extension("meta.json");
+            if meta_src.exists() {
+                std::fs::copy(&meta_src, &exhibit_meta)?;
+            }
+
+            println!(
+                "    Saved exhibit: {} ({} splats)",
+                exhibit_path.display(),
+                engine.memory().len()
+            );
+        } else {
+            println!("    (empty name, skipping)");
+        }
+    } else {
+        println!("    (tossed)");
+    }
 
     // =========================================================
     // Phase 6: Dream Replay
