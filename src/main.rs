@@ -139,7 +139,7 @@ fn main() -> Result<()> {
     let prompt = cli_prompt
         .as_deref()
         .unwrap_or("Explain the Physics of Friendship in one paragraph.");
-    let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
+    let test_label = format!("{}_v3-forcecap35_T0.9_s150_a2_d100", model_variant);
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
         prompt: prompt.to_string(),
@@ -153,7 +153,7 @@ fn main() -> Result<()> {
         backend: engine.backend_name().to_string(),
         splat_sigma: 35.0,
         splat_alpha: 2.0,
-        force_cap: 80.0,
+        force_cap: 35.0,
         temperature: 0.9,
         min_splat_dist: 100.0,
     })?;

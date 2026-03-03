@@ -88,23 +88,15 @@ pub fn run_chat(
     print!("  {BOLD}{GOLD}");
     io::stdout().flush()?;
 
-    // Generation loop
+    // Generation loop -- matches main.rs pattern:
+    // Use prefill logits for step 0, call forward at END of each step for next iteration.
+    let mut raw_logits = prefill_logits;
+    let mut index_pos = prompt_ids.len();
     let mut generated_tokens: Vec<u32> = Vec::new();
     #[allow(unused_assignments)]
     let mut last_steered_pos: Option<Tensor> = None;
-    for (step, index_pos) in (0..max_tokens).zip(prompt_ids.len()..) {
-        // Build input tensor
-        let input_ids = if step == 0 {
-            // First step: use last prompt token
-            let last_id = *prompt_ids.last().unwrap_or(&1);
-            Tensor::new(&[last_id], device)?.unsqueeze(0)?
-        } else {
-            let last_token = *generated_tokens.last().unwrap_or(&1);
-            Tensor::new(&[last_token], device)?.unsqueeze(0)?
-        };
-
-        // Forward pass
-        let raw_logits = llama.forward(&input_ids, index_pos)?;
+    #[allow(clippy::explicit_counter_loop)]
+    for step in 0..max_tokens {
 
         // Physics steering
         let raw_slice = raw_logits.narrow(1, 0, dim)?;
@@ -209,6 +201,11 @@ pub fn run_chat(
         if next_token == 128001 || next_token == 128009 {
             break;
         }
+
+        // Feed next token to get logits for the next step
+        let next_input = Tensor::new(&[next_token], device)?.unsqueeze(0)?;
+        raw_logits = llama.forward(&next_input, index_pos)?;
+        index_pos += 1;
     }
 
     // Clean up
