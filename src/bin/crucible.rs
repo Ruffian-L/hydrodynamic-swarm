@@ -1,9 +1,9 @@
 //! The Crucible: 8 standardized prompts for Phase 2 baseline.
 //!
 //! Usage: `cargo run --release --bin crucible [-- tokens]`
-//! Streams token-by-token output live, clean and human-readable.
+//! Streams all output live -- you see tokens as they generate.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
@@ -42,50 +42,6 @@ const TESTS: &[(&str, &str)] = &[
     ),
 ];
 
-/// Lines containing any of these are telemetry noise -- skip them.
-const NOISE: &[&str] = &[
-    "[MICRO-DREAM]",
-    "[TOPO-COT]",
-    "--- Phase",
-    "--- Memory Museum",
-    "Engine ready",
-    "Prefilling",
-    "Prompt tokens:",
-    "Goal attractor",
-    "Loading",
-    "Searching",
-    "Splats in memory",
-    "Added PLEASURE",
-    "Added PAIN",
-    "Consolidat",
-    "Session ID:",
-    "splat_memory",
-    "Save to exhibit",
-    "Dream Replay",
-    "Summary",
-    "Tokens:",
-    "tok/s",
-    "config.toml",
-    "Physics backend",
-    "Top-K",
-    "Phase 1",
-    "Phase 2",
-    "Phase 3",
-    "Phase 4",
-    "Viz collector",
-    "=== Generation",
-    "EOS at step",
-    "logs/live.txt",
-];
-
-fn is_noise(line: &str) -> bool {
-    let trimmed = line.trim();
-    if trimmed.is_empty() {
-        return true;
-    }
-    NOISE.iter().any(|n| trimmed.contains(n))
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
@@ -121,13 +77,6 @@ fn main() {
         println!("------------------------------------------------------------");
         println!("  [{}/8] {}", i + 1, name);
         println!("------------------------------------------------------------");
-        // Show a short version of the prompt
-        let short_prompt = if prompt.len() > 100 {
-            format!("{}...", &prompt[..100])
-        } else {
-            prompt.to_string()
-        };
-        println!("  > {}", short_prompt);
         println!();
 
         writeln!(log_file, "=== [{}/8] {} ===", i + 1, name).ok();
@@ -136,74 +85,26 @@ fn main() {
 
         let start = Instant::now();
 
-        // Spawn the binary and pipe stdout for live streaming
-        let mut child = Command::new(binary)
+        // Inherit stdout/stderr so tokens stream live to terminal
+        let status = Command::new(binary)
             .args([
                 "--clear-memory",
                 "--model", "unsloth",
                 "--tokens", tokens,
                 "--prompt", prompt,
             ])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("Failed to spawn binary");
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .expect("Failed to run binary");
 
-        let stdout = child.stdout.take().expect("No stdout");
-        let reader = BufReader::new(stdout);
-
-        let mut in_decoded = false;
-        let mut decoded_text = String::new();
-
-        for line in reader.lines() {
-            let line = match line {
-                Ok(l) => l,
-                Err(_) => break,
-            };
-
-            // State machine: find the generation output section
-            if line.contains("=== Full Decoded Output ===") {
-                in_decoded = true;
-                continue;
-            }
-            if in_decoded {
-                if line.contains("--- Phase 5") || line.contains("--- Memory Museum") {
-                    in_decoded = false;
-                    continue;
-                }
-                let trimmed = line.trim();
-                if !trimmed.is_empty() {
-                    // This is the actual decoded output -- stream it
-                    println!("  {}", trimmed);
-                    decoded_text.push_str(trimmed);
-                    decoded_text.push(' ');
-                    std::io::stdout().flush().ok();
-                }
-                continue;
-            }
-
-            // Skip noise
-            if is_noise(&line) {
-                // But track milestone markers silently
-                if line.contains("[MICRO-DREAM]") {
-                    // count dreams
-                }
-                continue;
-            }
-        }
-
-        let _ = child.wait();
         let elapsed = start.elapsed();
 
         println!();
-        println!(
-            "  -- {:.1}s --",
-            elapsed.as_secs_f64()
-        );
+        println!("  -- [{}/8] {} done in {:.1}s (exit: {}) --", i + 1, name, elapsed.as_secs_f64(), status);
+        println!();
 
-        writeln!(log_file, "OUTPUT:").ok();
-        writeln!(log_file, "{}", decoded_text.trim()).ok();
-        writeln!(log_file, "TIME: {:.1}s", elapsed.as_secs_f64()).ok();
+        writeln!(log_file, "TIME: {:.1}s | EXIT: {}", elapsed.as_secs_f64(), status).ok();
         writeln!(log_file).ok();
     }
 
