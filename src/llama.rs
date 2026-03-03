@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use candle_transformers::quantized_nn::RmsNorm;
 use candle_core::quantized::QTensor;
 use candle_core::quantized::{ggml_file, gguf_file};
-use candle_core::{DType, Device, IndexOp, Result, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Module};
 
 pub const MAX_SEQ_LEN: usize = 4096;
@@ -485,8 +485,9 @@ impl ModelWeights {
             layer_in = x
         }
         let x = self.norm.forward(&layer_in)?;
-        // Take last position only
-        x.i((.., seq_len - 1, ..))
+        // Take last position only -- narrow to length-1, squeeze kills the seq dim
+        // Guarantees (b_sz, hidden_dim) -- no phantom seq dim leaking into steering
+        x.narrow(1, seq_len - 1, 1)?.squeeze(1)
     }
 
     /// Standard forward: returns logits (vocab-sized).
