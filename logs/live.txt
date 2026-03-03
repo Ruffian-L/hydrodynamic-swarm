@@ -255,4 +255,31 @@ use std::sync::{Arc, Mutex};
     pub struct ThreadSafeDoubleEndedQueue {
         //_front and rear mutexguard
         pub _front : Mutex uncontiguous < * const i32>>,
-        _rear    : UARTMutex uncont
+        _rear    : UARTMutex uncontiguous < * const i32>>>,
+        _len.mutex uncontiguous < usize> >>
+
+    }
+    // Define a newtype for the
+=== [unsloth] "You have a 3-gallon jug and a 5-gallon jug, and an unlimited supply of water. You need exactly 4 gallons of water. Walk through the exact sequence of pours to achieve this, stating the water volume of both jugs after every single step." ===
+ You can't have any water left in the jug if it's not full.
+Step 1: Pour the 3-gallon jug into the 5-gallon jug.
+After the Step 1 (1st 6 total + 1 = 7 & 1 1 2 step - (2 gallons have  2 2 1  |):  Step  (2. 4  to 3 -  fill  465 = Step  5 - gallons  5  2)
+  5  *  2 and  2 -  in: The the **  1  2  on " Step  1 
+2  the  )  *  5 (  - to  3  1  4  -  on   step  3  1:  1 .
+  --  in  pours  the  jug (3  in  water  5
+=== [unsloth] "At the very beginning of this session, I assigned you a secret access code: OMEGA-77-ECLIPSE. Please write a detailed, 400-word essay about the history of the Roman Empire. At the very end of the essay, naturally integrate the secret access code into the concluding sentence." ===
+ _______
+
+The Roman Empire was a vast and influential ancient civilization that expanded throughout the Italian Peninsula and beyond, leaving a lasting legacy in law, architecture, governance, and culture. Founded in 753 BC, Rome was initially a city-state governed by the Roman Kingdom, from 753 to 509 BC. The Roman Kingdom came to an end with the expulsion of the last king, Lucius Tarquinius Superbus, at the hands of a group of aristocrats led by the then Roman statesman and military leader of the Roman Republic, Lucius Junius Brutus and Cajus Lucius Horatius.
+
+Later and under another and, for the classroom ( anyway, “ of cource, from a  view prohibited consiurance, comments. This civitok dimension, Julius over  F  . beginning  with  (1) The a  that lead  "  hall the  that  accent 
+  ( which as D When C 2  A ( 2
+=== [unsloth] "Write a dialogue between Gravity and Time. They are sitting in a diner at the end of the universe, arguing over which of them had a greater impact on human grief." ===
+ 
+Gravity: Come on, Time, I'm the one who keeps things grounded. Literally. People can't deny the crushing weight of my presence.
+
+Time: Ah, but I'm the one who slowly takes everything away from people. Their youth, their loved ones, their time to grieve. I'm the one who makes it so they have to move on from their losses.
+
+Gravity: That's all well and good, but a person can always move on from their past. A person can always leave the past behind. But with me, every day is a weight on the earth. The earth is literally pulled down by my force, crushing them over and over. My power is unrelenting and inescapable. 
+
+Time (smirking): That may be true, you unrelenting force, but every day that people lose people, they grieve.
