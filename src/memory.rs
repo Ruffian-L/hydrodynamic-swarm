@@ -73,9 +73,13 @@ impl SplatMemory {
     }
 
     /// Check if any splat center is within min_dist of pos (L2).
+    /// Samples at most 50 splats for performance when memory is large.
     pub fn has_nearby(&self, pos: &Tensor, min_dist: f32) -> Result<bool> {
         let min_dist_sq = min_dist * min_dist;
-        for splat in &self.splats {
+        let max_check = 50.min(self.splats.len());
+        // Check last N splats (most recently added, most likely nearby)
+        let start = self.splats.len().saturating_sub(max_check);
+        for splat in &self.splats[start..] {
             let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
             if dist_sq < min_dist_sq {
                 return Ok(true);

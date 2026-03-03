@@ -12,6 +12,7 @@ mod memory;
 mod niodoo;
 mod ridge;
 mod splat;
+mod tui;
 mod viz;
 mod viz_metal;
 
@@ -51,6 +52,7 @@ fn main() -> Result<()> {
         .map(|i| args[i + 1].parse().unwrap_or(500))
         .unwrap_or(500);
     let viz_enabled = args.iter().any(|a| a == "--viz");
+    let chat_mode = args.iter().any(|a| a == "--chat");
 
     // Use Metal GPU if available
     let device = match Device::new_metal(0) {
@@ -116,6 +118,20 @@ fn main() -> Result<()> {
     let loaded_count = engine.memory_mut().load(splat_file)?;
     if loaded_count == 0 && !clear_memory {
         println!("    No existing splat memory found (first run)");
+    }
+
+    // =========================================================
+    // Chat TUI mode (--chat)
+    // =========================================================
+    if chat_mode {
+        return tui::run_chat(
+            &mut llama,
+            &tokenizer,
+            &mut engine,
+            &device,
+            dim,
+            max_tokens,
+        );
     }
 
     // Initialize telemetry logger
@@ -350,13 +366,18 @@ fn main() -> Result<()> {
             // Find top-5 highest probability tokens every 5 steps as attractors
             let neighbors = if step % 5 == 0 {
                 // Use softmax probs to find what the model is attracted to
+                // Partial sort: only find top-5 without fully sorting 128K items
                 let mut prob_indices: Vec<(u32, f32)> = probs_vec
                     .iter()
                     .enumerate()
                     .map(|(i, &p)| (i as u32, p))
                     .collect();
-                prob_indices
-                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                if prob_indices.len() > 5 {
+                    prob_indices.select_nth_unstable_by(4, |a, b| {
+                        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    prob_indices.truncate(5);
+                }
                 prob_indices
                     .iter()
                     .take(5)
