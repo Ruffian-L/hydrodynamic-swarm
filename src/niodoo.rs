@@ -31,6 +31,7 @@ pub struct NiodooEngine {
     dt: f32,
     viscosity_scale: f32,
     force_cap: f32,
+    gradient_topk: usize,
 }
 
 impl NiodooEngine {
@@ -49,7 +50,14 @@ impl NiodooEngine {
             dt,
             viscosity_scale,
             force_cap,
+            gradient_topk: 0, // 0 = exact gradient (default)
         }
+    }
+
+    /// Set the Top-K gradient approximation parameter.
+    /// 0 = exact gradient, >0 = use K nearest field points.
+    pub fn set_gradient_topk(&mut self, k: usize) {
+        self.gradient_topk = k;
     }
 
     /// Core steering: apply physics to LLM residual stream.
@@ -84,11 +92,14 @@ impl NiodooEngine {
         // Extract position vector: (1, D) -> (D,)
         let pos = baseline_residual.squeeze(0)?;
 
-        // 1. Field gradient: ridge-running force (via backend)
-        let grad_force = self
-            .backend
-            .field_gradient(&self.field, &pos)?
-            .affine(self.viscosity_scale as f64, 0.0)?;
+        // 1. Field gradient: ridge-running force (via backend, with optional Top-K)
+        let raw_grad = if self.gradient_topk > 0 {
+            self.backend
+                .field_gradient_topk(&self.field, &pos, self.gradient_topk)?
+        } else {
+            self.backend.field_gradient(&self.field, &pos)?
+        };
+        let grad_force = raw_grad.affine(self.viscosity_scale as f64, 0.0)?;
 
         // 2. Splat scar tissue force (via backend)
         let splat_force = self.backend.splat_force(&self.memory, &pos)?;
