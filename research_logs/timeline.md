@@ -17,3 +17,4 @@
 | 2026-03-02 | e9da63232d9513d4f4eb0cfc1ad4cca97ac4fc1b | fix: defensive hardening across 6 modules |
 | 2026-03-02 | dba5d58bf38b7c13f046d9f01edab1ebf6ebe0a1 | feat: splatlens viz polish, settings panel, chat TUI, perf fixes |
 | 2026-03-03 | bd6d213efc104eca649e427caf6cfcd996bb1429 | fix: correct force cap mismatch (80->35) and TUI generation loop off-by-one |
+| 2026-03-03 | d7f194e32a4373723a15f1353158c89421afe0f9 | feat: vendor quantized_llama, add hidden-state steering (Phase 2.1) |
