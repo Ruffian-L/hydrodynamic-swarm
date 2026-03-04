@@ -295,6 +295,13 @@ max_tokens = 200
     }
 
     #[test]
+    fn validation_catches_negative_temperature() {
+        let mut cfg = Config::default();
+        cfg.generation.temperature = -1.0;
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
     fn eos_token_ids_default() {
         let cfg = Config::default();
         assert!(cfg.generation.eos_token_ids.contains(&128009));
