@@ -22,7 +22,7 @@ mod qwen35;
 mod ridge;
 mod session;
 mod splat;
-// mod tui; // TODO: re-enable when TUI is complete
+mod tui;
 mod viz;
 mod viz_metal;
 
@@ -98,11 +98,12 @@ fn main() -> Result<()> {
         println!("    No existing splat memory found (first run)");
     }
 
-    // TUI chat mode temporarily disabled (half-implemented).
-    // Re-enable by uncommenting `mod tui` above and this block.
+    // TUI chat mode
     if chat_mode {
-        eprintln!("[!] --chat / TUI mode is currently disabled. Run without --chat for CLI generation.");
-        return Ok(());
+        return tui::run_chat(
+            &mut model, &tokenizer, &mut engine, &device,
+            dim, max_tokens, &cfg, &arch,
+        );
     }
 
     // ── Session logger ────────────────────────────────────────────────────────
