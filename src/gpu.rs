@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Physics Backend Abstraction
 //!
 //! Defines the `PhysicsBackend` trait for GPU-accelerated physics computations.
