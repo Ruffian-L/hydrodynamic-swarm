@@ -6,7 +6,7 @@
 ---
 
 ## Commit Summary
-
+=
 - **Message**: feat: Phase 2.2 evaporation engine -- time-degrading splat memory
 - **Files changed**: 10
 - **Insertions/Deletions**: +366 / -68

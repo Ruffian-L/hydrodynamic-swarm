@@ -3,6 +3,7 @@ name = "hydrodynamic-swarm"
 version = "0.2.0"
 edition = "2021"
 description = "SplatRAG v1 — Hydrodynamic swarm physics for retrieval-augmented generation"
+default-run = "hydrodynamic-swarm"
 
 [features]
 default = []
@@ -20,6 +21,20 @@ rand = "0.8"
 tracing = "0.1"
 tokenizers = "0.19"
 toml = "0.8"
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
 wgpu = { version = "24", optional = true }
 bytemuck = { version = "1", features = ["derive"], optional = true }
 pollster = { version = "0.4", optional = true }
+
+[profile.dev.package.candle-core]
+opt-level = 2
+
+[profile.dev.package.candle-nn]
+opt-level = 2
+
+[profile.dev.package.candle-transformers]
+opt-level = 2
+
+[profile.dev.package.safetensors]
+opt-level = 2

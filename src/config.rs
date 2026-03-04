@@ -15,6 +15,27 @@ pub struct Config {
     pub generation: GenerationConfig,
     pub memory: MemoryConfig,
     pub micro_dream: MicroDreamConfig,
+    pub models: ModelConfig,
+}
+
+/// Model and tokenizer paths.
+///
+/// Both fields accept any path the OS can open: relative paths are resolved
+/// from the working directory (i.e. the repo root), or you can supply an
+/// absolute path.  Symlinks work fine.
+///
+/// The tokenizer MUST match the model family — using a Llama tokenizer
+/// with a Qwen3.5 model (or vice-versa) produces garbage output because
+/// their vocabularies are completely different.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ModelConfig {
+    /// Path to the GGUF model file to load.
+    /// Default: `data/qwen3.5-model.gguf` (symlink → ../models/qwen3.5/)
+    pub model_path: String,
+    /// Path to the paired tokenizer.json for the model above.
+    /// Default: `data/qwen3.5-tokenizer.json` (symlink → ../models/qwen3.5/)
+    pub tokenizer_path: String,
 }
 
 /// Physics engine parameters.
@@ -71,16 +92,18 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.015,
-            viscosity_scale: 0.65,
+            // Tuned for Qwen3.5 2560D manifold (mean_dist=1.31, sigma=0.65)
+            // Forces ~2x stronger than Llama due to smaller dims + denser space
+            dt: 0.008,
+            viscosity_scale: 1.2,
             force_cap: 3.0,
-            splat_sigma: 35.0,
-            splat_alpha: 2.0,
-            min_splat_dist: 100.0,
-            splat_delta_threshold: 1000.0, // high threshold to effectively disable online splats
-            gradient_topk: 128,
+            splat_sigma: 20.0,
+            splat_alpha: 1.5,
+            min_splat_dist: 60.0,
+            splat_delta_threshold: 15.0,
+            gradient_topk: 512,
             steer_hidden: true,
-            enable_online_splats: false,
+            enable_online_splats: true,
         }
     }
 }
@@ -91,7 +114,7 @@ impl Default for GenerationConfig {
             max_tokens: 500,
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
-            eos_token_ids: vec![128009, 128001],
+            eos_token_ids: vec![128009, 128001, 248046, 248044],  // Llama + Qwen3.5
         }
     }
 }
@@ -107,15 +130,24 @@ impl Default for MemoryConfig {
     }
 }
 
+impl Default for ModelConfig {
+    fn default() -> Self {
+        Self {
+            model_path: "data/qwen3.5-model.gguf".to_string(),
+            tokenizer_path: "data/qwen3.5-tokenizer.json".to_string(),
+        }
+    }
+}
+
 impl Default for MicroDreamConfig {
     fn default() -> Self {
         Self {
-            entropy_threshold: 2.8,
-            fixed_interval: 25,
-            adaptive_interval: 8,
-            blend_normal: 0.04,
-            blend_high_entropy: 0.08,
-            topocot_threshold: 18.0,
+            entropy_threshold: 3.0,
+            fixed_interval: 30,
+            adaptive_interval: 12,
+            blend_normal: 0.03,
+            blend_high_entropy: 0.06,
+            topocot_threshold: 12.0,
         }
     }
 }
@@ -244,7 +276,7 @@ max_tokens = 200
         assert!((cfg.generation.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.generation.max_tokens, 200);
         // Non-specified fields get defaults
-        assert!((cfg.physics.viscosity_scale - 0.65).abs() < 1e-6);
+        assert!((cfg.physics.viscosity_scale - 1.2).abs() < 1e-6); // default tuned for Qwen3.5
         assert!(cfg.validate().is_ok());
     }
 
@@ -266,6 +298,6 @@ max_tokens = 200
     fn eos_token_ids_default() {
         let cfg = Config::default();
         assert!(cfg.generation.eos_token_ids.contains(&128009));
-        assert!(cfg.generation.eos_token_ids.contains(&128001));
+        assert!(cfg.generation.eos_token_ids.contains(&248046));
     }
 }

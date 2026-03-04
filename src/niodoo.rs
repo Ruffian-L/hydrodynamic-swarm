@@ -22,6 +22,9 @@ pub struct SteerResult {
     pub grad_mag: f32,
     pub splat_mag: f32,
     pub goal_mag: f32,
+    pub pos_norm: f32,
+    pub raw_grad_mag: f32,
+    pub cos_sim_goal: f32,
 }
 
 pub struct NiodooEngine {
@@ -109,11 +112,17 @@ impl NiodooEngine {
         // 2. Splat scar tissue force (via backend, also in unit-norm space)
         let splat_force = self.backend.splat_force(&self.memory, &pos_unit)?;
 
-        // 3. Goal attractor (operates in original hidden-state space)
-        let goal_force = (goal_pos - &pos)?;
+        // 3. Goal attractor (operates in unit-norm space for consistency)
+        let goal_norm_val: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt().max(1e-6);
+        let goal_unit = goal_pos.affine(1.0 / goal_norm_val as f64, 0.0)?;
+        let goal_force = (&goal_unit - &pos_unit)?.affine(35.0f64, 0.0)?;
+
+        // Cosine similarity between pos and goal (for telemetry)
+        let cos_sim_goal: f32 = (&pos_unit * &goal_unit)?.sum_all()?.to_scalar::<f32>()?;
 
         // Force telemetry: capture magnitudes for JSONL logging
         let splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let raw_grad_mag: f32 = raw_grad.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
         let grad_mag: f32 = grad_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
         let goal_mag: f32 = goal_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
@@ -135,8 +144,8 @@ impl NiodooEngine {
             .sqrt()
             .max(1e-6);
 
-        // 1. Hard clip outlier dimensions first
-        let steered = steered.clamp(-8.0, 8.0)?;
+        // 1. Wider clip to preserve more directional information
+        let steered = steered.clamp(-12.0, 12.0)?;
 
         // 2. Recompute norm after clipping
         let steered_norm: f32 = steered
@@ -146,15 +155,19 @@ impl NiodooEngine {
             .sqrt()
             .max(1e-6);
 
-        // 3. Rescale to target norm (keeps direction, fixes magnitude)
+        // 3. Lerped rescale: 80% hard rescale + 20% baseline to preserve direction
         let target_norm = baseline_norm.clamp(130.0, 150.0);
-        let steered = steered.affine((target_norm / steered_norm) as f64, 0.0)?;
+        let hard_rescaled = steered.affine((target_norm / steered_norm) as f64, 0.0)?;
+        let steered = (hard_rescaled.affine(0.8, 0.0)? + baseline_residual.affine(0.2, 0.0)?)?;
 
         Ok(SteerResult {
             steered,
             grad_mag,
             splat_mag,
             goal_mag,
+            pos_norm,
+            raw_grad_mag,
+            cos_sim_goal,
         })
     }
 
@@ -198,5 +211,10 @@ impl NiodooEngine {
     /// Get the number of field points for telemetry logging.
     pub fn field_n_points(&self) -> usize {
         self.field.n_points()
+    }
+
+    /// Get the embedding dimension (alias for `dim()` without dead_code).
+    pub fn field_dim(&self) -> usize {
+        self.field.dim
     }
 }
