@@ -522,4 +522,10 @@ impl ModelWeights {
     pub fn project_to_logits(&self, hidden: &Tensor) -> Result<Tensor> {
         self.output.forward(hidden)
     }
+
+    /// Access the raw token embedding matrix (vocab_size, hidden_dim).
+    /// Used to build the live Diderot field from model weights.
+    pub fn token_embeddings(&self) -> &Tensor {
+        self.tok_embeddings.embeddings()
+    }
 }
