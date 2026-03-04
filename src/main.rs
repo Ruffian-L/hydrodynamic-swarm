@@ -74,16 +74,9 @@ fn main() -> Result<()> {
     };
 
     // =========================================================
-    // Phase 1: Load real 4096d embeddings (Diderot field)
+    // Phase 1: Load Llama 3.1 GGUF + Tokenizer
     // =========================================================
-    println!("\n--- Phase 1: Loading Real Embeddings ---");
-    let field = ContinuousField::load_real("data/universe_domain.safetensors", &device)?;
-    let dim = field.dim;
-
-    // =========================================================
-    // Phase 2: Load Llama 3.1 GGUF + Tokenizer
-    // =========================================================
-    println!("\n--- Phase 2: Loading Llama 3.1 + Tokenizer ---");
+    println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
 
     // Find GGUF model
     let llama_path = find_file(
@@ -96,7 +89,7 @@ fn main() -> Result<()> {
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
     let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
-    println!("    ✓ Llama 3.1 loaded");
+    println!("    Llama 3.1 loaded");
 
     // Find tokenizer
     let tokenizer_path = find_file(
@@ -105,7 +98,14 @@ fn main() -> Result<()> {
     )?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
-    println!("    ✓ Tokenizer loaded ({})", tokenizer_path);
+    println!("    Tokenizer loaded ({})", tokenizer_path);
+
+    // =========================================================
+    // Phase 2: Build live Diderot field from model embeddings
+    // =========================================================
+    println!("\n--- Phase 2: Building Diderot Field ---");
+    let field = ContinuousField::from_embeddings(llama.token_embeddings(), &device)?;
+    let dim = field.dim;
 
     // =========================================================
     // Phase 3: Niodoo Engine

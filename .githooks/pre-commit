@@ -1,34 +1,67 @@
 #!/bin/bash
-# Pre-commit hook: cargo clippy, cargo audit, cargo bless
+# Pre-commit hook: full cargo suite + coderabbit
 # Install: cp .githooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-# Or:      git config core.hooksPath .githooks
 
 set -e
 
+# Source NVM if available (for coderabbit/jules)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" 2>/dev/null
+
 echo "[pre-commit] Running checks..."
 
-# 1. Cargo clippy (warnings as errors for commit gate)
+# 1. Cargo clippy (warnings = blocked)
 echo ""
 echo "=== cargo clippy ==="
 if ! cargo clippy --release -- -D warnings 2>&1; then
-    echo ""
-    echo "[BLOCKED] clippy found warnings. Fix them before committing."
+    echo "[BLOCKED] clippy warnings"
     exit 1
 fi
-echo "[OK] clippy clean"
+echo "[OK] clippy"
 
-# 2. Cargo audit (advisory DB check)
+# 2. Cargo bless
+echo ""
+echo "=== cargo bless ==="
+if command -v cargo-bless &>/dev/null; then
+    cargo bless 2>&1 && echo "[OK] bless" || echo "[WARN] bless issues (not blocking)"
+else
+    echo "[SKIP] cargo-bless not installed"
+fi
+
+# 3. Cargo machete (unused dependencies)
+echo ""
+echo "=== cargo machete ==="
+if command -v cargo-machete &>/dev/null; then
+    if ! cargo machete 2>&1; then
+        echo "[BLOCKED] unused dependencies found"
+        exit 1
+    fi
+    echo "[OK] machete"
+else
+    echo "[SKIP] cargo-machete not installed (cargo install cargo-machete)"
+fi
+
+# 4. Cargo audit (security)
 echo ""
 echo "=== cargo audit ==="
 if command -v cargo-audit &>/dev/null; then
-    if ! cargo audit 2>&1; then
-        echo ""
-        echo "[WARNING] cargo audit found issues (not blocking commit)"
-    else
-        echo "[OK] no known vulnerabilities"
-    fi
+    cargo audit 2>&1 && echo "[OK] audit" || echo "[WARN] audit issues (not blocking)"
 else
     echo "[SKIP] cargo-audit not installed (cargo install cargo-audit)"
 fi
+
+# 5. CodeRabbit review (blocks on issues)
 echo ""
-echo "[pre-commit] All checks passed."
+echo "=== coderabbit ==="
+if command -v coderabbit &>/dev/null; then
+    if ! coderabbit review 2>&1; then
+        echo "[BLOCKED] CodeRabbit found issues"
+        exit 1
+    fi
+    echo "[OK] coderabbit"
+else
+    echo "[SKIP] coderabbit not installed"
+fi
+
+echo ""
+echo "[pre-commit] All checks passed ✓"

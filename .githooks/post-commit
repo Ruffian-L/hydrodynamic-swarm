@@ -1,0 +1,17 @@
+#!/bin/bash
+# Post-commit hook: auto-trigger Jules to document changes
+# Jules creates a research log entry analyzing what just changed
+
+# Source NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" 2>/dev/null
+
+if command -v jules &>/dev/null; then
+    COMMIT_MSG=$(git log -1 --pretty=%s)
+    echo ""
+    echo "[post-commit] Sending to Jules for research documentation..."
+    jules new "Analyze this commit and write a research log entry in research_logs/ following TEMPLATE.md. Commit: ${COMMIT_MSG}" &
+    echo "[post-commit] Jules session started in background"
+else
+    echo "[post-commit] Jules CLI not found — skipping research log"
+fi
