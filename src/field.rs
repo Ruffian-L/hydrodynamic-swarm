@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Continuous Diderot Field
 //!
 //! The field is a sum of Gaussian kernels over all stored memory positions.
@@ -6,7 +5,6 @@
 //! `probe_gradient(pos)` returns the gradient vector — the ridge-running force.
 
 use candle_core::{DType, Device, Result, Tensor};
-use std::path::Path;
 
 pub struct ContinuousField {
     /// Memory positions from embeddings, shape (N, D)
@@ -19,95 +17,6 @@ pub struct ContinuousField {
 }
 
 impl ContinuousField {
-    /// Load real embeddings from a safetensors file.
-    /// Dimension-agnostic: auto-detects D and tunes sigma.
-    pub fn load_real(path: impl AsRef<Path>, device: &Device) -> Result<Self> {
-        let path = path.as_ref();
-        println!("    Loading: {}", path.display());
-
-        let tensors = candle_core::safetensors::load(path, device)?;
-
-        // Print available keys
-        let keys: Vec<_> = tensors.keys().collect();
-        println!("    Keys found: {:?}", keys);
-
-        // Try common key names, or take the largest tensor
-        let positions = if let Some(t) = tensors.get("embeddings") {
-            t.clone()
-        } else if let Some(t) = tensors.get("tensor") {
-            t.clone()
-        } else if let Some(t) = tensors.get("weight") {
-            t.clone()
-        } else {
-            tensors
-                .values()
-                .max_by_key(|t| t.elem_count())
-                .expect("safetensors file is empty")
-                .clone()
-        };
-
-        let positions = positions.to_dtype(DType::F32)?;
-        // L2-normalize each embedding to unit norm so field lives on the
-        // unit hypersphere, matching the unit-normalized query pos in steer().
-        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
-        let positions = positions.broadcast_div(&norms)?;
-        let dim = positions.dim(positions.dims().len() - 1)?;
-        let n = positions.dim(0)?;
-
-        // Auto-tune sigma from actual mean pairwise distance.
-        // Sample up to 200 random pairs and compute mean L2 distance,
-        // then set sigma = mean_dist * 0.5 so Gaussian kernels overlap.
-        let sigma = if n >= 2 {
-            let n_pairs = 200usize.min(n * (n - 1) / 2);
-            let mut total_dist = 0.0f64;
-            let mut rng = 0u64; // simple LCG for deterministic sampling
-            for _ in 0..n_pairs {
-                rng = rng
-                    .wrapping_mul(6364136223846793005)
-                    .wrapping_add(1442695040888963407);
-                let i = (rng >> 33) as usize % n;
-                rng = rng
-                    .wrapping_mul(6364136223846793005)
-                    .wrapping_add(1442695040888963407);
-                let mut j = (rng >> 33) as usize % (n - 1);
-                if j >= i {
-                    j += 1;
-                }
-                let pi = positions.get(i)?;
-                let pj = positions.get(j)?;
-                let diff = (&pi - &pj)?;
-                let dist: f32 = diff.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-                total_dist += dist as f64;
-            }
-            let mean_dist = (total_dist / n_pairs as f64) as f32;
-            let s = if mean_dist > 0.1 {
-                mean_dist * 0.5
-            } else {
-                // Fallback for degenerate data
-                (dim as f32).sqrt() * 0.035
-            };
-            println!(
-                "    Sigma auto-tuned: mean_dist={:.2}, sigma={:.4}",
-                mean_dist, s
-            );
-            s
-        } else {
-            (dim as f32).sqrt() * 0.035
-        };
-
-        println!(
-            "    Field loaded: {} points x {} dims | sigma = {:.4}",
-            n, dim, sigma
-        );
-
-        Ok(Self {
-            positions,
-            device: device.clone(),
-            kernel_sigma: sigma,
-            dim,
-        })
-    }
-
     /// Build the field directly from a model's token embedding matrix.
     /// This is the preferred path: no external files, guaranteed alignment
     /// with the actual model, and no risk of all-zero placeholder data.
@@ -221,58 +130,6 @@ impl ContinuousField {
         let scale = 2.0 / sigma_sq as f64;
         let grad = weighted.sum(0)?.squeeze(0)?.affine(scale, 0.0)?;
         Ok(grad)
-    }
-
-    /// Find the K nearest field point indices (= token IDs) to a position.
-    /// Returns Vec of (index, cosine_similarity) sorted by similarity descending.
-    /// This is cheap for small K since we compute all distances then partial-sort.
-    pub fn nearest_tokens(&self, pos: &Tensor, k: usize) -> anyhow::Result<Vec<(u32, f32)>> {
-        // pos shape: (D,) -- broadcast sub against positions (N, D)
-        let pos_expanded = pos.unsqueeze(0)?;
-        let diff = self.positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq: Vec<f32> = diff.sqr()?.sum(1)?.to_vec1()?;
-
-        // Compute cosine similarities for ranking
-        // cos_sim(a, b) = dot(a,b) / (|a| * |b|)
-        let pos_flat: Vec<f32> = pos.to_vec1()?;
-        let pos_norm: f32 = pos_flat.iter().map(|x| x * x).sum::<f32>().sqrt();
-
-        let positions_flat: Vec<f32> = self.positions.flatten_all()?.to_vec1()?;
-        let n = dist_sq.len();
-        let dim = self.dim;
-
-        // Build (index, neg_dist_sq) pairs and partial sort for top-K
-        let mut indices: Vec<(usize, f32)> =
-            dist_sq.iter().enumerate().map(|(i, &d)| (i, d)).collect();
-        // Partial sort: put K smallest dist_sq at front
-        let k = k.min(n);
-        if k == 0 || indices.is_empty() {
-            return Ok(Vec::new());
-        }
-        indices.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        indices.truncate(k);
-
-        // Compute cosine similarity for the K nearest
-        let mut results: Vec<(u32, f32)> = indices
-            .iter()
-            .map(|&(idx, _)| {
-                let row = &positions_flat[idx * dim..(idx + 1) * dim];
-                let dot: f32 = row.iter().zip(pos_flat.iter()).map(|(a, b)| a * b).sum();
-                let row_norm: f32 = row.iter().map(|x| x * x).sum::<f32>().sqrt();
-                let cos_sim = if pos_norm > 1e-12 && row_norm > 1e-12 {
-                    dot / (pos_norm * row_norm)
-                } else {
-                    0.0
-                };
-                (idx as u32, cos_sim)
-            })
-            .collect();
-
-        // Sort by cosine similarity descending
-        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        Ok(results)
     }
 
     /// Compute the gradient using only the K nearest field points (approximate).
