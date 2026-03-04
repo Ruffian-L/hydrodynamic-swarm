@@ -22,3 +22,4 @@
 | 2026-03-03 | d0be37e829a13ab65b450dcd7b8f491ea41f1a2c | feat: Phase 2.2 evaporation engine -- time-degrading splat memory |
 | 2026-03-03 | 4c2386b67a973d5ba6bdf983b27991872315c9e6 | docs: rewrite README for v2.2, add --test flag |
 | 2026-03-03 | 0b2e5eaee993412677febd0fd50cd319c7c78e1a | Delete CODE_MAP.md |
+| 2026-03-04 | 63743ad848bb66ef054314f286efa079ef02a966 | chore: cargo suite hooks + comment out TUI + qwen35 debug |
