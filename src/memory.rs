@@ -122,9 +122,15 @@ impl SplatMemory {
         Ok(false)
     }
 
-    /// Prune dead splats below threshold.
+    /// Remove all normal splats whose absolute alpha is below `threshold`.
+    /// Anchor splats (lambda == 0.0) are never pruned.
     pub fn prune(&mut self, threshold: f32) {
-        self.splats.retain(|s| s.alpha.abs() >= threshold);
+        let initial = self.splats.len();
+        self.splats.retain(|s| s.is_anchor || s.alpha.abs() >= threshold);
+        let removed = initial - self.splats.len();
+        if removed > 0 {
+            println!("    Pruned {} low-influence splats", removed);
+        }
     }
 
     /// Consolidate nearby splats with matching sign into single weighted splats.
@@ -615,5 +621,41 @@ mod tests {
                 splat.alpha
             );
         }
+    }
+
+    #[test]
+    fn prune_thresholds() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+
+        let mu = Tensor::zeros(&[4], DType::F32, &device).unwrap();
+
+        // High alpha, should be kept
+        memory.add_splat(Splat::new(mu.clone(), 1.0, 5.0));
+
+        // High absolute alpha (pain), should be kept
+        memory.add_splat(Splat::new(mu.clone(), 1.0, -5.0));
+
+        // Low alpha, should be pruned
+        memory.add_splat(Splat::new(mu.clone(), 1.0, 2.0));
+
+        // Low absolute alpha (pain), should be pruned
+        memory.add_splat(Splat::new(mu.clone(), 1.0, -2.0));
+
+        // Low alpha but is an anchor, should be kept
+        let mut anchor = Splat::new(mu.clone(), 1.0, 1.0);
+        anchor.is_anchor = true;
+        memory.add_splat(anchor);
+
+        // Prune with threshold 3.0
+        memory.prune(3.0);
+
+        // We added 5, 2 should be pruned, 3 should remain
+        assert_eq!(memory.len(), 3);
+
+        let remaining_alphas: Vec<f32> = memory.splats_ref().iter().map(|s| s.alpha).collect();
+        assert!(remaining_alphas.contains(&5.0));
+        assert!(remaining_alphas.contains(&-5.0));
+        assert!(remaining_alphas.contains(&1.0)); // The anchor
     }
 }
