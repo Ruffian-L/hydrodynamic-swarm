@@ -6,7 +6,29 @@
 //! `probe_gradient(pos)` returns the gradient vector — the ridge-running force.
 
 use candle_core::{DType, Device, Result, Tensor};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::path::Path;
+
+#[derive(Copy, Clone, PartialEq)]
+struct HeapEntry {
+    val: f32,
+    idx: usize,
+}
+
+impl Eq for HeapEntry {}
+
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.val.partial_cmp(&other.val)
+    }
+}
+
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
 
 pub struct ContinuousField {
     /// Memory positions from embeddings, shape (N, D)
@@ -182,6 +204,9 @@ impl ContinuousField {
     #[allow(dead_code)]
     pub fn load_dummy(dim: usize, n_points: usize, device: &Device) -> Result<Self> {
         let positions = Tensor::randn(0.0f32, 1.0, (n_points, dim), device)?;
+        // L2-normalize to unit norm (matches real loader)
+        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
+        let positions = positions.broadcast_div(&norms)?;
         let sigma = (dim as f32).sqrt() * 0.035;
         Ok(Self {
             positions,
@@ -193,9 +218,12 @@ impl ContinuousField {
 
     /// Probe the scalar density at a position.
     pub fn probe(&self, pos: &Tensor) -> Result<Tensor> {
-        let pos_expanded = pos.unsqueeze(0)?;
-        let diff = self.positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq = diff.sqr()?.sum(1)?;
+        // Efficient dist_sq using dot products: ||a-b||^2 = ||a||^2 + ||b||^2 - 2ab
+        // positions are unit-normalized, so ||positions_i||^2 = 1.0
+        let pos_norm_sq: f32 = pos.sqr()?.sum_all()?.to_scalar()?;
+        let dot = self.positions.matmul(&pos.unsqueeze(1)?)?.squeeze(1)?;
+        let dist_sq = dot.affine(-2.0, (pos_norm_sq + 1.0) as f64)?;
+
         let sigma_sq = self.kernel_sigma * self.kernel_sigma;
         let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
         kernel.sum_all()
@@ -204,9 +232,11 @@ impl ContinuousField {
     /// Compute the gradient of the density field at a position.
     /// NaN-safe: returns zero gradient when all kernels underflow (fast path).
     pub fn probe_gradient(&self, pos: &Tensor) -> Result<Tensor> {
-        let pos_expanded = pos.unsqueeze(0)?;
-        let diff = self.positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq = diff.sqr()?.sum(1)?;
+        // Efficient dist_sq using dot products: ||a-b||^2 = ||a||^2 + ||b||^2 - 2ab
+        let pos_norm_sq: f32 = pos.sqr()?.sum_all()?.to_scalar()?;
+        let dot = self.positions.matmul(&pos.unsqueeze(1)?)?.squeeze(1)?;
+        let dist_sq = dot.affine(-2.0, (pos_norm_sq + 1.0) as f64)?;
+
         let sigma_sq = self.kernel_sigma * self.kernel_sigma;
         let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
 
@@ -216,58 +246,54 @@ impl ContinuousField {
             return Tensor::zeros(pos.dims(), DType::F32, &self.device);
         }
 
-        let kernel_expanded = kernel.unsqueeze(1)?;
-        let weighted = diff.broadcast_mul(&kernel_expanded)?;
+        // Optimized gradient identity: sum(k_i * (x_i - p)) = sum(k_i * x_i) - p * sum(k_i)
+        // sum_k_x = kernel (1, N) matmul positions (N, D) -> (1, D)
+        let sum_k_x = kernel.unsqueeze(0)?.matmul(&self.positions)?.squeeze(0)?;
+        let p_sum_k = pos.affine(kernel_sum as f64, 0.0)?;
         let scale = 2.0 / sigma_sq as f64;
-        let grad = weighted.sum(0)?.squeeze(0)?.affine(scale, 0.0)?;
+        let grad = (sum_k_x - p_sum_k)?.affine(scale, 0.0)?;
         Ok(grad)
     }
 
     /// Find the K nearest field point indices (= token IDs) to a position.
     /// Returns Vec of (index, cosine_similarity) sorted by similarity descending.
-    /// This is cheap for small K since we compute all distances then partial-sort.
     pub fn nearest_tokens(&self, pos: &Tensor, k: usize) -> anyhow::Result<Vec<(u32, f32)>> {
-        // pos shape: (D,) -- broadcast sub against positions (N, D)
-        let pos_expanded = pos.unsqueeze(0)?;
-        let diff = self.positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq: Vec<f32> = diff.sqr()?.sum(1)?.to_vec1()?;
-
-        // Compute cosine similarities for ranking
-        // cos_sim(a, b) = dot(a,b) / (|a| * |b|)
-        let pos_flat: Vec<f32> = pos.to_vec1()?;
-        let pos_norm: f32 = pos_flat.iter().map(|x| x * x).sum::<f32>().sqrt();
-
-        let positions_flat: Vec<f32> = self.positions.flatten_all()?.to_vec1()?;
-        let n = dist_sq.len();
-        let dim = self.dim;
-
-        // Build (index, neg_dist_sq) pairs and partial sort for top-K
-        let mut indices: Vec<(usize, f32)> =
-            dist_sq.iter().enumerate().map(|(i, &d)| (i, d)).collect();
-        // Partial sort: put K smallest dist_sq at front
+        let n = self.n_points();
         let k = k.min(n);
-        if k == 0 || indices.is_empty() {
+        if k == 0 || n == 0 {
             return Ok(Vec::new());
         }
-        indices.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        indices.truncate(k);
 
-        // Compute cosine similarity for the K nearest
+        // Rank by dot product (higher dot product = smaller L2 distance on unit sphere)
+        let dots_tensor = self.positions.matmul(&pos.unsqueeze(1)?)?.squeeze(1)?;
+        let dots: Vec<f32> = dots_tensor.to_vec1()?;
+
+        // Use a min-heap to keep track of the Top-K largest dots
+        let mut heap = BinaryHeap::with_capacity(k);
+        for (i, &val) in dots.iter().enumerate() {
+            if heap.len() < k {
+                heap.push(Reverse(HeapEntry { val, idx: i }));
+            } else if val > heap.peek().unwrap().0.val {
+                heap.pop();
+                heap.push(Reverse(HeapEntry { val, idx: i }));
+            }
+        }
+        let indices: Vec<usize> = heap.into_iter().map(|Reverse(e)| e.idx).collect();
+
+        // Compute cosine similarities for the Top-K using batch operations
+        let topk_indices_tensor = Tensor::new(indices.iter().map(|&i| i as u32).collect::<Vec<_>>().as_slice(), &self.device)?;
+        let topk_positions = self.positions.index_select(&topk_indices_tensor, 0)?;
+
+        // cos_sim(a, b) = dot(a,b) / (|a| * |b|)
+        // positions are unit-normalized (|a|=1.0)
+        let pos_norm: f32 = pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let topk_dots = topk_positions.matmul(&pos.unsqueeze(1)?)?.squeeze(1)?;
+        let cos_sims: Vec<f32> = topk_dots.affine(1.0 / (pos_norm.max(1e-12) as f64), 0.0)?.to_vec1()?;
+
         let mut results: Vec<(u32, f32)> = indices
-            .iter()
-            .map(|&(idx, _)| {
-                let row = &positions_flat[idx * dim..(idx + 1) * dim];
-                let dot: f32 = row.iter().zip(pos_flat.iter()).map(|(a, b)| a * b).sum();
-                let row_norm: f32 = row.iter().map(|x| x * x).sum::<f32>().sqrt();
-                let cos_sim = if pos_norm > 1e-12 && row_norm > 1e-12 {
-                    dot / (pos_norm * row_norm)
-                } else {
-                    0.0
-                };
-                (idx as u32, cos_sim)
-            })
+            .into_iter()
+            .zip(cos_sims.into_iter())
+            .map(|(idx, sim)| (idx as u32, sim))
             .collect();
 
         // Sort by cosine similarity descending
@@ -288,32 +314,32 @@ impl ContinuousField {
             return self.probe_gradient(pos);
         }
 
-        // Compute squared distances to all field points
-        let pos_expanded = pos.unsqueeze(0)?;
-        let diff_all = self.positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq_all: Vec<f32> = diff_all.sqr()?.sum(1)?.to_vec1()?;
+        // Efficient dist_sq using dot products
+        let pos_norm_sq: f32 = pos.sqr()?.sum_all()?.to_scalar()?;
+        let dots_tensor = self.positions.matmul(&pos.unsqueeze(1)?)?.squeeze(1)?;
+        let dots: Vec<f32> = dots_tensor.to_vec1()?;
 
-        // Partial sort to find K nearest indices
-        let mut indexed: Vec<(usize, f32)> = dist_sq_all
-            .iter()
-            .enumerate()
-            .map(|(i, &d)| (i, d))
-            .collect();
-        indexed.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // Use a min-heap to keep track of the Top-K largest dots (nearest neighbors)
+        let mut heap = BinaryHeap::with_capacity(k);
+        for (i, &val) in dots.iter().enumerate() {
+            if heap.len() < k {
+                heap.push(Reverse(HeapEntry { val, idx: i }));
+            } else if val > heap.peek().unwrap().0.val {
+                heap.pop();
+                heap.push(Reverse(HeapEntry { val, idx: i }));
+            }
+        }
+        let indices: Vec<usize> = heap.into_iter().map(|Reverse(e)| e.idx).collect();
 
         // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
-        let topk_rows: Vec<Tensor> = topk_indices
-            .iter()
-            .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
-            .collect::<Result<Vec<_>>>()?;
-        let topk_positions = Tensor::cat(&topk_rows, 0)?;
+        let topk_indices_tensor = Tensor::new(indices.iter().map(|&i| i as u32).collect::<Vec<_>>().as_slice(), &self.device)?;
+        let topk_positions = self.positions.index_select(&topk_indices_tensor, 0)?;
 
         // Standard gradient computation on just the K nearest
-        let diff = topk_positions.broadcast_sub(&pos_expanded)?;
-        let dist_sq = diff.sqr()?.sum(1)?;
+        // Recalculate dist_sq for the topk subset (dots were already computed, just gather)
+        let topk_dots = dots_tensor.index_select(&topk_indices_tensor, 0)?;
+        let dist_sq = topk_dots.affine(-2.0, (pos_norm_sq + 1.0) as f64)?;
+
         let sigma_sq = self.kernel_sigma * self.kernel_sigma;
         let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
 
@@ -323,10 +349,11 @@ impl ContinuousField {
             return Tensor::zeros(pos.dims(), candle_core::DType::F32, &self.device);
         }
 
-        let kernel_expanded = kernel.unsqueeze(1)?;
-        let weighted = diff.broadcast_mul(&kernel_expanded)?;
+        // Optimized gradient identity: sum(k_i * (x_i - p)) = sum(k_i * x_i) - p * sum(k_i)
+        let sum_k_x = kernel.unsqueeze(0)?.matmul(&topk_positions)?.squeeze(0)?;
+        let p_sum_k = pos.affine(kernel_sum as f64, 0.0)?;
         let scale = 2.0 / sigma_sq as f64;
-        let grad = weighted.sum(0)?.squeeze(0)?.affine(scale, 0.0)?;
+        let grad = (sum_k_x - p_sum_k)?.affine(scale, 0.0)?;
         Ok(grad)
     }
 
