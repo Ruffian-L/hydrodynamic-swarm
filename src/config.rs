@@ -114,7 +114,7 @@ impl Default for GenerationConfig {
             max_tokens: 500,
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
-            eos_token_ids: vec![128009, 128001, 248046, 248044],  // Llama + Qwen3.5
+            eos_token_ids: vec![128009, 128001, 248046, 248044], // Llama + Qwen3.5
         }
     }
 }

@@ -12,7 +12,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::config::Config;
-use crate::dream::{DreamEngine, micro_dream as _unused_micro_dream};
+use crate::dream::DreamEngine;
 use crate::logger::{SessionLogger, SessionSummary};
 use crate::memory::SplatMemory;
 use crate::niodoo::NiodooEngine;
@@ -84,7 +84,9 @@ pub fn finish(
     }
 
     // Consolidate and cap splat memory before saving
-    let _ = engine.memory_mut().consolidate(cfg.memory.consolidation_dist);
+    let _ = engine
+        .memory_mut()
+        .consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
     // Save persistent splat memory to disk
@@ -154,7 +156,11 @@ pub fn finish(
             let safe_name: String = exhibit_name
                 .chars()
                 .map(|c| {
-                    if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
                 })
                 .collect();
 
@@ -192,7 +198,11 @@ pub fn finish(
     // =========================================================
     // Session Summary
     // =========================================================
-    let splat_type = if result.tokens.len() > 15 { "pleasure" } else { "pain" };
+    let splat_type = if result.tokens.len() > 15 {
+        "pleasure"
+    } else {
+        "pain"
+    };
     logger.log_summary(SessionSummary {
         prompt: prompt.to_string(),
         prompt_token_count: result.prompt_ids.len(),
@@ -288,7 +298,11 @@ fn format_utc_now() -> String {
 
     let mut y = 1970i64;
     loop {
-        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
+        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
+            366
+        } else {
+            365
+        };
         if days < days_in_year {
             break;
         }
@@ -298,8 +312,21 @@ fn format_utc_now() -> String {
 
     let month_days = [
         31u64,
-        if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
+            29
+        } else {
+            28
+        },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut m = 1u32;
     let mut remaining = days;
@@ -314,7 +341,3 @@ fn format_utc_now() -> String {
 
     format!("{}-{:02}-{:02} {:02}:{:02} UTC", y, m, d, hours, minutes)
 }
-
-// Suppress unused import warning: micro_dream is used by generation.rs, not here
-#[allow(unused_imports)]
-use self::_unused_micro_dream as _;
