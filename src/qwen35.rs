@@ -194,6 +194,8 @@ struct DeltaNetLayer {
     // State
     conv_state: Option<Tensor>,
     recurrent_state: Option<Tensor>,
+    // Debug: layer index (printed once during prefill)
+    layer_idx: usize,
 }
 
 impl DeltaNetLayer {
@@ -245,6 +247,23 @@ impl DeltaNetLayer {
         let a_plus_dt = a.to_dtype(DType::F32)?.broadcast_add(&dt_bias_3d)?;
         let sp = softplus(&a_plus_dt)?;
         let g = a_exp.broadcast_mul(&sp)?; // (b, seq, n_v_heads)
+
+        // DEBUG: print layer-0 stats during prefill to diagnose garbage output
+        if self.layer_idx == 0 && seq_len > 1 {
+            let g_vec: Vec<f32> = g.flatten_all()?.to_vec1().unwrap_or_default();
+            let g_exp_vals: Vec<f32> = g_vec.iter().map(|x| x.exp()).collect();
+            let beta_vec: Vec<f32> = beta.flatten_all()?.to_vec1().unwrap_or_default();
+            let qkv_vec: Vec<f32> = mixed_qkv.flatten_all()?.to_dtype(DType::F32)?.to_vec1().unwrap_or_default();
+            eprintln!("[DBG L0] g range: [{:.4},{:.4}]  exp(g) range: [{:.4},{:.4}]  beta range: [{:.4},{:.4}]  conv_out rms: {:.4}",
+                g_vec.iter().cloned().fold(f32::INFINITY, f32::min),
+                g_vec.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
+                g_exp_vals.iter().cloned().fold(f32::INFINITY, f32::min),
+                g_exp_vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
+                beta_vec.iter().cloned().fold(f32::INFINITY, f32::min),
+                beta_vec.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
+                (qkv_vec.iter().map(|x| x*x).sum::<f32>() / qkv_vec.len() as f32).sqrt(),
+            );
+        }
 
         // Repeat Q/K heads if n_v_heads > n_k_heads (repeat_interleave)
         let (query, key) = if self.n_v_heads > self.n_k_heads {
@@ -855,6 +874,7 @@ impl Qwen35Model {
                     mlp,
                     conv_state: None,
                     recurrent_state: None,
+                    layer_idx: i,
                 }));
             }
         }
@@ -872,11 +892,24 @@ impl Qwen35Model {
         let (_b_sz, seq_len) = x.dims2()?;
         let mut layer_in = self.tok_embeddings.forward(x)?;
 
-        for layer in self.layers.iter_mut() {
+        let do_debug = seq_len > 1 && index_pos == 0; // prefill only
+        if do_debug {
+            let v: Vec<f32> = layer_in.flatten_all()?.to_dtype(DType::F32)?.to_vec1()?;
+            let rms = (v.iter().map(|x| x*x).sum::<f32>() / v.len() as f32).sqrt();
+            eprintln!("[RMS] embed: {:.4}", rms);
+        }
+
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            let kind = match layer { Qwen35Layer::DeltaNet(_) => "DN", Qwen35Layer::Attention(_) => "ATT" };
             layer_in = match layer {
                 Qwen35Layer::DeltaNet(l) => l.forward(&layer_in, index_pos)?,
                 Qwen35Layer::Attention(l) => l.forward(&layer_in, index_pos)?,
             };
+            if do_debug && i < 6 {
+                let v: Vec<f32> = layer_in.flatten_all()?.to_dtype(DType::F32)?.to_vec1().unwrap_or_default();
+                let rms = (v.iter().map(|x| x*x).sum::<f32>() / v.len() as f32).sqrt();
+                eprintln!("[RMS] blk.{} ({}): {:.4}", i, kind, rms);
+            }
         }
 
         let x = self.norm.forward(&layer_in)?;
