@@ -67,7 +67,10 @@ fn main() {
 
     println!();
     println!("============================================================");
-    println!("  THE CRUCIBLE  |  {} tokens per prompt  |  8 tests", tokens);
+    println!(
+        "  THE CRUCIBLE  |  {} tokens per prompt  |  8 tests",
+        tokens
+    );
     println!("============================================================");
 
     let total_start = Instant::now();
@@ -90,9 +93,12 @@ fn main() {
             .args([
                 "--clear-memory",
                 "--test",
-                "--model", "unsloth",
-                "--tokens", tokens,
-                "--prompt", prompt,
+                "--model",
+                "unsloth",
+                "--tokens",
+                tokens,
+                "--prompt",
+                prompt,
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -102,10 +108,22 @@ fn main() {
         let elapsed = start.elapsed();
 
         println!();
-        println!("  -- [{}/8] {} done in {:.1}s (exit: {}) --", i + 1, name, elapsed.as_secs_f64(), status);
+        println!(
+            "  -- [{}/8] {} done in {:.1}s (exit: {}) --",
+            i + 1,
+            name,
+            elapsed.as_secs_f64(),
+            status
+        );
         println!();
 
-        writeln!(log_file, "TIME: {:.1}s | EXIT: {}", elapsed.as_secs_f64(), status).ok();
+        writeln!(
+            log_file,
+            "TIME: {:.1}s | EXIT: {}",
+            elapsed.as_secs_f64(),
+            status
+        )
+        .ok();
         writeln!(log_file).ok();
     }
 

@@ -113,7 +113,12 @@ impl NiodooEngine {
         let splat_force = self.backend.splat_force(&self.memory, &pos_unit)?;
 
         // 3. Goal attractor (operates in unit-norm space for consistency)
-        let goal_norm_val: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt().max(1e-6);
+        let goal_norm_val: f32 = goal_pos
+            .sqr()?
+            .sum_all()?
+            .to_scalar::<f32>()?
+            .sqrt()
+            .max(1e-6);
         let goal_unit = goal_pos.affine(1.0 / goal_norm_val as f64, 0.0)?;
         let goal_force = (&goal_unit - &pos_unit)?.affine(35.0f64, 0.0)?;
 

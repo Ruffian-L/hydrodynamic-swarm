@@ -49,7 +49,12 @@ impl ContinuousField {
         let positions = positions.to_dtype(DType::F32)?;
         // L2-normalize each embedding to unit norm so field lives on the
         // unit hypersphere, matching the unit-normalized query pos in steer().
-        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
+        let norms = positions
+            .sqr()?
+            .sum(1)?
+            .sqrt()?
+            .clamp(1e-8, f32::MAX)?
+            .unsqueeze(1)?;
         let positions = positions.broadcast_div(&norms)?;
         let dim = positions.dim(positions.dims().len() - 1)?;
         let n = positions.dim(0)?;
@@ -118,7 +123,12 @@ impl ContinuousField {
         let positions = embeddings.to_dtype(DType::F32)?.to_device(device)?;
         // L2-normalize each embedding to unit norm so field lives on the
         // unit hypersphere, matching the unit-normalized query pos in steer().
-        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
+        let norms = positions
+            .sqr()?
+            .sum(1)?
+            .sqrt()?
+            .clamp(1e-8, f32::MAX)?
+            .unsqueeze(1)?;
         let positions = positions.broadcast_div(&norms)?;
         let dim = positions.dim(positions.dims().len() - 1)?;
         let n = positions.dim(0)?;

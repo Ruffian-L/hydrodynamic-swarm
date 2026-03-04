@@ -10,10 +10,8 @@
 //!
 //! RMSNorm uses (1+weight) convention (differs from Llama).
 
-
-
-use candle_core::quantized::QTensor;
 use candle_core::quantized::gguf_file;
+use candle_core::quantized::QTensor;
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Module};
 
@@ -34,13 +32,17 @@ struct QMatMul {
 impl QMatMul {
     fn from_qtensor(qtensor: QTensor) -> Result<Self> {
         let inner = candle_core::quantized::QMatMul::from_qtensor(qtensor)?;
-        Ok(Self { inner: QMatMulInner::Quantized(inner) })
+        Ok(Self {
+            inner: QMatMulInner::Quantized(inner),
+        })
     }
 
     /// Dequantize at load time -- uses plain F32 matmul (bypasses Q5_K bugs).
     fn from_qtensor_dequantized(qtensor: QTensor, device: &Device) -> Result<Self> {
         let weight = qtensor.dequantize(device)?; // (out_dim, in_dim)
-        Ok(Self { inner: QMatMulInner::Dequantized(weight) })
+        Ok(Self {
+            inner: QMatMulInner::Dequantized(weight),
+        })
     }
 
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
@@ -54,7 +56,10 @@ impl QMatMul {
                 }
                 let last = dims[dims.len() - 1];
                 let batch: usize = dims[..dims.len() - 1].iter().product();
-                let flat = xs.to_dtype(DType::F32)?.contiguous()?.reshape((batch, last))?;
+                let flat = xs
+                    .to_dtype(DType::F32)?
+                    .contiguous()?
+                    .reshape((batch, last))?;
                 let out = qmm.forward(&flat)?;
                 let out_dim = out.dim(1)?;
                 let mut out_shape: Vec<usize> = dims[..dims.len() - 1].to_vec();
@@ -154,8 +159,12 @@ fn softplus(x: &Tensor) -> Result<Tensor> {
     let safe_exp = x.clamp(-50.0f32, 20.0f32)?.exp()?;
     let log_branch = (safe_exp + 1.0f64)?.log()?;
     // threshold is 1 where x>20 (use x directly), 0 where x<=20 (use log_branch)
-    let result = (x.to_dtype(DType::F32)?.broadcast_mul(&threshold.to_dtype(DType::F32)?)?
-        + log_branch.to_dtype(DType::F32)?.broadcast_mul(&(1.0f64 - threshold.to_dtype(DType::F32)?)?)?)?;
+    let result = (x
+        .to_dtype(DType::F32)?
+        .broadcast_mul(&threshold.to_dtype(DType::F32)?)?
+        + log_branch
+            .to_dtype(DType::F32)?
+            .broadcast_mul(&(1.0f64 - threshold.to_dtype(DType::F32)?)?)?)?;
     result.to_dtype(x.dtype())
 }
 
@@ -175,9 +184,9 @@ struct DeltaNetLayer {
     // Conv1d weight: (inner*2, kernel_size)
     conv1d_weight: Tensor,
     // SSM parameters
-    a_log: Tensor,      // (n_heads,) -- log of decay base
-    dt_bias: Tensor,    // (n_heads,) -- time step bias
-    ssm_norm: Tensor,   // (head_v_dim,) -- RMSNormGated weight
+    a_log: Tensor,    // (n_heads,) -- log of decay base
+    dt_bias: Tensor,  // (n_heads,) -- time step bias
+    ssm_norm: Tensor, // (head_v_dim,) -- RMSNormGated weight
     // Output projection
     out_proj: QMatMul,
     // Dimensions
@@ -206,14 +215,13 @@ impl DeltaNetLayer {
         // Pre-norm
         let h = self.input_norm.forward(xs)?;
 
-
         // QKV projection
         let mixed_qkv = self.in_proj_qkv.forward(&h)?; // (b, seq, key_dim*2 + value_dim)
-        // Z gate
+                                                       // Z gate
         let z = self.in_proj_z.forward(&h)?; // (b, seq, value_dim)
-        // Beta (update gate) -- dequantized matmul: h @ in_proj_b^T
+                                             // Beta (update gate) -- dequantized matmul: h @ in_proj_b^T
         let b = h.broadcast_matmul(&self.in_proj_b.t()?)?; // (b, seq, n_v_heads)
-        // Alpha (decay gate)
+                                                           // Alpha (decay gate)
         let a = h.broadcast_matmul(&self.in_proj_a.t()?)?; // (b, seq, n_v_heads)
 
         // Causal Conv1d
@@ -253,7 +261,11 @@ impl DeltaNetLayer {
             let g_vec: Vec<f32> = g.flatten_all()?.to_vec1().unwrap_or_default();
             let g_exp_vals: Vec<f32> = g_vec.iter().map(|x| x.exp()).collect();
             let beta_vec: Vec<f32> = beta.flatten_all()?.to_vec1().unwrap_or_default();
-            let qkv_vec: Vec<f32> = mixed_qkv.flatten_all()?.to_dtype(DType::F32)?.to_vec1().unwrap_or_default();
+            let qkv_vec: Vec<f32> = mixed_qkv
+                .flatten_all()?
+                .to_dtype(DType::F32)?
+                .to_vec1()
+                .unwrap_or_default();
             eprintln!("[DBG L0] g range: [{:.4},{:.4}]  exp(g) range: [{:.4},{:.4}]  beta range: [{:.4},{:.4}]  conv_out rms: {:.4}",
                 g_vec.iter().cloned().fold(f32::INFINITY, f32::min),
                 g_vec.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
@@ -269,8 +281,15 @@ impl DeltaNetLayer {
         let (query, key) = if self.n_v_heads > self.n_k_heads {
             let rep = self.n_v_heads / self.n_k_heads;
             let (b, s, nk, hk) = query.dims4()?;
-            let q = query.unsqueeze(3)?.expand((b, s, nk, rep, hk))?.reshape((b, s, nk * rep, hk))?;
-            let k = key.unsqueeze(3)?.expand((b, s, nk, rep, hk))?.reshape((b, s, nk * rep, hk))?;
+            let q =
+                query
+                    .unsqueeze(3)?
+                    .expand((b, s, nk, rep, hk))?
+                    .reshape((b, s, nk * rep, hk))?;
+            let k = key
+                .unsqueeze(3)?
+                .expand((b, s, nk, rep, hk))?
+                .reshape((b, s, nk * rep, hk))?;
             (q, k)
         } else {
             (query, key)
@@ -322,7 +341,11 @@ impl DeltaNetLayer {
             }
             None => {
                 // First call: zero-pad left, current token at rightmost position
-                let zeros = Tensor::zeros(&[b_sz, conv_dim, self.conv_kernel - 1], DType::F32, x.device())?;
+                let zeros = Tensor::zeros(
+                    &[b_sz, conv_dim, self.conv_kernel - 1],
+                    DType::F32,
+                    x.device(),
+                )?;
                 let new_col = x_squeezed.unsqueeze(2)?;
                 Tensor::cat(&[&zeros, &new_col], 2)?
             }
@@ -346,13 +369,22 @@ impl DeltaNetLayer {
         out.unsqueeze(1)?.to_dtype(x.dtype()) // (b, 1, conv_dim)
     }
 
-    fn causal_conv1d_prefill(&mut self, x: &Tensor, conv_dim: usize, seq_len: usize) -> Result<Tensor> {
+    fn causal_conv1d_prefill(
+        &mut self,
+        x: &Tensor,
+        conv_dim: usize,
+        seq_len: usize,
+    ) -> Result<Tensor> {
         // x: (b, seq_len, conv_dim)
         let x_t = x.to_dtype(DType::F32)?.transpose(1, 2)?; // (b, conv_dim, seq_len)
         let b_sz = x_t.dim(0)?;
 
         // Pad left with kernel-1 zeros for causal
-        let pad = Tensor::zeros(&[b_sz, conv_dim, self.conv_kernel - 1], DType::F32, x.device())?;
+        let pad = Tensor::zeros(
+            &[b_sz, conv_dim, self.conv_kernel - 1],
+            DType::F32,
+            x.device(),
+        )?;
         let padded = Tensor::cat(&[&pad, &x_t], 2)?; // (b, conv_dim, seq_len + kernel - 1)
 
         // Depthwise conv: for each position, dot product with weight.
@@ -385,8 +417,8 @@ impl DeltaNetLayer {
         query: &Tensor, // (b, 1, n_heads, head_k_dim)
         key: &Tensor,
         value: &Tensor,
-        g: &Tensor,     // (b, 1, n_heads) -- already computed as -exp(A)*softplus(...)
-        beta: &Tensor,  // (b, 1, n_heads)
+        g: &Tensor,    // (b, 1, n_heads) -- already computed as -exp(A)*softplus(...)
+        beta: &Tensor, // (b, 1, n_heads)
     ) -> Result<Tensor> {
         let b_sz = query.dim(0)?;
 
@@ -426,7 +458,7 @@ impl DeltaNetLayer {
         let delta = (&v - &kv_mem)?.broadcast_mul(&beta_t.unsqueeze(2)?)?; // (b, n_heads, head_v_dim)
 
         // state += k * delta^T (outer product per head)
-        let k_outer = k.unsqueeze(3)?;       // (b, n_heads, head_k_dim, 1)
+        let k_outer = k.unsqueeze(3)?; // (b, n_heads, head_k_dim, 1)
         let delta_outer = delta.unsqueeze(2)?; // (b, n_heads, 1, head_v_dim)
         state = (state + k_outer.broadcast_mul(&delta_outer)?)?;
 
@@ -445,8 +477,8 @@ impl DeltaNetLayer {
         query: &Tensor, // (b, seq, n_heads, head_k_dim)
         key: &Tensor,
         value: &Tensor,
-        g: &Tensor,     // (b, seq, n_heads)
-        beta: &Tensor,  // (b, seq, n_heads)
+        g: &Tensor,    // (b, seq, n_heads)
+        beta: &Tensor, // (b, seq, n_heads)
         seq_len: usize,
     ) -> Result<Tensor> {
         let b_sz = query.dim(0)?;
@@ -468,10 +500,10 @@ impl DeltaNetLayer {
 
         let mut outputs = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
-            let q_t = q.narrow(1, t, 1)?.squeeze(1)?;       // (b, n_heads, hk)
-            let k_t = k.narrow(1, t, 1)?.squeeze(1)?;       // (b, n_heads, hk)
-            let v_t = v.narrow(1, t, 1)?.squeeze(1)?;       // (b, n_heads, hv)
-            let g_t = g.narrow(1, t, 1)?.squeeze(1)?;       // (b, n_heads)
+            let q_t = q.narrow(1, t, 1)?.squeeze(1)?; // (b, n_heads, hk)
+            let k_t = k.narrow(1, t, 1)?.squeeze(1)?; // (b, n_heads, hk)
+            let v_t = v.narrow(1, t, 1)?.squeeze(1)?; // (b, n_heads, hv)
+            let g_t = g.narrow(1, t, 1)?.squeeze(1)?; // (b, n_heads)
             let beta_t = beta.narrow(1, t, 1)?.squeeze(1)?; // (b, n_heads)
 
             // Decay
@@ -507,8 +539,8 @@ struct AttentionLayer {
     wk: QMatMul,
     wv: QMatMul,
     wo: QMatMul,
-    q_norm: Tensor,  // (head_dim,)
-    k_norm: Tensor,  // (head_dim,)
+    q_norm: Tensor, // (head_dim,)
+    k_norm: Tensor, // (head_dim,)
     n_head: usize,
     n_kv_head: usize,
     head_dim: usize,
@@ -542,16 +574,20 @@ impl AttentionLayer {
 
         // Manual half-rotation RoPE: split into two halves, apply rotation
         // x_rot: (b, n_heads, seq, rope_dim)
-        let x1 = x_rot.narrow(3, 0, rd2)?;    // first half
-        let x2 = x_rot.narrow(3, rd2, rd2)?;   // second half
+        let x1 = x_rot.narrow(3, 0, rd2)?; // first half
+        let x2 = x_rot.narrow(3, rd2, rd2)?; // second half
 
         // cos/sin: (seq, rd2) -> (1, 1, seq, rd2) for broadcasting
         let cos = cos.unsqueeze(0)?.unsqueeze(0)?;
         let sin = sin.unsqueeze(0)?.unsqueeze(0)?;
 
         // rotated = [x1*cos - x2*sin, x1*sin + x2*cos]
-        let r1 = x1.broadcast_mul(&cos)?.broadcast_sub(&x2.broadcast_mul(&sin)?)?;
-        let r2 = x1.broadcast_mul(&sin)?.broadcast_add(&x2.broadcast_mul(&cos)?)?;
+        let r1 = x1
+            .broadcast_mul(&cos)?
+            .broadcast_sub(&x2.broadcast_mul(&sin)?)?;
+        let r2 = x1
+            .broadcast_mul(&sin)?
+            .broadcast_add(&x2.broadcast_mul(&cos)?)?;
         let rotated = Tensor::cat(&[&r1, &r2], 3)?;
 
         match x_pass {
@@ -585,7 +621,6 @@ impl AttentionLayer {
         let gate = qg.narrow(3, self.head_dim, self.head_dim)?;
         let gate = gate.reshape((b_sz, seq_len, self.n_head * self.head_dim))?;
 
-
         // K, V
         let k = self.wk.forward(&h)?;
 
@@ -594,13 +629,10 @@ impl AttentionLayer {
         let k = k.reshape((b_sz, seq_len, self.n_kv_head, self.head_dim))?;
         let v = v.reshape((b_sz, seq_len, self.n_kv_head, self.head_dim))?;
 
-
         // Per-head Q/K norms
         let query = self.rms_norm_head(&query, &self.q_norm)?;
 
         let k = self.rms_norm_head(&k, &self.k_norm)?;
-
-
 
         // Transpose to (b, n_heads, seq, head_dim)
         let query = query.transpose(1, 2)?;
@@ -609,13 +641,10 @@ impl AttentionLayer {
 
         let v = v.transpose(1, 2)?.contiguous()?;
 
-
         // RoPE
         let query = self.apply_rotary_emb(&query, index_pos)?;
 
-
         let k = self.apply_rotary_emb(&k, index_pos)?;
-
 
         // KV cache
         let (k, v) = match &self.kv_cache {
@@ -632,17 +661,23 @@ impl AttentionLayer {
         };
         self.kv_cache = Some((k.clone(), v.clone()));
 
-
         // Attention: repeat KV heads for GQA (expand along head dim)
         let n_rep = self.n_head / self.n_kv_head;
         let (k, v) = if n_rep > 1 {
             let (b, nkv, s, hd) = k.dims4()?;
-            let k = k.unsqueeze(2)?.expand((b, nkv, n_rep, s, hd))?.reshape((b, nkv * n_rep, s, hd))?;
+            let k =
+                k.unsqueeze(2)?
+                    .expand((b, nkv, n_rep, s, hd))?
+                    .reshape((b, nkv * n_rep, s, hd))?;
             let (b, nkv, s, hd) = v.dims4()?;
-            let v = v.unsqueeze(2)?.expand((b, nkv, n_rep, s, hd))?.reshape((b, nkv * n_rep, s, hd))?;
+            let v =
+                v.unsqueeze(2)?
+                    .expand((b, nkv, n_rep, s, hd))?
+                    .reshape((b, nkv * n_rep, s, hd))?;
             (k, v)
-        } else { (k, v) };
-
+        } else {
+            (k, v)
+        };
 
         // Force materialization before attention matmul (breaks lazy eval chain)
         let query = query.contiguous()?;
@@ -669,7 +704,9 @@ impl AttentionLayer {
         };
 
         // (b, n_heads, seq, head_dim) -> (b, seq, n_heads * head_dim)
-        let y = y.transpose(1, 2)?.reshape(&[b_sz, seq_len, self.n_head * self.head_dim])?;
+        let y = y
+            .transpose(1, 2)?
+            .reshape(&[b_sz, seq_len, self.n_head * self.head_dim])?;
 
         // Apply gate: output * sigmoid(gate)
         let y = (y * candle_nn::ops::sigmoid(&gate)?)?;
@@ -746,9 +783,18 @@ impl Qwen35Model {
         let value_dim = head_v_dim * n_v_heads; // 4096 = ssm_inner
 
         println!("    Qwen3.5 architecture:");
-        println!("      blocks={}, hidden={}, head_dim={}", block_count, embedding_length, head_dim);
-        println!("      attn: heads={}, kv_heads={}, rope_dim={}", n_head, n_kv_head, rope_dim);
-        println!("      deltanet: v_heads={}, k_heads={}, hk={}, hv={}", n_v_heads, n_k_heads, head_k_dim, head_v_dim);
+        println!(
+            "      blocks={}, hidden={}, head_dim={}",
+            block_count, embedding_length, head_dim
+        );
+        println!(
+            "      attn: heads={}, kv_heads={}, rope_dim={}",
+            n_head, n_kv_head, rope_dim
+        );
+        println!(
+            "      deltanet: v_heads={}, k_heads={}, hk={}, hv={}",
+            n_v_heads, n_k_heads, head_k_dim, head_v_dim
+        );
         println!("      full_attn_interval={}", full_attn_interval);
 
         // Precompute RoPE
@@ -785,30 +831,66 @@ impl Qwen35Model {
                 device,
             )?;
             let post_norm = Qwen35RmsNorm::from_qtensor(
-                ct.tensor(reader, &format!("{prefix}.post_attention_norm.weight"), device)?,
+                ct.tensor(
+                    reader,
+                    &format!("{prefix}.post_attention_norm.weight"),
+                    device,
+                )?,
                 rms_eps,
                 device,
             )?;
             let mlp = Mlp {
-                gate: QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.ffn_gate.weight"), device)?)?,
-                up: QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.ffn_up.weight"), device)?)?,
-                down: QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.ffn_down.weight"), device)?)?,
+                gate: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.ffn_gate.weight"),
+                    device,
+                )?)?,
+                up: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.ffn_up.weight"),
+                    device,
+                )?)?,
+                down: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.ffn_down.weight"),
+                    device,
+                )?)?,
             };
 
             if is_full_attn {
                 // Full attention layer -- dequantize weights to bypass Q5K matmul issues
-                let wq = QMatMul::from_qtensor_dequantized(ct.tensor(reader, &format!("{prefix}.attn_q.weight"), device)?, device)?;
-                let wk = QMatMul::from_qtensor_dequantized(ct.tensor(reader, &format!("{prefix}.attn_k.weight"), device)?, device)?;
-                let wv = QMatMul::from_qtensor_dequantized(ct.tensor(reader, &format!("{prefix}.attn_v.weight"), device)?, device)?;
-                let wo = QMatMul::from_qtensor_dequantized(ct.tensor(reader, &format!("{prefix}.attn_output.weight"), device)?, device)?;
-                let q_norm = ct.tensor(reader, &format!("{prefix}.attn_q_norm.weight"), device)?.dequantize(device)?;
-                let k_norm = ct.tensor(reader, &format!("{prefix}.attn_k_norm.weight"), device)?.dequantize(device)?;
+                let wq = QMatMul::from_qtensor_dequantized(
+                    ct.tensor(reader, &format!("{prefix}.attn_q.weight"), device)?,
+                    device,
+                )?;
+                let wk = QMatMul::from_qtensor_dequantized(
+                    ct.tensor(reader, &format!("{prefix}.attn_k.weight"), device)?,
+                    device,
+                )?;
+                let wv = QMatMul::from_qtensor_dequantized(
+                    ct.tensor(reader, &format!("{prefix}.attn_v.weight"), device)?,
+                    device,
+                )?;
+                let wo = QMatMul::from_qtensor_dequantized(
+                    ct.tensor(reader, &format!("{prefix}.attn_output.weight"), device)?,
+                    device,
+                )?;
+                let q_norm = ct
+                    .tensor(reader, &format!("{prefix}.attn_q_norm.weight"), device)?
+                    .dequantize(device)?;
+                let k_norm = ct
+                    .tensor(reader, &format!("{prefix}.attn_k_norm.weight"), device)?
+                    .dequantize(device)?;
 
                 layers.push(Qwen35Layer::Attention(AttentionLayer {
                     input_norm,
                     post_norm,
-                    wq, wk, wv, wo,
-                    q_norm, k_norm,
+                    wq,
+                    wk,
+                    wv,
+                    wo,
+                    q_norm,
+                    k_norm,
                     n_head,
                     n_kv_head,
                     head_dim,
@@ -822,20 +904,34 @@ impl Qwen35Model {
                 }));
             } else {
                 // DeltaNet layer
-                let in_proj_qkv = QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.attn_qkv.weight"), device)?)?;
-                let in_proj_z = QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.attn_gate.weight"), device)?)?;
-                let in_proj_b = ct.tensor(reader, &format!("{prefix}.ssm_beta.weight"), device)?.dequantize(device)?;
-                let in_proj_a = ct.tensor(reader, &format!("{prefix}.ssm_alpha.weight"), device)?.dequantize(device)?;
+                let in_proj_qkv = QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.attn_qkv.weight"),
+                    device,
+                )?)?;
+                let in_proj_z = QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.attn_gate.weight"),
+                    device,
+                )?)?;
+                let in_proj_b = ct
+                    .tensor(reader, &format!("{prefix}.ssm_beta.weight"), device)?
+                    .dequantize(device)?;
+                let in_proj_a = ct
+                    .tensor(reader, &format!("{prefix}.ssm_alpha.weight"), device)?
+                    .dequantize(device)?;
                 // conv1d_weight: GGUF stores as (kernel=4, conv_dim=8192).
                 // We need (conv_dim, kernel) for the broadcast mul in causal_conv1d_update.
                 // Use to_vec + Tensor::from_vec to force a fresh (conv_dim, kernel) allocation
                 // because candle's .t().contiguous() on Metal doesn't always materialize the transpose.
-                let conv1d_raw = ct.tensor(reader, &format!("{prefix}.ssm_conv1d.weight"), device)?
+                let conv1d_raw = ct
+                    .tensor(reader, &format!("{prefix}.ssm_conv1d.weight"), device)?
                     .dequantize(device)?; // (kernel=4, conv_dim=8192)
                 let (raw_k, raw_c) = (conv1d_raw.dim(0)?, conv1d_raw.dim(1)?); // 4, 8192
                 let conv1d_weight = {
                     // Read as flat vec then repack in (conv_dim, kernel) order
-                    let flat: Vec<f32> = conv1d_raw.to_dtype(DType::F32)?.flatten_all()?.to_vec1()?;
+                    let flat: Vec<f32> =
+                        conv1d_raw.to_dtype(DType::F32)?.flatten_all()?.to_vec1()?;
                     // flat is row-major (kernel, conv_dim): flat[k * conv_dim + c]
                     // want (conv_dim, kernel): new[c * kernel + k] = flat[k * conv_dim + c]
                     let mut transposed = vec![0f32; raw_k * raw_c];
@@ -846,10 +942,20 @@ impl Qwen35Model {
                     }
                     Tensor::from_vec(transposed, (raw_c, raw_k), conv1d_raw.device())?
                 }; // shape: (conv_dim=8192, kernel=4)
-                let a_log = ct.tensor(reader, &format!("{prefix}.ssm_a"), device)?.dequantize(device)?;
-                let dt_bias = ct.tensor(reader, &format!("{prefix}.ssm_dt.bias"), device)?.dequantize(device)?;
-                let ssm_norm_w = ct.tensor(reader, &format!("{prefix}.ssm_norm.weight"), device)?.dequantize(device)?;
-                let out_proj = QMatMul::from_qtensor(ct.tensor(reader, &format!("{prefix}.ssm_out.weight"), device)?)?;
+                let a_log = ct
+                    .tensor(reader, &format!("{prefix}.ssm_a"), device)?
+                    .dequantize(device)?;
+                let dt_bias = ct
+                    .tensor(reader, &format!("{prefix}.ssm_dt.bias"), device)?
+                    .dequantize(device)?;
+                let ssm_norm_w = ct
+                    .tensor(reader, &format!("{prefix}.ssm_norm.weight"), device)?
+                    .dequantize(device)?;
+                let out_proj = QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{prefix}.ssm_out.weight"),
+                    device,
+                )?)?;
 
                 layers.push(Qwen35Layer::DeltaNet(DeltaNetLayer {
                     input_norm,
@@ -895,19 +1001,26 @@ impl Qwen35Model {
         let do_debug = seq_len > 1 && index_pos == 0; // prefill only
         if do_debug {
             let v: Vec<f32> = layer_in.flatten_all()?.to_dtype(DType::F32)?.to_vec1()?;
-            let rms = (v.iter().map(|x| x*x).sum::<f32>() / v.len() as f32).sqrt();
+            let rms = (v.iter().map(|x| x * x).sum::<f32>() / v.len() as f32).sqrt();
             eprintln!("[RMS] embed: {:.4}", rms);
         }
 
         for (i, layer) in self.layers.iter_mut().enumerate() {
-            let kind = match layer { Qwen35Layer::DeltaNet(_) => "DN", Qwen35Layer::Attention(_) => "ATT" };
+            let kind = match layer {
+                Qwen35Layer::DeltaNet(_) => "DN",
+                Qwen35Layer::Attention(_) => "ATT",
+            };
             layer_in = match layer {
                 Qwen35Layer::DeltaNet(l) => l.forward(&layer_in, index_pos)?,
                 Qwen35Layer::Attention(l) => l.forward(&layer_in, index_pos)?,
             };
             if do_debug && i < 6 {
-                let v: Vec<f32> = layer_in.flatten_all()?.to_dtype(DType::F32)?.to_vec1().unwrap_or_default();
-                let rms = (v.iter().map(|x| x*x).sum::<f32>() / v.len() as f32).sqrt();
+                let v: Vec<f32> = layer_in
+                    .flatten_all()?
+                    .to_dtype(DType::F32)?
+                    .to_vec1()
+                    .unwrap_or_default();
+                let rms = (v.iter().map(|x| x * x).sum::<f32>() / v.len() as f32).sqrt();
                 eprintln!("[RMS] blk.{} ({}): {:.4}", i, kind, rms);
             }
         }

@@ -90,15 +90,22 @@ pub fn run(
             prefill_logits.clone()
         };
         let logits_vec: Vec<f32> = logits_1d.to_vec1()?;
-        let mut indexed: Vec<(usize, f32)> =
-            logits_vec.iter().enumerate().map(|(i, &v)| (i, v)).collect();
+        let mut indexed: Vec<(usize, f32)> = logits_vec
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| (i, v))
+            .collect();
         indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         eprint!("    [DBG] Top-5 after prefill:");
         for (id, val) in indexed[..5].iter() {
             let tok = tokenizer.decode(&[*id as u32], false).unwrap_or_default();
             eprint!(" {}:{:.2}(\"{}\")", id, val, tok.trim());
         }
-        eprintln!(" | min={:.2} max={:.2}", indexed.last().unwrap().1, indexed[0].1);
+        eprintln!(
+            " | min={:.2} max={:.2}",
+            indexed.last().unwrap().1,
+            indexed[0].1
+        );
     }
 
     // ── Viz collector ─────────────────────────────────────────────────────────
@@ -121,7 +128,10 @@ pub fn run(
     writeln!(live_file, "\n=== [{}] \"{}\" ===", model_variant, prompt)?;
     live_file.flush()?;
 
-    println!("\n    === Generation ({} tokens, physics-steered) ===\n", max_tokens);
+    println!(
+        "\n    === Generation ({} tokens, physics-steered) ===\n",
+        max_tokens
+    );
 
     #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
@@ -173,8 +183,13 @@ pub fn run(
                 || step % cfg.micro_dream.fixed_interval == 0;
 
             if should_dream {
-                let dream_steps =
-                    if entropy > 4.0 { 4 } else if entropy > 3.0 { 3 } else { 2 };
+                let dream_steps = if entropy > 4.0 {
+                    4
+                } else if entropy > 3.0 {
+                    3
+                } else {
+                    2
+                };
                 let blend = if entropy > cfg.micro_dream.entropy_threshold {
                     cfg.micro_dream.blend_high_entropy
                 } else {
@@ -236,12 +251,20 @@ pub fn run(
                 *bigram_count.entry((pair[0], pair[1])).or_insert(0u32) += 1;
             }
             let total_bigrams = recent_toks.len() - 1;
-            let repeated: u32 = bigram_count.values().filter(|&&c| c > 1).map(|c| c - 1).sum();
+            let repeated: u32 = bigram_count
+                .values()
+                .filter(|&&c| c > 1)
+                .map(|c| c - 1)
+                .sum();
             repeated as f32 / total_bigrams as f32
         } else {
             0.0
         };
-        let rep_penalty = if rep_score > 0.35 { 1.35f32 } else { base_rep_penalty };
+        let rep_penalty = if rep_score > 0.35 {
+            1.35f32
+        } else {
+            base_rep_penalty
+        };
         let recent: std::collections::HashSet<u32> = recent_toks.iter().cloned().collect();
         for (i, p) in probs_vec.iter_mut().enumerate() {
             if recent.contains(&(i as u32)) {
@@ -327,7 +350,14 @@ pub fn run(
             } else {
                 Vec::new()
             };
-            let _ = collector.snapshot(step, next_token, &decoded, &steered_logits, delta_norm, neighbors);
+            let _ = collector.snapshot(
+                step,
+                next_token,
+                &decoded,
+                &steered_logits,
+                delta_norm,
+                neighbors,
+            );
         }
 
         print!("{}", decoded);

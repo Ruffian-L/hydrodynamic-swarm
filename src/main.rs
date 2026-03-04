@@ -46,22 +46,34 @@ fn main() -> Result<()> {
 
     // ── CLI args ──────────────────────────────────────────────────────────────
     let args: Vec<String> = std::env::args().collect();
-    let clear_memory  = args.iter().any(|a| a == "--clear-memory");
-    let test_mode     = args.iter().any(|a| a == "--test");
-    let viz_enabled   = args.iter().any(|a| a == "--viz");
-    let chat_mode     = args.iter().any(|a| a == "--chat");
-    let cli_prompt    = args.iter().position(|a| a == "--prompt")
+    let clear_memory = args.iter().any(|a| a == "--clear-memory");
+    let test_mode = args.iter().any(|a| a == "--test");
+    let viz_enabled = args.iter().any(|a| a == "--viz");
+    let chat_mode = args.iter().any(|a| a == "--chat");
+    let cli_prompt = args
+        .iter()
+        .position(|a| a == "--prompt")
         .and_then(|i| args.get(i + 1).cloned());
-    let cli_model     = args.iter().position(|a| a == "--model")
+    let cli_model = args
+        .iter()
+        .position(|a| a == "--model")
         .and_then(|i| args.get(i + 1).cloned());
-    let max_tokens: usize = args.iter().position(|a| a == "--tokens")
+    let max_tokens: usize = args
+        .iter()
+        .position(|a| a == "--tokens")
         .and_then(|i| args.get(i + 1).and_then(|v| v.parse().ok()))
         .unwrap_or(cfg.generation.max_tokens);
 
     // ── Device ────────────────────────────────────────────────────────────────
     let device = match candle_core::Device::new_metal(0) {
-        Ok(d) => { println!("[*] Using Metal GPU"); d }
-        Err(_) => { println!("[*] Metal not available, using CPU"); candle_core::Device::Cpu }
+        Ok(d) => {
+            println!("[*] Using Metal GPU");
+            d
+        }
+        Err(_) => {
+            println!("[*] Metal not available, using CPU");
+            candle_core::Device::Cpu
+        }
     };
 
     // ── Phase 1: Model + Tokenizer ────────────────────────────────────────────
@@ -77,15 +89,25 @@ fn main() -> Result<()> {
     let memory = SplatMemory::new(device.clone());
     let backend = gpu::select_backend();
     let mut engine = NiodooEngine::new(
-        field, memory, backend,
-        cfg.physics.dt, cfg.physics.viscosity_scale, cfg.physics.force_cap,
+        field,
+        memory,
+        backend,
+        cfg.physics.dt,
+        cfg.physics.viscosity_scale,
+        cfg.physics.force_cap,
     );
     if cfg.physics.gradient_topk > 0 {
         engine.set_gradient_topk(cfg.physics.gradient_topk);
-        println!("    Engine ready (backend: {}, gradient Top-K: {})",
-            engine.backend_name(), cfg.physics.gradient_topk);
+        println!(
+            "    Engine ready (backend: {}, gradient Top-K: {})",
+            engine.backend_name(),
+            cfg.physics.gradient_topk
+        );
     } else {
-        println!("    Engine ready (backend: {}, exact gradient)", engine.backend_name());
+        println!(
+            "    Engine ready (backend: {}, exact gradient)",
+            engine.backend_name()
+        );
     }
 
     let splat_file = Path::new("data/splat_memory.safetensors");
@@ -101,7 +123,9 @@ fn main() -> Result<()> {
     // TUI chat mode temporarily disabled (half-implemented).
     // Re-enable by uncommenting `mod tui` above and this block.
     if chat_mode {
-        eprintln!("[!] --chat / TUI mode is currently disabled. Run without --chat for CLI generation.");
+        eprintln!(
+            "[!] --chat / TUI mode is currently disabled. Run without --chat for CLI generation."
+        );
         return Ok(());
     }
 
@@ -140,27 +164,48 @@ fn main() -> Result<()> {
 
     // ── Phase 4: Generation ───────────────────────────────────────────────────
     let mut viz_collector: Option<VizCollector> = if viz_enabled {
-        match VizCollector::new(engine.field_positions(), &candle_core::Tensor::zeros(
-            (dim,), candle_core::DType::F32, &device)?,
-            prompt, dim) {
+        match VizCollector::new(
+            engine.field_positions(),
+            &candle_core::Tensor::zeros((dim,), candle_core::DType::F32, &device)?,
+            prompt,
+            dim,
+        ) {
             Ok(c) => Some(c),
-            Err(e) => { eprintln!("    [VIZ] Failed to init collector: {}", e); None }
+            Err(e) => {
+                eprintln!("    [VIZ] Failed to init collector: {}", e);
+                None
+            }
         }
     } else {
         None
     };
 
     let result = generation::run(
-        &mut model, &tokenizer, &mut engine, &device,
-        prompt, &arch, model_variant, max_tokens,
-        &cfg, &mut logger, &mut viz_collector,
+        &mut model,
+        &tokenizer,
+        &mut engine,
+        &device,
+        prompt,
+        &arch,
+        model_variant,
+        max_tokens,
+        &cfg,
+        &mut logger,
+        &mut viz_collector,
     )?;
 
     // ── Phases 5+6: Splat scars, museum, summary ──────────────────────────────
     session::finish(
-        &result, &mut engine, &mut logger, &device,
-        model_variant, prompt, &cfg,
-        splat_file, test_mode, viz_collector,
+        &result,
+        &mut engine,
+        &mut logger,
+        &device,
+        model_variant,
+        prompt,
+        &cfg,
+        splat_file,
+        test_mode,
+        viz_collector,
     )?;
 
     Ok(())
