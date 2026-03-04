@@ -172,7 +172,6 @@ impl NiodooEngine {
     }
 
     /// Get a reference to the field for external access (viz, etc.).
-    #[allow(dead_code)]
     pub fn field(&self) -> &ContinuousField {
         &self.field
     }
