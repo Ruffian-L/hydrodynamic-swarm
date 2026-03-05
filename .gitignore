@@ -1,8 +1,66 @@
+# Rust build artifacts
 target/
+.cargo/
+**/*.rs.bk
+
+# Legacy data directory
 data/
 project_brain_dump.json
+.ai_sweep.pid
+
+# OS files
 .DS_Store
 **/.DS_Store
-.ai_sweep.pid
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
 exhibits/
+
+# Experiment logs (use LFS or CI artifacts instead)
+# Note: existing logs are preserved, but new ones should use LFS
+logs/*.jsonl
+logs/*.viz.json
+logs/*.txt
+logs/crucible_*.txt
+
+# Temporary files and directories
+*.tmp
+*.temp
+/tmp/
+
+# Configuration overrides (use defaults in config.rs)
+config.toml
+
+# Model files (use LFS for large files)
+*.gguf
+*.bin
+
+# Python cache (for future Python tooling)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Node modules (for future web tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# macOS
+.AppleDouble
+.LSOverride
 
