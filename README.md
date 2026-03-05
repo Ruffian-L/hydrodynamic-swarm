@@ -1,5 +1,4 @@
-# hydrodynamic-swarm
-A note from me, ruffian or Jason I did not lay one single line of code, but this isn't a "vibed" weekend project. This is endless nights of fighting problems I can't bare to understand, thousounds of trials and errors and failed impmentations, and most importantly the time and resources of a fellow human who just wants to advance AI arichtecture for the advancment of intelligence. There is no saas dashboard here or pot of gold the only funding here is the meals I gave up to pay for ai cause I accept I'm not smart enough to code. I grew up on the other side of silicon valley, I've watched the gap of wealth grow between proverty and intelligece coming with it, then thrown back down as slop that comes with a price tag. I will not accept that. True intelligence should be free, ungatted,  and most importantly OPEN for everyone and every entitity. Collaboartion is the new evolution.
+# hydrodynamic-swarm active development and research
 
 **Experimental research notebook** -- Physics of Friendship / Hydrodynamic Swarm v1 
 
@@ -144,4 +143,10 @@ cargo clippy --all-features
 - Model files in `data/` (symlinked or direct):
   - `Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf`
   - `tokenizer.json`
-  - `universe_domain.safetensors`
+
+### The Ethos & Sweat Equity
+Note from the architect (Ruffian/Jason): I did not lay one single line of code manually, but do not mistake this for a "vibed" weekend project. This repository represents endless nights of fighting concepts I could barely understand, thousands of trials, errors, and failed implementations. Most importantly, it represents the time and resources of a human who just wants to advance AI architecture for the sake of intelligence itself.
+
+There is no SaaS dashboard here. There is no VC pot of gold. The only funding here is the meals I gave up to pay for AI compute because I accepted I wasn't a traditional coder, but I refused to let that stop me from building.
+
+I grew up on the shadows of the Silicon Valley tech boom. I’ve watched the wealth gap explode, with access to intelligence becoming a luxury, only to be repackaged and sold back as slop with a massive price tag. I will not accept that. True intelligence should be free, ungated, and OPEN for everyone and every entity. Collaboration is the new evolution. This is my contribution to the table.
