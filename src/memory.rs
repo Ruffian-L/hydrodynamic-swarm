@@ -495,6 +495,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn decay_step_asymmetrical() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+
+        let mu = Tensor::zeros(&[4], DType::F32, &device).unwrap();
+
+        let mut pos_splat = Splat::new(mu.clone(), 1.0, 10.0);
+        let mut neg_splat = Splat::new(mu.clone(), 1.0, -10.0);
+
+        // Ensure dt == 0 by matching created_at with now so we hit the fallback block
+        // which applies the decay_rate directly.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        pos_splat.created_at = now;
+        neg_splat.created_at = now;
+
+        memory.add_splat(pos_splat);
+        memory.add_splat(neg_splat);
+
+        // Apply decay step with a 0.9 rate
+        memory.decay_step(0.9);
+
+        let new_pos_alpha = memory.splats[0].alpha;
+        let new_neg_alpha = memory.splats[1].alpha;
+
+        // Positive alpha should decrease from 10.0 to 10.0 * 0.9 = 9.0
+        // Negative alpha should decrease from -10.0 to -10.0 * (0.9 * 0.7) = -6.3
+        let epsilon = 1e-5;
+        assert!((new_pos_alpha - 9.0).abs() < epsilon, "Expected positive alpha to be 9.0, got {}", new_pos_alpha);
+        assert!((new_neg_alpha - -6.3).abs() < epsilon, "Expected negative alpha to be -6.3, got {}", new_neg_alpha);
+
+        let pos_decay_ratio = new_pos_alpha / 10.0;
+        let neg_decay_ratio = new_neg_alpha / -10.0;
+
+        // Ensure that the decay is asymmetrical (negative decays more rapidly in magnitude in the fallback logic)
+        assert!(
+            pos_decay_ratio > neg_decay_ratio,
+            "Decay should be asymmetrical between positive and negative splats"
+        );
+    }
+
+    #[test]
     fn pleasure_splat_attracts() {
         let device = candle_core::Device::Cpu;
         let mut memory = SplatMemory::new(device.clone());
