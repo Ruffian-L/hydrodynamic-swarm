@@ -1,0 +1,5 @@
+# CODEOWNERS file
+# Auto-assigns reviewers based on file changes
+
+* @Ruffian-L
+research_logs/ @google-labs-jules[bot]
