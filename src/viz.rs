@@ -321,6 +321,37 @@ impl VizCollector {
     pub fn len(&self) -> usize {
         self.snapshots.len()
     }
+
+    pub fn euclidean_distance(&self, a: &[f32], b: &[f32]) -> f32 {
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| (x - y).powi(2))
+            .sum::<f32>()
+            .sqrt()
+    }
+
+    pub fn add_step(&mut self, text: String, current_pos: &Tensor, memory: &crate::memory::SplatMemory, dt: f32) -> anyhow::Result<()> {
+        let mut _neighbors: Vec<()> = Vec::new();
+        let current_flat = current_pos.flatten_all()?;
+        let current_vec: Vec<f32> = current_flat.to_vec1()?;
+
+        for splat in memory.splats_ref() {
+            let splat_flat = splat.mu.flatten_all()?;
+            let splat_vec: Vec<f32> = splat_flat.to_vec1()?;
+            let _dist = self.euclidean_distance(&current_vec, &splat_vec);
+        }
+
+        self.snapshots.push(VizSnapshot {
+            step: self.snapshots.len(),
+            token_id: 0,
+            token_text: text,
+            position_3d: [0.0, 0.0, 0.0],
+            steering_delta: dt,
+            neighbors: Vec::new(),
+        });
+
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------
@@ -339,4 +370,39 @@ fn project_vec(vec: &[f32], projection: &[f32], dim: usize) -> [f32; 3] {
         result[j] = sum;
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::{Device, Tensor};
+    use crate::memory::SplatMemory;
+
+    #[test]
+    fn test_add_step_boundary_cases() -> anyhow::Result<()> {
+        let device = Device::Cpu;
+        let dim = 4;
+
+        let field_positions = Tensor::zeros((10, dim), candle_core::DType::F32, &device)?;
+        let goal_pos = Tensor::zeros((dim,), candle_core::DType::F32, &device)?;
+
+        let mut collector = VizCollector::new(&field_positions, &goal_pos, "test prompt", dim)?;
+        assert_eq!(collector.len(), 0);
+
+        let current_pos = Tensor::zeros((dim,), candle_core::DType::F32, &device)?;
+        let mut memory = SplatMemory::new(device.clone());
+
+        // Test with empty memory
+        collector.add_step("token1".to_string(), &current_pos, &memory, 0.1)?;
+        assert_eq!(collector.len(), 1);
+
+        // Add a splat to memory and test again
+        let splat_pos = Tensor::ones((dim,), candle_core::DType::F32, &device)?;
+        memory.add_splat(crate::splat::Splat::new(splat_pos.clone(), 1.0, 1.0));
+
+        collector.add_step("token2".to_string(), &current_pos, &memory, 0.2)?;
+        assert_eq!(collector.len(), 2);
+
+        Ok(())
+    }
 }
