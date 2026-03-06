@@ -74,12 +74,20 @@ pub fn run_chat(
 
     println!("  {DIM}{GRAY}{} tokens{RESET}", prompt_ids.len());
 
-    // Prefill
+    // Prefill (respects steer_hidden config like main.rs)
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), device)?.unsqueeze(0)?;
-    let prefill_logits = llama.forward(&prompt_tensor, 0)?;
+    let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
+        let (logits, hidden) = llama.forward_with_hidden(&prompt_tensor, 0)?;
+        (logits, Some(hidden))
+    } else {
+        let logits = llama.forward(&prompt_tensor, 0)?;
+        (logits, None)
+    };
 
     // Goal attractor from prefill
-    let goal_pos = if prefill_logits.dim(1)? >= dim {
+    let goal_pos = if let Some(ref hidden) = prefill_hidden {
+        hidden.squeeze(0)?
+    } else if prefill_logits.dim(1)? >= dim {
         prefill_logits.narrow(1, 0, dim)?.squeeze(0)?
     } else {
         prefill_logits.squeeze(0)?

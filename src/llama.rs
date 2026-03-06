@@ -205,23 +205,19 @@ impl LayerWeights {
         };
         self.kv_cache = Some((k.clone(), v.clone()));
 
-        let y = if q.device().is_metal() && seq_len == 1 {
-            candle_nn::ops::sdpa(&q, &k, &v, 1. / (self.head_dim as f32).sqrt(), 1.)?
-        } else {
-            let k = repeat_kv(k, self.n_head / self.n_kv_head)?;
-            let v = repeat_kv(v, self.n_head / self.n_kv_head)?;
+        let k = repeat_kv(k, self.n_head / self.n_kv_head)?;
+        let v = repeat_kv(v, self.n_head / self.n_kv_head)?;
 
-            let att = (q.matmul(&k.t()?)? / (self.head_dim as f64).sqrt())?;
-            let att = match mask {
-                None => att,
-                Some(mask) => {
-                    let mask = mask.broadcast_as(att.shape())?;
-                    masked_fill(&att, &mask, &self.neg_inf)?
-                }
-            };
-            let att = candle_nn::ops::softmax_last_dim(&att)?;
-            att.matmul(&v.contiguous()?)?
+        let att = (q.matmul(&k.t()?)? / (self.head_dim as f64).sqrt())?;
+        let att = match mask {
+            None => att,
+            Some(mask) => {
+                let mask = mask.broadcast_as(att.shape())?;
+                masked_fill(&att, &mask, &self.neg_inf)?
+            }
         };
+        let att = candle_nn::ops::softmax_last_dim(&att)?;
+        let y = att.matmul(&v.contiguous()?)?;
 
         let y = y.transpose(1, 2)?.reshape(&[b_sz, seq_len, n_embd])?;
         let y = self.attention_wo.forward(&y)?;
