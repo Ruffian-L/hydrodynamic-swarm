@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! SplatMemory — manages a collection of splats and computes aggregate forces.
 //!
 //! This is the "scar tissue" layer: accumulated experience that biases
@@ -100,11 +99,6 @@ impl SplatMemory {
         self.splats.len()
     }
 
-    /// Read-only access to splat data (used by GPU backend for buffer upload).
-    pub fn splats_ref(&self) -> &[Splat] {
-        &self.splats
-    }
-
     /// Check if any splat center is within min_dist of pos (L2).
     /// Samples at most 50 splats for performance when memory is large.
     pub fn has_nearby(&self, pos: &Tensor, min_dist: f32) -> Result<bool> {
@@ -119,11 +113,6 @@ impl SplatMemory {
             }
         }
         Ok(false)
-    }
-
-    /// Prune dead splats below threshold.
-    pub fn prune(&mut self, threshold: f32) {
-        self.splats.retain(|s| s.alpha.abs() >= threshold);
     }
 
     /// Consolidate nearby splats with matching sign into single weighted splats.
@@ -423,24 +412,6 @@ impl SplatMemory {
         println!("    Saved splat metadata to {}", meta_path.display());
         Ok(())
     }
-
-    /// Load and display metadata sidecar if it exists.
-    pub fn load_metadata(safetensors_path: &Path) -> Option<serde_json::Value> {
-        let meta_path = safetensors_path.with_extension("meta.json");
-        if !meta_path.exists() {
-            return None;
-        }
-        match std::fs::read_to_string(&meta_path) {
-            Ok(contents) => match serde_json::from_str(&contents) {
-                Ok(val) => {
-                    println!("    Loaded splat metadata from {}", meta_path.display());
-                    Some(val)
-                }
-                Err(_) => None,
-            },
-            Err(_) => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -561,7 +532,7 @@ mod tests {
 
         memory.prune_to_limit(5);
         assert_eq!(memory.len(), 5);
-        for splat in memory.splats_ref() {
+        for splat in memory.splats.iter() {
             assert!(
                 splat.alpha >= 6.0,
                 "should keep strongest, got alpha={}",
