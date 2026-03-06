@@ -43,57 +43,50 @@ A physics-steered LLM generation engine where:
 - The model develops **spatial memory** of its own generation history
 - Different model quants (bert vs unsloth) produce distinct "personalities" under identical steering
 
-## Current Status (v1.1)
+## Current Status (v1.2 -- Phase 3 Recovery)
 
-Config: `sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100`
+Hardware: NVIDIA Blackwell GB10 | Candle 0.9.2 + CUDA | Llama 3.1 8B Q5_K_M
 
-- Online splat updates during generation
-- Per-element force cap prevents runaway
-- Min distance check prevents splat stacking
-- Temperature sampling enables creative divergence
-- Persistent splat memory via safetensors (save/load across runs)
-- Micro-dream real-time consolidation (forward projection + backward anchoring)
-- 5-prompt evaluation sweep (`./scripts/sweep.sh [model]`)
-- CLI flags: `--prompt`, `--model`, `--clear-memory`
-- Full JSONL telemetry logging with experiment metadata
+Config: `dt=0.035, viscosity=0.35, force_cap=7.5, manifold_pullback=0.15, T=0.9`
+
+- Hidden-state steering (`steer_hidden=true`) -- physics operates on 4096D pre-lm_head representations
+- Manifold safety: per-step pullback prevents cumulative drift off the Llama manifold
+- Repetition penalty (1.18) from config, applied before sampling
+- Token mass physics: surprise-weighted trajectory (heavy tokens get stronger splats)
+- Bundle stress: collective force from 8 nearest splats adds emergent fluid structure
+- VR H1 reflex: Vietoris-Rips topology check with corrective blend on collapse
+- Micro-dream consolidation with hydraulic jump clamping (threshold 6.0)
+- Real dream replay: actual generation trajectory consolidated with Langevin noise
+- Online splat creation with min-distance deduplication
+- TOML-configurable physics, generation, memory, and micro-dream parameters
+- Full JSONL telemetry logging per step + session summary
+- CLI flags: `--prompt`, `--model`, `--tokens`, `--clear-memory`, `--viz`, `--chat`
+
+Rainbow tuning (10 prompts, 120 tokens each): 7/10 fully coherent through 120 tokens, 3/10 coherent for 50-90 tokens before gradual drift.
 
 See [experiments.md](docs/experiments.md) for detailed findings.
 
 ## Running
 
 ```bash
-# Default run (CPU physics, Metal tensor ops via candle)
-cargo run
+# Default run (CUDA tensor ops via candle 0.9)
+cargo run --release --bin hydrodynamic-swarm
 
 # With a custom prompt
-cargo run -- --prompt "Describe consciousness as a wave function"
+cargo run --release --bin hydrodynamic-swarm -- --prompt "Describe consciousness as a wave function"
 
 # Limit token count
-cargo run -- --tokens 200
+cargo run --release --bin hydrodynamic-swarm -- --tokens 200
 
 # Clear splat memory (fresh start)
-cargo run -- --clear-memory
+cargo run --release --bin hydrodynamic-swarm -- --clear-memory
 
-# Enable Metal 3D visualization
-cargo run -- --viz
+# Interactive chat mode
+cargo run --release --bin hydrodynamic-swarm -- --chat
 
 # All flags combined
-cargo run -- --prompt "What is time?" --tokens 300 --viz --clear-memory
+cargo run --release --bin hydrodynamic-swarm -- --prompt "What is time?" --tokens 300 --clear-memory
 ```
-
-### Metal GPU Physics Acceleration
-
-Enable wgpu-based Metal compute shaders for field gradient and splat force calculations:
-
-```bash
-# Build with Metal physics compute
-cargo build --features metal-compute
-
-# Run with GPU-accelerated physics
-cargo run --features metal-compute
-```
-
-Falls back to CPU automatically if Metal init fails. Both backends produce identical results (verified by parity tests).
 
 ### Configuration
 
@@ -101,15 +94,22 @@ Create a `config.toml` in the project root to tune physics parameters:
 
 ```toml
 [physics]
-dt = 0.08
+dt = 0.035
 viscosity_scale = 0.35
-force_cap = 35.0
+force_cap = 7.5
 splat_sigma = 35.0
 splat_alpha = 2.0
+manifold_pullback = 0.15
+steer_hidden = true
+gradient_topk = 2048
 
 [generation]
 max_tokens = 500
 temperature = 0.9
+rep_penalty = 1.18
+min_success_tokens = 15
+pleasure_alpha = 1.8
+pain_alpha = -0.9
 
 [memory]
 max_splats = 500
@@ -120,6 +120,7 @@ decay_rate = 0.98
 entropy_threshold = 3.0
 blend_normal = 0.10
 blend_high_entropy = 0.15
+topocot_threshold = 6.0
 ```
 
 All values have sensible defaults; the config file is optional.
@@ -130,18 +131,14 @@ All values have sensible defaults; the config file is optional.
 # Run all unit tests
 cargo test
 
-# Run with GPU parity test
-cargo test --features metal-compute
-
 # Lint check
-cargo clippy --all-features
+cargo clippy
 ```
 
 ### Requirements
 
-- Rust (stable or nightly)
-- macOS with Metal GPU (for tensor ops and optional physics compute)
-- Model files in `data/` (symlinked or direct):
-  - `Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf`
-  - `tokenizer.json`
-  - `universe_domain.safetensors`
+- Rust 1.75+ (stable)
+- NVIDIA GPU with CUDA toolkit (tested on Blackwell GB10)
+- Model files in `data/bartowski/`:
+  - `Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf` (5.7 GB)
+  - `tokenizer_official.json` (from bartowski/Meta-Llama-3.1-8B-Instruct-GGUF)
