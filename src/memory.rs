@@ -71,7 +71,8 @@ impl SplatMemory {
     /// Returns the number of splats culled.
     pub fn cull(&mut self, threshold: f32) -> usize {
         let before = self.splats.len();
-        self.splats.retain(|s| s.is_anchor || s.alpha.abs() >= threshold);
+        self.splats
+            .retain(|s| s.is_anchor || s.alpha.abs() >= threshold);
         before - self.splats.len()
     }
 
@@ -194,7 +195,11 @@ impl SplatMemory {
             // Preserve the strongest splat's metadata for the merged result
             let is_anchor = self.splats[i].is_anchor;
             let scale = self.splats[i].scale;
-            let lambda = if is_anchor { 0.0 } else { self.splats[i].lambda };
+            let lambda = if is_anchor {
+                0.0
+            } else {
+                self.splats[i].lambda
+            };
             merged.push(Splat {
                 mu: cluster_mu,
                 sigma: cluster_sigma,
@@ -254,7 +259,11 @@ impl SplatMemory {
         let lambdas: Vec<f32> = self.splats.iter().map(|s| s.lambda).collect();
         let created_ats: Vec<f32> = self.splats.iter().map(|s| s.created_at as f32).collect();
         let scales: Vec<f32> = self.splats.iter().map(|s| s.scale as u8 as f32).collect();
-        let anchors: Vec<f32> = self.splats.iter().map(|s| if s.is_anchor { 1.0 } else { 0.0 }).collect();
+        let anchors: Vec<f32> = self
+            .splats
+            .iter()
+            .map(|s| if s.is_anchor { 1.0 } else { 0.0 })
+            .collect();
 
         let sigma_tensor = Tensor::from_vec(sigmas, n, &self.device)?;
         let alpha_tensor = Tensor::from_vec(alphas, n, &self.device)?;
@@ -272,9 +281,8 @@ impl SplatMemory {
         let scale_data: Vec<f32> = scale_tensor.to_vec1()?;
         let anchor_data: Vec<f32> = anchor_tensor.to_vec1()?;
 
-        let to_bytes = |data: &[f32]| -> Vec<u8> {
-            data.iter().flat_map(|f| f.to_le_bytes()).collect()
-        };
+        let to_bytes =
+            |data: &[f32]| -> Vec<u8> { data.iter().flat_map(|f| f.to_le_bytes()).collect() };
 
         let mu_bytes = to_bytes(&mu_data);
         let sigma_bytes = to_bytes(&sigma_data);
@@ -287,13 +295,35 @@ impl SplatMemory {
         let mu_shape = mu_stack.dims().to_vec();
         let n_shape = vec![n];
 
-        let mu_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, mu_shape, &mu_bytes)?;
-        let sigma_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &sigma_bytes)?;
-        let alpha_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &alpha_bytes)?;
-        let lambda_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &lambda_bytes)?;
-        let created_at_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &created_at_bytes)?;
-        let scale_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape.clone(), &scale_bytes)?;
-        let anchor_view = safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape, &anchor_bytes)?;
+        let mu_view =
+            safetensors::tensor::TensorView::new(safetensors::Dtype::F32, mu_shape, &mu_bytes)?;
+        let sigma_view = safetensors::tensor::TensorView::new(
+            safetensors::Dtype::F32,
+            n_shape.clone(),
+            &sigma_bytes,
+        )?;
+        let alpha_view = safetensors::tensor::TensorView::new(
+            safetensors::Dtype::F32,
+            n_shape.clone(),
+            &alpha_bytes,
+        )?;
+        let lambda_view = safetensors::tensor::TensorView::new(
+            safetensors::Dtype::F32,
+            n_shape.clone(),
+            &lambda_bytes,
+        )?;
+        let created_at_view = safetensors::tensor::TensorView::new(
+            safetensors::Dtype::F32,
+            n_shape.clone(),
+            &created_at_bytes,
+        )?;
+        let scale_view = safetensors::tensor::TensorView::new(
+            safetensors::Dtype::F32,
+            n_shape.clone(),
+            &scale_bytes,
+        )?;
+        let anchor_view =
+            safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape, &anchor_bytes)?;
 
         let tensors: Vec<(String, safetensors::tensor::TensorView)> = vec![
             ("mu".to_string(), mu_view),
@@ -312,7 +342,12 @@ impl SplatMemory {
         )?;
 
         let anchor_count = self.splats.iter().filter(|s| s.is_anchor).count();
-        println!("    Saved {} splats ({} anchors) to {}", n, anchor_count, path.display());
+        println!(
+            "    Saved {} splats ({} anchors) to {}",
+            n,
+            anchor_count,
+            path.display()
+        );
         Ok(())
     }
 
@@ -346,10 +381,18 @@ impl SplatMemory {
         let alpha_data = parse_f32(alpha_view.data());
 
         // Optional v2 fields (backward-compatible)
-        let lambda_data: Option<Vec<f32>> = tensors.tensor("lambda").ok().map(|v| parse_f32(v.data()));
-        let created_at_data: Option<Vec<f32>> = tensors.tensor("created_at").ok().map(|v| parse_f32(v.data()));
-        let scale_data: Option<Vec<f32>> = tensors.tensor("scale").ok().map(|v| parse_f32(v.data()));
-        let anchor_data: Option<Vec<f32>> = tensors.tensor("is_anchor").ok().map(|v| parse_f32(v.data()));
+        let lambda_data: Option<Vec<f32>> =
+            tensors.tensor("lambda").ok().map(|v| parse_f32(v.data()));
+        let created_at_data: Option<Vec<f32>> = tensors
+            .tensor("created_at")
+            .ok()
+            .map(|v| parse_f32(v.data()));
+        let scale_data: Option<Vec<f32>> =
+            tensors.tensor("scale").ok().map(|v| parse_f32(v.data()));
+        let anchor_data: Option<Vec<f32>> = tensors
+            .tensor("is_anchor")
+            .ok()
+            .map(|v| parse_f32(v.data()));
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -363,7 +406,11 @@ impl SplatMemory {
 
             let lambda = lambda_data.as_ref().map_or(0.02, |v| v[i]);
             let created_at = created_at_data.as_ref().map_or(now, |v| v[i] as u64);
-            let scale = scale_data.as_ref().map_or(crate::splat::SplatScale::Fine, |v| crate::splat::SplatScale::from_u8(v[i] as u8));
+            let scale = scale_data
+                .as_ref()
+                .map_or(crate::splat::SplatScale::Fine, |v| {
+                    crate::splat::SplatScale::from_u8(v[i] as u8)
+                });
             let is_anchor = anchor_data.as_ref().is_some_and(|v| v[i] > 0.5);
 
             self.splats.push(Splat {
@@ -446,6 +493,50 @@ impl SplatMemory {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decay_step_asymmetrical() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+
+        let mu = Tensor::zeros(&[4], DType::F32, &device).unwrap();
+
+        let mut pos_splat = Splat::new(mu.clone(), 1.0, 10.0);
+        let mut neg_splat = Splat::new(mu.clone(), 1.0, -10.0);
+
+        // Ensure dt == 0 by matching created_at with now so we hit the fallback block
+        // which applies the decay_rate directly.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        pos_splat.created_at = now;
+        neg_splat.created_at = now;
+
+        memory.add_splat(pos_splat);
+        memory.add_splat(neg_splat);
+
+        // Apply decay step with a 0.9 rate
+        memory.decay_step(0.9);
+
+        let new_pos_alpha = memory.splats[0].alpha;
+        let new_neg_alpha = memory.splats[1].alpha;
+
+        // Positive alpha should decrease from 10.0 to 10.0 * 0.9 = 9.0
+        // Negative alpha should decrease from -10.0 to -10.0 * (0.9 * 0.7) = -6.3
+        let epsilon = 1e-5;
+        assert!((new_pos_alpha - 9.0).abs() < epsilon, "Expected positive alpha to be 9.0, got {}", new_pos_alpha);
+        assert!((new_neg_alpha - -6.3).abs() < epsilon, "Expected negative alpha to be -6.3, got {}", new_neg_alpha);
+
+        let pos_decay_ratio = new_pos_alpha / 10.0;
+        let neg_decay_ratio = new_neg_alpha / -10.0;
+
+        // Ensure that the decay is asymmetrical (negative decays more rapidly in magnitude in the fallback logic)
+        assert!(
+            pos_decay_ratio > neg_decay_ratio,
+            "Decay should be asymmetrical between positive and negative splats"
+        );
+    }
 
     #[test]
     fn pleasure_splat_attracts() {

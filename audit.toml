@@ -1,0 +1,22 @@
+# cargo audit configuration — controls which advisories block the pre-commit hook.
+#
+# Policy: deny actual vulnerabilities (unsound memory issues we control),
+# but explicitly acknowledge known-acceptable transitive dep issues here.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0002 — lru 0.12.5 via ratatui 0.29.0
+    # IterMut violates Stacked Borrows. Ratatui does not expose IterMut
+    # externally and does not iterate while mutating, so the unsound path
+    # is not reachable in our usage. Accept until ratatui pins a fixed lru.
+    "RUSTSEC-2026-0002",
+
+    # RUSTSEC-2025-0119 — number_prefix 0.4.0 (unmaintained)
+    # Pulled in by indicatif → tokenizers. Pure display code, no attack surface.
+    "RUSTSEC-2025-0119",
+
+    # RUSTSEC-2024-0436 — paste 1.0.15 (unmaintained)
+    # Proc-macro only, used at compile time by ratatui, metal, tokenizers, gemm.
+    # No runtime exposure.
+    "RUSTSEC-2024-0436",
+]

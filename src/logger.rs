@@ -24,6 +24,10 @@ pub struct StepEntry {
     pub grad_force_mag: f32,
     pub splat_force_mag: f32,
     pub goal_force_mag: f32,
+    pub pos_norm: f32,
+    pub raw_grad_mag: f32,
+    pub cos_sim_goal: f32,
+    pub entropy: f32,
 }
 
 /// Session config snapshot
@@ -82,6 +86,7 @@ pub struct SessionLogger {
     model_variant: String,
     deltas: Vec<f32>,
     log_path: PathBuf,
+    latest_file: fs::File,
 }
 
 impl SessionLogger {
@@ -127,6 +132,9 @@ impl SessionLogger {
         let log_path = log_dir.join(&filename);
         let file = fs::File::create(&log_path)?;
 
+        let latest_path = log_dir.join("latest.jsonl");
+        let latest_file = fs::File::create(&latest_path)?;
+
         println!("    Logging to: {}", log_path.display());
 
         Ok(Self {
@@ -135,6 +143,7 @@ impl SessionLogger {
             model_variant: model_variant.to_string(),
             deltas: Vec::new(),
             log_path,
+            latest_file,
         })
     }
 
@@ -204,6 +213,8 @@ impl SessionLogger {
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
         let json = serde_json::to_string(entry).unwrap();
         writeln!(self.file, "{}", json)?;
+        writeln!(self.latest_file, "{}", json)?;
+        self.latest_file.flush()?;
         self.file.flush()
     }
 

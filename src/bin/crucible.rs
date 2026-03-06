@@ -89,6 +89,7 @@ fn main() {
         let status = Command::new(binary)
             .args([
                 "--clear-memory",
+                "--test",
                 "--model", "unsloth",
                 "--tokens", tokens,
                 "--prompt", prompt,

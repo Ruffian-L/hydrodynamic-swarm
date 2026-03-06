@@ -47,6 +47,10 @@ impl ContinuousField {
         };
 
         let positions = positions.to_dtype(DType::F32)?;
+        // L2-normalize each embedding to unit norm so field lives on the
+        // unit hypersphere, matching the unit-normalized query pos in steer().
+        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
+        let positions = positions.broadcast_div(&norms)?;
         let dim = positions.dim(positions.dims().len() - 1)?;
         let n = positions.dim(0)?;
 
@@ -76,7 +80,7 @@ impl ContinuousField {
                 total_dist += dist as f64;
             }
             let mean_dist = (total_dist / n_pairs as f64) as f32;
-            let s = if mean_dist > 1.0 {
+            let s = if mean_dist > 0.1 {
                 mean_dist * 0.5
             } else {
                 // Fallback for degenerate data
@@ -112,6 +116,10 @@ impl ContinuousField {
     /// `tok_embeddings` tensor from the loaded ModelWeights.
     pub fn from_embeddings(embeddings: &Tensor, device: &Device) -> Result<Self> {
         let positions = embeddings.to_dtype(DType::F32)?.to_device(device)?;
+        // L2-normalize each embedding to unit norm so field lives on the
+        // unit hypersphere, matching the unit-normalized query pos in steer().
+        let norms = positions.sqr()?.sum(1)?.sqrt()?.clamp(1e-8, f32::MAX)?.unsqueeze(1)?;
+        let positions = positions.broadcast_div(&norms)?;
         let dim = positions.dim(positions.dims().len() - 1)?;
         let n = positions.dim(0)?;
 
@@ -142,11 +150,10 @@ impl ContinuousField {
                 total_dist += dist as f64;
             }
             let mean_dist = (total_dist / n_pairs as f64) as f32;
-            let s = if mean_dist > 1.0 {
+            let s = if mean_dist > 0.1 {
                 mean_dist * 0.5
             } else {
-                // L2-normalized embeddings: typical dist ~ sqrt(2)
-                // Fallback for degenerate data
+                // Fallback for degenerate data on unit sphere
                 (dim as f32).sqrt() * 0.035
             };
             println!(

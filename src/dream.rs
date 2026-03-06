@@ -14,6 +14,8 @@ use candle_core::{Result, Tensor};
 /// When the micro-dream correction norm exceeds this, the model experienced
 /// a significant trajectory warp -- a "hydraulic jump" in the latent stream.
 pub const DREAM_CORRECTION_THRESHOLD: f32 = 18.0;
+/// Hard cap for scaling correction tensor (must be >= DREAM_CORRECTION_THRESHOLD).
+pub const CORRECTION_HARD_CAP: f32 = 20.0;
 
 pub struct DreamEngine {
     memory: SplatMemory,
@@ -70,18 +72,20 @@ pub struct MicroDreamResult {
 /// TopoCoT reflection event -- the model hit a wall and course-corrected.
 pub fn micro_dream(
     engine: &NiodooEngine,
-    current_pos: &Tensor,  // (1, D) steered logits
-    goal_pos: &Tensor,     // (D,) goal attractor
-    step: usize,           // current generation step
-    steps: usize,          // forward projection steps (2-3)
-    blend_factor: f64,     // how much of the correction to apply (0.05-0.15)
+    current_pos: &Tensor, // (1, D) steered logits
+    goal_pos: &Tensor,    // (D,) goal attractor
+    step: usize,          // current generation step
+    steps: usize,         // forward projection steps (2-3)
+    blend_factor: f64,    // how much of the correction to apply (0.05-0.15)
 ) -> Result<MicroDreamResult> {
     let mut projected = current_pos.clone();
 
     // Forward projection: steer N steps into the future
     for fwd in 0..steps {
         // Use step + offset so force logging shows projection steps
-        projected = engine.steer(&projected, goal_pos, 1000 + step * 10 + fwd)?.steered;
+        projected = engine
+            .steer(&projected, goal_pos, 1000 + step * 10 + fwd)?
+            .steered;
     }
 
     // Backward anchor: compute the pull from the future back to goal
@@ -90,17 +94,31 @@ pub fn micro_dream(
 
     // The correction is the scaled anchor pull reshaped back to (1, D)
     let correction = anchor_pull.affine(blend_factor, 0.0)?.unsqueeze(0)?;
-    let correction_norm: f32 = correction.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    let correction_norm_raw: f32 = correction.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+    // NaN guard: treat NaN as zero for detection
+    let detection_norm = if correction_norm_raw.is_nan() {
+        0.0
+    } else {
+        correction_norm_raw
+    };
+    // Hard cap for scaling (must be >= DREAM_CORRECTION_THRESHOLD)
+    let capped_norm = detection_norm.min(CORRECTION_HARD_CAP);
+    // Scale correction tensor to capped norm (preserve direction)
+    let correction = if detection_norm > 0.0 {
+        correction.affine((capped_norm / detection_norm) as f64, 0.0)?
+    } else {
+        correction
+    };
 
-    // TopoCoT: detect hydraulic jump
-    let reflection_triggered = correction_norm > DREAM_CORRECTION_THRESHOLD;
+    // TopoCoT: detect hydraulic jump (use detection_norm, not capped_norm)
+    let reflection_triggered = detection_norm > DREAM_CORRECTION_THRESHOLD;
 
     // Apply correction to current position
     let consolidated = (current_pos + &correction)?;
 
     Ok(MicroDreamResult {
         consolidated,
-        correction_norm,
+        correction_norm: detection_norm,
         reflection_triggered,
     })
 }
