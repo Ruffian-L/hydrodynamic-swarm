@@ -28,7 +28,7 @@ pub struct StepEntry {
 
 /// Session config snapshot
 #[derive(Serialize)]
-pub struct SessionConfig {
+pub struct SessionConfig<'a> {
     pub prompt: String,
     pub dt: f32,
     pub viscosity: f32,
@@ -36,7 +36,7 @@ pub struct SessionConfig {
     pub embedding_dim: usize,
     pub field_points: usize,
     pub model: String,
-    pub model_variant: String,
+    pub model_variant: &'a str,
     pub backend: String,
     pub splat_sigma: f32,
     pub splat_alpha: f32,
@@ -63,13 +63,13 @@ pub struct SessionSummary {
 
 /// Top-level log entry -- one per line in the JSONL file
 #[derive(Serialize)]
-pub struct LogEntry {
+pub struct LogEntry<'a> {
     pub timestamp: String,
-    pub session_id: String,
-    pub model_variant: String,
-    pub entry_type: String, // "config", "step", "summary"
+    pub session_id: &'a str,
+    pub model_variant: &'a str,
+    pub entry_type: &'a str, // "config", "step", "summary"
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub config: Option<SessionConfig>,
+    pub config: Option<SessionConfig<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub step: Option<StepEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -139,17 +139,17 @@ impl SessionLogger {
     }
 
     /// Log the session config
-    pub fn log_config(&mut self, config: SessionConfig) -> std::io::Result<()> {
+    pub fn log_config(&mut self, config: SessionConfig<'_>) -> std::io::Result<()> {
         let entry = LogEntry {
             timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "config".to_string(),
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "config",
             config: Some(config),
             step: None,
             summary: None,
         };
-        self.write_entry(&entry)
+        Self::write_entry(&mut self.file, &entry)
     }
 
     /// Log a single generation step
@@ -157,14 +157,14 @@ impl SessionLogger {
         self.deltas.push(step.steering_delta);
         let entry = LogEntry {
             timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "step".to_string(),
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "step",
             config: None,
             step: Some(step),
             summary: None,
         };
-        self.write_entry(&entry)
+        Self::write_entry(&mut self.file, &entry)
     }
 
     /// Log final session summary
@@ -181,14 +181,14 @@ impl SessionLogger {
         }
         let entry = LogEntry {
             timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "summary".to_string(),
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "summary",
             config: None,
             step: None,
             summary: Some(summary),
         };
-        self.write_entry(&entry)
+        Self::write_entry(&mut self.file, &entry)
     }
 
     /// Get the log file path
@@ -201,10 +201,10 @@ impl SessionLogger {
         &self.session_id
     }
 
-    fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
+    fn write_entry(file: &mut std::fs::File, entry: &LogEntry<'_>) -> std::io::Result<()> {
         let json = serde_json::to_string(entry).unwrap();
-        writeln!(self.file, "{}", json)?;
-        self.file.flush()
+        writeln!(file, "{}", json)?;
+        file.flush()
     }
 
     fn now_str(&self) -> String {

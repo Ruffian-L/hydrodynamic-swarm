@@ -184,7 +184,7 @@ fn main() -> Result<()> {
         embedding_dim: dim,
         field_points: engine.field_n_points(),
         model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
-        model_variant: model_variant.to_string(),
+        model_variant,
         backend: engine.backend_name().to_string(),
         splat_sigma: cfg.physics.splat_sigma,
         splat_alpha: cfg.physics.splat_alpha,
