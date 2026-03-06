@@ -33,6 +33,8 @@ pub struct PhysicsConfig {
     pub gradient_topk: usize,
     /// Steer the hidden state (pre-lm_head) instead of logits.
     pub steer_hidden: bool,
+    /// Per-step blend factor pulling steered state back toward baseline (0.0 = off, 0.15 = gentle).
+    pub manifold_pullback: f32,
 }
 
 /// Generation parameters.
@@ -43,6 +45,10 @@ pub struct GenerationConfig {
     pub temperature: f64,
     pub default_prompt: String,
     pub eos_token_ids: Vec<u32>,
+    pub rep_penalty: f32,
+    pub min_success_tokens: usize,
+    pub pleasure_alpha: f32,
+    pub pain_alpha: f32,
 }
 
 /// Splat memory management.
@@ -70,15 +76,16 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.08,
+            dt: 0.035,
             viscosity_scale: 0.35,
-            force_cap: 35.0,
+            force_cap: 7.5,
             splat_sigma: 35.0,
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
             splat_delta_threshold: 12.0,
             gradient_topk: 2048,
             steer_hidden: true,
+            manifold_pullback: 0.15,
         }
     }
 }
@@ -90,6 +97,10 @@ impl Default for GenerationConfig {
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
             eos_token_ids: vec![128009, 128001],
+            rep_penalty: 1.18,
+            min_success_tokens: 15,
+            pleasure_alpha: 1.8,
+            pain_alpha: -0.9,
         }
     }
 }

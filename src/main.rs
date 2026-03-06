@@ -21,7 +21,7 @@ use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use config::Config;
-use dream::{micro_dream, DreamEngine};
+use dream::micro_dream;
 use field::ContinuousField;
 use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
@@ -61,14 +61,14 @@ fn main() -> Result<()> {
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
 
-    // Use Metal GPU if available
-    let device = match Device::new_metal(0) {
+    // Use CUDA GPU if available, fall back to CPU
+    let device = match Device::new_cuda(0) {
         Ok(d) => {
-            println!("[*] Using Metal GPU");
+            println!("[*] Using CUDA GPU");
             d
         }
         Err(_) => {
-            println!("[*] Metal not available, using CPU");
+            println!("[*] CUDA not available, using CPU");
             Device::Cpu
         }
     };
@@ -80,8 +80,8 @@ fn main() -> Result<()> {
 
     // Find GGUF model
     let llama_path = find_file(
-        "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        "data/bartowski/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        "data/llama3.1/Llama-3.1-8B-Instruct-Q5_K_M.gguf",
     )?;
     println!("    Model: {}", llama_path);
 
@@ -91,10 +91,10 @@ fn main() -> Result<()> {
     let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
     println!("    Llama 3.1 loaded");
 
-    // Find tokenizer
+    // Find tokenizer (prefer the official Llama 3.1 tokenizer from bartowski)
     let tokenizer_path = find_file(
-        "data/tokenizer.json",
-        "/Users/j/Desktop/models/tokenizer.json",
+        "data/bartowski/tokenizer_official.json",
+        "data/bartowski/tokenizer_nous.json",
     )?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
@@ -162,7 +162,7 @@ fn main() -> Result<()> {
     }
 
     // Initialize telemetry logger
-    let model_variant = cli_model.as_deref().unwrap_or("unsloth");
+    let model_variant = cli_model.as_deref().unwrap_or("llama3.1");
     let prompt = cli_prompt
         .as_deref()
         .unwrap_or(cfg.generation.default_prompt.as_str());
@@ -183,7 +183,7 @@ fn main() -> Result<()> {
         kernel_sigma: engine.field_kernel_sigma(),
         embedding_dim: dim,
         field_points: engine.field_n_points(),
-        model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
+        model: llama_path.clone(),
         model_variant: model_variant.to_string(),
         backend: engine.backend_name().to_string(),
         splat_sigma: cfg.physics.splat_sigma,
@@ -264,6 +264,13 @@ fn main() -> Result<()> {
     // Track last steered position for splat creation
     let mut last_steered_pos: Option<Tensor> = None;
 
+    // Sliding window of recent hidden states for VR H1 reflex
+    let mut recent_hidden: Vec<Tensor> = Vec::new();
+    let mut last_reflex_step: usize = 0;
+
+    // Full generation trajectory (real hidden states for dream replay)
+    let mut generation_trajectory: Vec<Tensor> = Vec::new();
+
     println!(
         "\n    === Generation ({} tokens, physics-steered) ===\n",
         max_tokens
@@ -304,12 +311,47 @@ fn main() -> Result<()> {
         };
 
         let SteerResult {
-            steered: steered_slice,
+            steered: mut steered_slice,
             grad_mag,
             splat_mag,
             goal_mag,
         } = engine.steer(&steer_input, &goal_pos, step)?;
+
+        // Manifold safety: blend steered state back toward baseline each step
+        // Prevents cumulative drift off the Llama manifold
+        if cfg.physics.manifold_pullback > 0.0 {
+            let pb = cfg.physics.manifold_pullback as f64;
+            steered_slice = (&steered_slice.affine(1.0 - pb, 0.0)?
+                + &steer_input.affine(pb, 0.0)?)?;
+        }
+
+        // Collect real hidden states for dream replay trajectory
+        if let Some(ref h) = raw_hidden {
+            generation_trajectory.push(h.squeeze(0)?);
+        }
+
         last_steered_pos = Some(steered_slice.clone());
+
+        // VR H1 reflex: track recent hidden states, check for zero-persistence cycles
+        // On detection: blend steered slice 30% back toward baseline (collapse correction)
+        if let Some(ref h) = raw_hidden {
+            let h_flat = h.squeeze(0)?;
+            recent_hidden.push(h_flat);
+            if recent_hidden.len() > 12 {
+                recent_hidden.remove(0);
+            }
+            if step > 50 && step % 100 == 0 && (step - last_reflex_step) >= 100 {
+                if let Ok(true) = ridge::check_vr_h1_reflex(&recent_hidden, 2.0) {
+                    last_reflex_step = step;
+                    steered_slice = (&steered_slice.affine(0.7, 0.0)?
+                        + &steer_input.affine(0.3, 0.0)?)?;
+                    println!(
+                        "    [REFLEX] step {} | VR H1 collapse -> corrective blend applied",
+                        step
+                    );
+                }
+            }
+        }
 
         // Micro-dream consolidation: adaptive frequency based on token entropy
         // Runs when entropy is high (uncertain generation) or on fixed schedule
@@ -342,24 +384,10 @@ fn main() -> Result<()> {
                 };
                 let result =
                     micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
-                if step <= 15 || step % 10 == 0 {
+                if step <= 15 || step % 50 == 0 {
                     println!(
-                        "    [MICRO-DREAM] step {} | correction: {:.2} | entropy: {:.2} | depth: {}{}",
-                        step,
-                        result.correction_norm,
-                        entropy,
-                        dream_steps,
-                        if result.reflection_triggered {
-                            " ** HYDRAULIC JUMP **"
-                        } else {
-                            ""
-                        }
-                    );
-                }
-                if result.reflection_triggered {
-                    println!(
-                        "    [TOPO-COT] step {} | *recalibrating latent path* (correction: {:.2})",
-                        step, result.correction_norm
+                        "    [MICRO-DREAM] step {} | correction: {:.2} | entropy: {:.2} | depth: {}",
+                        step, result.correction_norm, entropy, dream_steps,
                     );
                 }
                 result.consolidated
@@ -382,6 +410,24 @@ fn main() -> Result<()> {
             } else {
                 steered_slice
             }
+        };
+
+        // Repetition penalty: penalize tokens already generated
+        let rep_penalty = cfg.generation.rep_penalty;
+        let steered_logits = {
+            let mut logits_vec: Vec<f32> = steered_logits.squeeze(0)?.to_vec1()?;
+            for &tid in prompt_ids.iter().chain(generated_tokens.iter()) {
+                if (tid as usize) < logits_vec.len() {
+                    let l = &mut logits_vec[tid as usize];
+                    if *l > 0.0 {
+                        *l /= rep_penalty;
+                    } else {
+                        *l *= rep_penalty;
+                    }
+                }
+            }
+            Tensor::from_vec(logits_vec, steered_logits.dim(1)?, steered_logits.device())?
+                .unsqueeze(0)?
         };
 
         // Temperature sampling -- softmax over scaled logits, then sample
@@ -530,11 +576,11 @@ fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 5: Splat Scar Tissue ---");
     if let Some(final_pos) = last_steered_pos {
-        let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
-        if generated_tokens.len() > 15 {
+        let pos_1d = final_pos.squeeze(0)?;
+        if generated_tokens.len() > cfg.generation.min_success_tokens {
             engine.memory_mut().add_splat(Splat::new(
                 pos_1d, cfg.physics.splat_sigma,
-                1.8,  // positive scar (pleasure)
+                cfg.generation.pleasure_alpha,
             ));
             println!(
                 "    + Added PLEASURE splat (generation succeeded: {} tokens)",
@@ -543,7 +589,7 @@ fn main() -> Result<()> {
         } else {
             engine.memory_mut().add_splat(Splat::new(
                 pos_1d, cfg.physics.splat_sigma,
-                -0.9, // negative scar (pain)
+                cfg.generation.pain_alpha,
             ));
             println!(
                 "    x Added PAIN splat (generation too short: {} tokens)",
@@ -564,115 +610,58 @@ fn main() -> Result<()> {
     let _ = engine.memory_mut().consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
-    // Save persistent splat memory to disk (before dream decay wipes them)
-    engine.memory().save(splat_file)?;
-    engine
-        .memory()
-        .save_metadata(splat_file, prompt, logger.session_id())?;
+    // TODO: re-enable splat persistence + museum once steering is stable
+    println!("    Splats in memory: {} (persistence disabled)", engine.memory().len());
 
     // =========================================================
-    // Memory Museum: Save to exhibit / Toss
-    // =========================================================
-    println!("\n--- Memory Museum ---");
-    println!("    Splats: {} | Source: \"{}\"", engine.memory().len(), prompt);
-
-    // List existing exhibits
-    let exhibits_dir = Path::new("exhibits");
-    if exhibits_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(exhibits_dir) {
-            let names: Vec<String> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .map(|ext| ext == "safetensors")
-                        .unwrap_or(false)
-                })
-                .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().to_string()))
-                .collect();
-            if !names.is_empty() {
-                println!("    Existing exhibits: {}", names.join(", "));
-            }
-        }
-    }
-
-    print!("    Save to exhibit? [name / n(ew) / t(oss)]: ");
-    std::io::stdout().flush().ok();
-    let mut museum_input = String::new();
-    std::io::stdin().read_line(&mut museum_input)?;
-    let museum_input = museum_input.trim();
-
-    if !museum_input.is_empty() && museum_input != "t" && museum_input != "toss" {
-        let exhibit_name = if museum_input == "n" || museum_input == "new" {
-            print!("    Exhibit name: ");
-            std::io::stdout().flush().ok();
-            let mut name = String::new();
-            std::io::stdin().read_line(&mut name)?;
-            name.trim().to_string()
-        } else {
-            museum_input.to_string()
-        };
-
-        if !exhibit_name.is_empty() {
-            // Sanitize exhibit name for filesystem
-            let safe_name: String = exhibit_name
-                .chars()
-                .map(|c| {
-                    if c.is_alphanumeric() || c == '-' || c == '_' {
-                        c
-                    } else {
-                        '_'
-                    }
-                })
-                .collect();
-
-            std::fs::create_dir_all(exhibits_dir)?;
-            let exhibit_path = exhibits_dir.join(format!("{}.safetensors", safe_name));
-            let exhibit_meta = exhibits_dir.join(format!("{}.meta.json", safe_name));
-
-            std::fs::copy(splat_file, &exhibit_path)?;
-            // Copy metadata sidecar if it exists
-            let meta_src = splat_file.with_extension("meta.json");
-            if meta_src.exists() {
-                std::fs::copy(&meta_src, &exhibit_meta)?;
-            }
-
-            println!(
-                "    Saved exhibit: {} ({} splats)",
-                exhibit_path.display(),
-                engine.memory().len()
-            );
-        } else {
-            println!("    (empty name, skipping)");
-        }
-    } else {
-        println!("    (tossed)");
-    }
-
-    // =========================================================
-    // Phase 6: Dream Replay
+    // Phase 6: Dream Replay (REAL — replays actual generation trajectory)
     // =========================================================
     println!("\n--- Phase 6: Dream Replay ---");
-    let dream_memory = SplatMemory::new(device.clone());
-    let mut dream = DreamEngine::new(dream_memory);
-    let traj = Tensor::randn(0.0f32, 1.0, (20, dim), &device)?;
-    dream.run(vec![traj], 0.05)?;
+    let splat_count_before = engine.memory().len();
+    if !generation_trajectory.is_empty() {
+        let traj_refs: Vec<&Tensor> = generation_trajectory.iter().collect();
+        let traj_stack = Tensor::stack(&traj_refs, 0)?;
+        let noise = Tensor::randn(0.0f32, 0.05, traj_stack.dims(), &device)?;
+        let noisy_traj = (&traj_stack + &noise)?;
+        let replay_bonus = 1.25_f32;
+        let replay_count = engine.memory_mut().consolidate_trajectory(
+            &noisy_traj,
+            cfg.physics.splat_sigma,
+            replay_bonus,
+            cfg.physics.min_splat_dist,
+        )?;
+        println!(
+            "    Dream replay: {} trajectory points -> {} new splats (bonus alpha {:.2})",
+            generation_trajectory.len(),
+            replay_count,
+            replay_bonus,
+        );
+    } else {
+        println!("    No hidden trajectory collected (steer_hidden disabled?)");
+    }
+    engine.memory_mut().decay_step(cfg.memory.decay_rate);
+    println!(
+        "    Applied decay ({:.3}). Splats remaining: {}",
+        cfg.memory.decay_rate,
+        engine.memory().len(),
+    );
 
     // =========================================================
     // Summary
     // =========================================================
-    let splat_type = if generated_tokens.len() > 15 {
+    let splat_type = if generated_tokens.len() > cfg.generation.min_success_tokens {
         "pleasure"
     } else {
         "pain"
     };
+    let splat_count_after = engine.memory().len();
     logger.log_summary(SessionSummary {
         prompt: prompt.to_string(),
         prompt_token_count: prompt_ids.len(),
         generated_token_count: generated_tokens.len(),
         goal_attractor_norm: goal_norm,
-        splat_count_before: engine.memory().len(), // includes online splats from generation
-        splat_count_after: engine.memory().len(),
+        splat_count_before,
+        splat_count_after,
         splat_type_added: splat_type.to_string(),
         decoded_output: full_text.clone(),
         delta_min: 0.0, // filled by log_summary
@@ -683,7 +672,7 @@ fn main() -> Result<()> {
     println!("\n========================================");
     println!("  SplatRAG v1.1 -- OPERATIONAL");
     println!("========================================");
-    println!("  Model:    Llama 3.1 8B Instruct (Q5_K_M)");
+    println!("  Model:    {}", llama_path);
     println!("  Variant:  {}", model_variant);
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
@@ -703,53 +692,11 @@ fn main() -> Result<()> {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let secs_per_day: u64 = 86400;
-        let days = now / secs_per_day;
-        let day_secs = now % secs_per_day;
+        let days = now / 86400;
+        let day_secs = now % 86400;
         let hours = day_secs / 3600;
         let minutes = (day_secs % 3600) / 60;
-        // Approximate date from Unix days
-        let mut y = 1970i64;
-        let mut remaining = days as i64;
-        loop {
-            let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
-                366
-            } else {
-                365
-            };
-            if remaining < days_in_year {
-                break;
-            }
-            remaining -= days_in_year;
-            y += 1;
-        }
-        let month_days = [
-            31,
-            if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
-                29
-            } else {
-                28
-            },
-            31,
-            30,
-            31,
-            30,
-            31,
-            31,
-            30,
-            31,
-            30,
-            31,
-        ];
-        let mut m = 1;
-        for md in &month_days {
-            if remaining < *md as i64 {
-                break;
-            }
-            remaining -= *md as i64;
-            m += 1;
-        }
-        let d = remaining + 1;
+        let (y, m, d) = logger::days_to_date(days);
         writeln!(
             f,
             "=== Run: {}-{:02}-{:02} {:02}:{:02} UTC ===",
@@ -773,7 +720,10 @@ fn main() -> Result<()> {
     // =========================================================
     // Visualization export + Metal window
     // =========================================================
-    if let Some(collector) = viz_collector {
+    if let Some(mut collector) = viz_collector {
+        // Load real splat scar data from engine memory
+        collector.load_splats(engine.memory());
+
         // Export JSON snapshot data
         let viz_path = logger.path().with_extension("viz.json");
         let _ = collector.export_json(&viz_path);

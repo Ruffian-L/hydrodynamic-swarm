@@ -225,6 +225,31 @@ impl SplatMemory {
         Ok(merge_count)
     }
 
+    /// Walk a trajectory tensor (N, D) and deposit splats at sampled positions.
+    /// Skips positions too close to existing splats. Returns count of splats created.
+    pub fn consolidate_trajectory(
+        &mut self,
+        trajectory: &Tensor,
+        sigma: f32,
+        alpha: f32,
+        min_dist: f32,
+    ) -> Result<usize> {
+        let n = trajectory.dim(0)?;
+        if n == 0 {
+            return Ok(0);
+        }
+        let stride = (n / 10).max(1);
+        let mut created = 0usize;
+        for i in (0..n).step_by(stride) {
+            let pos = trajectory.get(i)?;
+            if !self.has_nearby(&pos, min_dist)? {
+                self.add_splat(Splat::new(pos, sigma, alpha));
+                created += 1;
+            }
+        }
+        Ok(created)
+    }
+
     /// Keep only the N strongest splats (by |alpha|), discarding the weakest.
     pub fn prune_to_limit(&mut self, max_count: usize) {
         if self.splats.len() <= max_count {
@@ -313,7 +338,7 @@ impl SplatMemory {
 
         safetensors::tensor::serialize_to_file(
             tensors.iter().map(|(k, v)| (k.as_str(), v)),
-            &None::<std::collections::HashMap<String, String>>,
+            None::<std::collections::HashMap<String, String>>,
             path,
         )?;
 

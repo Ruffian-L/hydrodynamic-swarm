@@ -217,7 +217,7 @@ impl SessionLogger {
 }
 
 /// Convert days since Unix epoch to (year, month, day).
-fn days_to_date(mut days: u64) -> (u64, u64, u64) {
+pub fn days_to_date(mut days: u64) -> (u64, u64, u64) {
     // Simplified Gregorian calendar calculation
     let mut year = 1970;
     loop {

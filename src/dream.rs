@@ -13,7 +13,7 @@ use candle_core::{Result, Tensor};
 /// Threshold for dream correction injection.
 /// When the micro-dream correction norm exceeds this, the model experienced
 /// a significant trajectory warp -- a "hydraulic jump" in the latent stream.
-pub const DREAM_CORRECTION_THRESHOLD: f32 = 18.0;
+pub const DREAM_CORRECTION_THRESHOLD: f32 = 6.0;
 
 pub struct DreamEngine {
     memory: SplatMemory,
@@ -24,29 +24,39 @@ impl DreamEngine {
         Self { memory }
     }
 
-    /// Simple dream replay: replay trajectories with noise, update splats.
-    pub fn run(&mut self, success_trajectories: Vec<Tensor>, noise_scale: f32) -> Result<()> {
-        for traj in &success_trajectories {
+    /// Dream replay: add Langevin noise to trajectories and consolidate into memory.
+    pub fn run(
+        &mut self,
+        trajectories: Vec<Tensor>,
+        noise_scale: f32,
+        sigma: f32,
+        alpha_bonus: f32,
+        min_dist: f32,
+        decay_rate: f32,
+    ) -> Result<()> {
+        for traj in trajectories {
             let noise = Tensor::randn(0.0f32, noise_scale, traj.dims(), traj.device())?;
-            let _noisy = (traj + &noise)?;
+            let noisy = (&traj + &noise)?;
+            let created = self
+                .memory
+                .consolidate_trajectory(&noisy, sigma, alpha_bonus, min_dist)?;
             println!(
-                "    Dream replay: processed trajectory (shape {:?}, noise {:.4})",
-                traj.dims(),
+                "    Dream replay: {} points -> {} splats (noise {:.4})",
+                traj.dim(0).unwrap_or(0),
+                created,
                 noise_scale
             );
         }
 
-        // Global decay
-        self.memory.decay_step(0.98);
+        self.memory.decay_step(decay_rate);
         println!(
-            "    Applied global decay (0.98). Splats remaining: {}",
+            "    Applied decay ({:.3}). Splats: {}",
+            decay_rate,
             self.memory.len()
         );
-
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn into_memory(self) -> SplatMemory {
         self.memory
     }
@@ -92,10 +102,15 @@ pub fn micro_dream(
     let correction = anchor_pull.affine(blend_factor, 0.0)?.unsqueeze(0)?;
     let correction_norm: f32 = correction.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
-    // TopoCoT: detect hydraulic jump
+    // TopoCoT: detect hydraulic jump — clamp correction to prevent overshoot
     let reflection_triggered = correction_norm > DREAM_CORRECTION_THRESHOLD;
+    let correction = if reflection_triggered && correction_norm > 0.0 {
+        let scale = (DREAM_CORRECTION_THRESHOLD / correction_norm) as f64;
+        correction.affine(scale, 0.0)?
+    } else {
+        correction
+    };
 
-    // Apply correction to current position
     let consolidated = (current_pos + &correction)?;
 
     Ok(MicroDreamResult {

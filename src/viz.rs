@@ -102,6 +102,8 @@ pub struct VizCollector {
     prompt: String,
     /// Ridge ghost trail points (projected to 3D)
     ridge_ghost: Vec<[f32; 3]>,
+    /// Cached splat scar data: (position_3d, alpha, sigma)
+    splat_scars_cache: Vec<([f32; 3], f32, f32)>,
 }
 
 impl VizCollector {
@@ -177,6 +179,7 @@ impl VizCollector {
             goal_3d,
             prompt: prompt.to_string(),
             ridge_ghost: Vec::new(),
+            splat_scars_cache: Vec::new(),
         })
     }
 
@@ -236,6 +239,17 @@ impl VizCollector {
             .collect();
     }
 
+    /// Load splat scar data from real memory, projecting positions to 3D.
+    pub fn load_splats(&mut self, memory: &crate::memory::SplatMemory) {
+        self.splat_scars_cache.clear();
+        for splat in memory.splats_ref() {
+            if let Ok(flat) = splat.mu.flatten_all().and_then(|t| t.to_vec1::<f32>()) {
+                let pos_3d = project_vec(&flat, &self.projection, self.dim);
+                self.splat_scars_cache.push((pos_3d, splat.alpha, splat.sigma));
+            }
+        }
+    }
+
     /// Export all collected data to a JSON file.
     /// Detects degenerate all-zero field_points_3d and omits them with a warning.
     pub fn export_json(&self, path: &Path) -> anyhow::Result<()> {
@@ -262,7 +276,11 @@ impl VizCollector {
             } else {
                 self.field_points_3d.clone()
             },
-            splat_scars: Vec::new(),
+            splat_scars: self.splat_scars_cache.iter().map(|&(pos, alpha, sigma)| VizSplat {
+                position_3d: pos,
+                alpha,
+                sigma,
+            }).collect(),
             goal_position_3d: self.goal_3d,
         };
 
@@ -307,8 +325,8 @@ impl VizCollector {
             trajectory_3d,
             trajectory_deltas,
             trajectory_tokens,
-            splat_positions_3d: Vec::new(),
-            splat_alphas: Vec::new(),
+            splat_positions_3d: self.splat_scars_cache.iter().map(|&(pos, _, _)| pos).collect(),
+            splat_alphas: self.splat_scars_cache.iter().map(|&(_, alpha, _)| alpha).collect(),
             goal_position_3d: self.goal_3d,
             prompt: self.prompt,
             step_neighbors,
