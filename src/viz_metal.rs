@@ -76,8 +76,6 @@ pub fn launch(data: VizRenderData) {
         format!("[{}]", step_strs.join(","))
     };
 
-    let ridge_js = points_to_js(&data.ridge_ghost);
-
     let html = format!(
         r##"<!DOCTYPE html>
 <html lang="en">
@@ -261,7 +259,6 @@ const G={goal_js};
 const SP={splats_js};
 const SA={splat_alphas_js};
 const NB={neighbors_js};
-const RG={ridge_js};
 const TK={tokens_js};
 
 const canvas=document.getElementById('c');
@@ -282,7 +279,6 @@ const tC=T.map(p=>[p[0]-cx,p[1]-cy,p[2]-cz]);
 const fC=F.map(p=>[p[0]-cx,p[1]-cy,p[2]-cz]);
 const gC=[G[0]-cx,G[1]-cy,G[2]-cz];
 const spC=SP.map(p=>[p[0]-cx,p[1]-cy,p[2]-cz]);
-const rgC=RG.map(p=>[p[0]-cx,p[1]-cy,p[2]-cz]);
 const nbC=NB.map(stepN=>stepN.map(nb=>({{t:nb.t,s:nb.s,p:[nb.p[0]-cx,nb.p[1]-cy,nb.p[2]-cz]}})));
 const maxD=Math.max(...D,1);
 
@@ -476,15 +472,6 @@ function frame(ts){{
     }}
   }}
 
-  // ==== Ridge ghost trail ====
-  if(rgC.length>1){{
-    ctx.setLineDash([5*dpr,4*dpr]);ctx.lineWidth=1*dpr;ctx.strokeStyle='#2A3A52';ctx.globalAlpha=0.25;
-    ctx.beginPath();let started=false;
-    for(let i=0;i<rgC.length;i++){{const p=project(rgC[i][0],rgC[i][1],rgC[i][2]);
-      if(p){{if(!started){{ctx.moveTo(p.x,p.y);started=true}}else ctx.lineTo(p.x,p.y)}}
-    }}ctx.stroke();ctx.setLineDash([]);
-  }}
-
   // ==== Trail: ice-blue, energy-based width/opacity ====
   if(showTrail&&steps>1){{
     ctx.lineCap='round';ctx.lineJoin='round';
@@ -666,7 +653,6 @@ requestAnimationFrame(frame);
         splats_js = splats_js,
         splat_alphas_js = splat_alphas_js,
         neighbors_js = neighbors_js,
-        ridge_js = ridge_js,
         tokens_js = tokens_js,
     );
 
