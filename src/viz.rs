@@ -73,8 +73,6 @@ pub struct VizRenderData {
     pub prompt: String,
     /// Per-step neighbor data: Vec of (step_index, neighbors)
     pub step_neighbors: Vec<Vec<StepNeighbor>>,
-    /// Ridge ghost trail (predicted path from ridge runner)
-    pub ridge_ghost: Vec<[f32; 3]>,
 }
 
 /// Neighbor data for a single step, ready for rendering.
@@ -100,8 +98,6 @@ pub struct VizCollector {
     field_points_3d: Vec<[f32; 3]>,
     goal_3d: [f32; 3],
     prompt: String,
-    /// Ridge ghost trail points (projected to 3D)
-    ridge_ghost: Vec<[f32; 3]>,
 }
 
 impl VizCollector {
@@ -176,7 +172,6 @@ impl VizCollector {
             field_points_3d,
             goal_3d,
             prompt: prompt.to_string(),
-            ridge_ghost: Vec::new(),
         })
     }
 
@@ -225,15 +220,6 @@ impl VizCollector {
         });
 
         Ok(())
-    }
-
-    /// Set the ridge ghost trail (projected from 4096D to 3D).
-    #[allow(dead_code)]
-    pub fn set_ridge_ghost(&mut self, positions: &[Vec<f32>]) {
-        self.ridge_ghost = positions
-            .iter()
-            .map(|p| project_vec(p, &self.projection, self.dim))
-            .collect();
     }
 
     /// Export all collected data to a JSON file.
@@ -312,14 +298,7 @@ impl VizCollector {
             goal_position_3d: self.goal_3d,
             prompt: self.prompt,
             step_neighbors,
-            ridge_ghost: self.ridge_ghost,
         }
-    }
-
-    /// Number of snapshots collected so far.
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize {
-        self.snapshots.len()
     }
 }
 
