@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Gaussian Splat -- individual memory unit.
 //!
 //! Each splat has:
@@ -99,6 +98,7 @@ impl Splat {
     }
 
     /// Create an anchor splat (lambda=0, never decays).
+    #[allow(dead_code)]
     pub fn anchor(mu: Tensor, sigma: f32, alpha: f32) -> Self {
         Self {
             mu,
