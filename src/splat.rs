@@ -119,3 +119,61 @@ fn now_secs() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::{Device, Tensor};
+
+    fn dummy_tensor() -> Tensor {
+        Tensor::zeros((10,), candle_core::DType::F32, &Device::Cpu).unwrap()
+    }
+
+    #[test]
+    fn test_with_scale_fine() {
+        let mu = dummy_tensor();
+        let sigma = 1.0;
+        let alpha = 0.5;
+
+        // delta_norm <= 20.0
+        let splat1 = Splat::with_scale(mu.clone(), sigma, alpha, 0.0);
+        assert_eq!(splat1.scale, SplatScale::Fine);
+        assert_eq!(splat1.sigma, sigma * SplatScale::Fine.sigma_multiplier());
+
+        let splat2 = Splat::with_scale(mu.clone(), sigma, alpha, 20.0);
+        assert_eq!(splat2.scale, SplatScale::Fine);
+        assert_eq!(splat2.sigma, sigma * SplatScale::Fine.sigma_multiplier());
+    }
+
+    #[test]
+    fn test_with_scale_medium() {
+        let mu = dummy_tensor();
+        let sigma = 1.0;
+        let alpha = 0.5;
+
+        // 20.0 < delta_norm <= 30.0
+        let splat1 = Splat::with_scale(mu.clone(), sigma, alpha, 20.01);
+        assert_eq!(splat1.scale, SplatScale::Medium);
+        assert_eq!(splat1.sigma, sigma * SplatScale::Medium.sigma_multiplier());
+
+        let splat2 = Splat::with_scale(mu.clone(), sigma, alpha, 30.0);
+        assert_eq!(splat2.scale, SplatScale::Medium);
+        assert_eq!(splat2.sigma, sigma * SplatScale::Medium.sigma_multiplier());
+    }
+
+    #[test]
+    fn test_with_scale_coarse() {
+        let mu = dummy_tensor();
+        let sigma = 1.0;
+        let alpha = 0.5;
+
+        // delta_norm > 30.0
+        let splat1 = Splat::with_scale(mu.clone(), sigma, alpha, 30.01);
+        assert_eq!(splat1.scale, SplatScale::Coarse);
+        assert_eq!(splat1.sigma, sigma * SplatScale::Coarse.sigma_multiplier());
+
+        let splat2 = Splat::with_scale(mu.clone(), sigma, alpha, 100.0);
+        assert_eq!(splat2.scale, SplatScale::Coarse);
+        assert_eq!(splat2.sigma, sigma * SplatScale::Coarse.sigma_multiplier());
+    }
+}
