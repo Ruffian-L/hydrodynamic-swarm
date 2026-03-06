@@ -167,7 +167,6 @@ impl NiodooEngine {
     }
 
     /// Get the embedding dimension.
-    #[allow(dead_code)]
     pub fn dim(&self) -> usize {
         self.field.dim
     }
