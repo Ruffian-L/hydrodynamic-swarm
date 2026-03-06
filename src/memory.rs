@@ -95,6 +95,33 @@ impl SplatMemory {
         Ok(total_force)
     }
 
+    /// Collective force from K nearest splats — emergent bundle structure.
+    /// Uses existing alpha as mass proxy. Returns a (D,) force tensor.
+    pub fn query_bundle_force(&self, pos: &Tensor, k: usize) -> Result<Tensor> {
+        let dims = pos.dims().to_vec();
+        if self.splats.is_empty() || k == 0 {
+            return Tensor::zeros(&dims[..], DType::F32, &self.device);
+        }
+
+        let mut dists: Vec<(usize, f32)> = Vec::with_capacity(self.splats.len());
+        for (i, splat) in self.splats.iter().enumerate() {
+            let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
+            dists.push((i, dist_sq));
+        }
+        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
+        let take = k.min(dists.len());
+        for &(idx, dist_sq) in dists.iter().take(take) {
+            let splat = &self.splats[idx];
+            let diff = (&splat.mu - pos)?;
+            let weight = splat.alpha.abs() / (dist_sq.sqrt() + 1e-6);
+            let contribution = diff.affine(weight as f64, 0.0)?;
+            force = (&force + &contribution)?;
+        }
+        Ok(force)
+    }
+
     /// Number of active splats.
     pub fn len(&self) -> usize {
         self.splats.len()
@@ -226,13 +253,16 @@ impl SplatMemory {
     }
 
     /// Walk a trajectory tensor (N, D) and deposit splats at sampled positions.
-    /// Skips positions too close to existing splats. Returns count of splats created.
+    /// Each position is weighted by its token mass (0.0-1.0): heavy tokens get
+    /// stronger splats, light tokens get weaker ones or are skipped entirely.
+    /// `masses` is optional — if None, all positions get uniform `alpha`.
     pub fn consolidate_trajectory(
         &mut self,
         trajectory: &Tensor,
         sigma: f32,
         alpha: f32,
         min_dist: f32,
+        masses: Option<&[f32]>,
     ) -> Result<usize> {
         let n = trajectory.dim(0)?;
         if n == 0 {
@@ -241,9 +271,13 @@ impl SplatMemory {
         let stride = (n / 10).max(1);
         let mut created = 0usize;
         for i in (0..n).step_by(stride) {
+            let mass = masses.map_or(1.0, |m| m.get(i).copied().unwrap_or(1.0));
+            if mass < 0.1 {
+                continue; // skip near-zero-mass tokens (high-confidence filler)
+            }
             let pos = trajectory.get(i)?;
             if !self.has_nearby(&pos, min_dist)? {
-                self.add_splat(Splat::new(pos, sigma, alpha));
+                self.add_splat(Splat::new(pos, sigma, alpha * mass));
                 created += 1;
             }
         }

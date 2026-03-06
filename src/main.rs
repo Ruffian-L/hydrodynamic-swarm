@@ -269,7 +269,9 @@ fn main() -> Result<()> {
     let mut last_reflex_step: usize = 0;
 
     // Full generation trajectory (real hidden states for dream replay)
+    // trajectory_masses: per-token weight (1 - prob) — surprise = high mass
     let mut generation_trajectory: Vec<Tensor> = Vec::new();
+    let mut trajectory_masses: Vec<f32> = Vec::new();
 
     println!(
         "\n    === Generation ({} tokens, physics-steered) ===\n",
@@ -325,9 +327,12 @@ fn main() -> Result<()> {
                 + &steer_input.affine(pb, 0.0)?)?;
         }
 
-        // Collect real hidden states for dream replay trajectory
-        if let Some(ref h) = raw_hidden {
-            generation_trajectory.push(h.squeeze(0)?);
+        // Bundle stress: collective force from nearby splats (emergent fluid structure)
+        if engine.memory().len() > 3 {
+            let pos = steered_slice.squeeze(0)?;
+            let bundle = engine.memory().query_bundle_force(&pos, 8)?;
+            let bundle_2d = bundle.unsqueeze(0)?;
+            steered_slice = (&steered_slice + &bundle_2d.affine(0.01, 0.0)?)?;
         }
 
         last_steered_pos = Some(steered_slice.clone());
@@ -560,6 +565,15 @@ fn main() -> Result<()> {
             raw_hidden = None;
         }
         index_pos += 1;
+
+        // Collect hidden state for dream replay — AFTER forward pass so
+        // trajectory[N] = state that produced token[N] (correct alignment)
+        // Token mass: weight by surprise (low prob = high mass = stronger splat)
+        if let Some(ref h) = raw_hidden {
+            let mass = 1.0_f32 - probs_vec[next_token as usize].min(1.0);
+            generation_trajectory.push(h.squeeze(0)?);
+            trajectory_masses.push(mass);
+        }
     }
 
     // =========================================================
@@ -624,16 +638,28 @@ fn main() -> Result<()> {
         let noise = Tensor::randn(0.0f32, 0.05, traj_stack.dims(), &device)?;
         let noisy_traj = (&traj_stack + &noise)?;
         let replay_bonus = 1.25_f32;
+        let masses_ref = if trajectory_masses.is_empty() {
+            None
+        } else {
+            Some(trajectory_masses.as_slice())
+        };
         let replay_count = engine.memory_mut().consolidate_trajectory(
             &noisy_traj,
             cfg.physics.splat_sigma,
             replay_bonus,
             cfg.physics.min_splat_dist,
+            masses_ref,
         )?;
+        let avg_mass = if trajectory_masses.is_empty() {
+            1.0
+        } else {
+            trajectory_masses.iter().sum::<f32>() / trajectory_masses.len() as f32
+        };
         println!(
-            "    Dream replay: {} trajectory points -> {} new splats (bonus alpha {:.2})",
+            "    Dream replay: {} points -> {} splats (avg mass {:.3}, bonus {:.2})",
             generation_trajectory.len(),
             replay_count,
+            avg_mass,
             replay_bonus,
         );
     } else {

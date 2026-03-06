@@ -39,7 +39,7 @@ impl DreamEngine {
             let noisy = (&traj + &noise)?;
             let created = self
                 .memory
-                .consolidate_trajectory(&noisy, sigma, alpha_bonus, min_dist)?;
+                .consolidate_trajectory(&noisy, sigma, alpha_bonus, min_dist, None)?;
             println!(
                 "    Dream replay: {} points -> {} splats (noise {:.4})",
                 traj.dim(0).unwrap_or(0),
