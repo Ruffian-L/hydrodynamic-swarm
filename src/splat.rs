@@ -119,3 +119,45 @@ fn now_secs() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::Device;
+
+    #[test]
+    fn test_with_scale() {
+        let device = Device::Cpu;
+        let mu = Tensor::zeros((1,), candle_core::DType::F32, &device).unwrap();
+        let base_sigma = 10.0;
+        let alpha = 1.0;
+        let epsilon = 1e-6;
+
+        // Test Fine Scale (<= 20.0)
+        let splat_fine_10 = Splat::with_scale(mu.clone(), base_sigma, alpha, 10.0);
+        assert_eq!(splat_fine_10.scale, SplatScale::Fine);
+        assert!((splat_fine_10.sigma - base_sigma * SplatScale::Fine.sigma_multiplier()).abs() < epsilon);
+
+        let splat_fine_20 = Splat::with_scale(mu.clone(), base_sigma, alpha, 20.0);
+        assert_eq!(splat_fine_20.scale, SplatScale::Fine);
+        assert!((splat_fine_20.sigma - base_sigma * SplatScale::Fine.sigma_multiplier()).abs() < epsilon);
+
+        // Test Medium Scale (> 20.0 and <= 30.0)
+        let splat_medium_20_1 = Splat::with_scale(mu.clone(), base_sigma, alpha, 20.1);
+        assert_eq!(splat_medium_20_1.scale, SplatScale::Medium);
+        assert!((splat_medium_20_1.sigma - base_sigma * SplatScale::Medium.sigma_multiplier()).abs() < epsilon);
+
+        let splat_medium_30 = Splat::with_scale(mu.clone(), base_sigma, alpha, 30.0);
+        assert_eq!(splat_medium_30.scale, SplatScale::Medium);
+        assert!((splat_medium_30.sigma - base_sigma * SplatScale::Medium.sigma_multiplier()).abs() < epsilon);
+
+        // Test Coarse Scale (> 30.0)
+        let splat_coarse_30_1 = Splat::with_scale(mu.clone(), base_sigma, alpha, 30.1);
+        assert_eq!(splat_coarse_30_1.scale, SplatScale::Coarse);
+        assert!((splat_coarse_30_1.sigma - base_sigma * SplatScale::Coarse.sigma_multiplier()).abs() < epsilon);
+
+        let splat_coarse_100 = Splat::with_scale(mu.clone(), base_sigma, alpha, 100.0);
+        assert_eq!(splat_coarse_100.scale, SplatScale::Coarse);
+        assert!((splat_coarse_100.sigma - base_sigma * SplatScale::Coarse.sigma_multiplier()).abs() < epsilon);
+    }
+}
