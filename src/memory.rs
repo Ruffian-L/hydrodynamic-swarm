@@ -15,6 +15,13 @@ pub struct SplatMemory {
     device: candle_core::Device,
 }
 
+const BUNDLE_MIN_DIST: f32 = 0.05;
+
+fn bundle_weight(alpha: f32, dist_sq: f32) -> f32 {
+    let effective_dist = dist_sq.max(0.0).sqrt().max(BUNDLE_MIN_DIST);
+    alpha / effective_dist
+}
+
 impl SplatMemory {
     pub fn new(device: candle_core::Device) -> Self {
         Self {
@@ -115,7 +122,9 @@ impl SplatMemory {
         for &(idx, dist_sq) in dists.iter().take(take) {
             let splat = &self.splats[idx];
             let diff = (&splat.mu - pos)?;
-            let weight = splat.alpha.abs() / (dist_sq.sqrt() + 1e-6);
+            // Bundle stress should saturate inside a small core radius instead of
+            // producing million-scale inverse-distance weights for near-coincident splats.
+            let weight = bundle_weight(splat.alpha, dist_sq);
             let contribution = diff.affine(weight as f64, 0.0)?;
             force = (&force + &contribution)?;
         }
@@ -669,5 +678,26 @@ mod tests {
         assert!(remaining_alphas.contains(&5.0));
         assert!(remaining_alphas.contains(&-5.0));
         assert!(remaining_alphas.contains(&1.0)); // The anchor
+    }
+
+    #[test]
+    fn bundle_weight_is_bounded_near_zero_distance() {
+        let exact = bundle_weight(2.0, 0.0);
+        let near = bundle_weight(2.0, 1e-12);
+        let capped = 2.0 / BUNDLE_MIN_DIST;
+
+        assert!(exact.is_finite());
+        assert!((exact - capped).abs() < 1e-6);
+        assert!((near - capped).abs() < 1e-6);
+    }
+
+    #[test]
+    fn bundle_weight_preserves_negative_alpha() {
+        let positive = bundle_weight(3.0, 1.0);
+        let negative = bundle_weight(-3.0, 1.0);
+
+        assert!(positive > 0.0, "positive alpha should yield positive weight");
+        assert!(negative < 0.0, "negative alpha (pain) should yield negative weight");
+        assert!((positive + negative).abs() < 1e-6, "magnitudes should match");
     }
 }

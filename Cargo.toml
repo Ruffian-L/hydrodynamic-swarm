@@ -4,6 +4,10 @@ version = "0.2.0"
 edition = "2021"
 description = "SplatRAG v1 — Hydrodynamic swarm physics for retrieval-augmented generation"
 
+[features]
+default = []
+metal-compute = []  # Metal/wgpu backend and GPU tests (see src/gpu.rs)
+
 [dependencies]
 candle-core = { version = "0.9", features = ["cuda"] }
 candle-nn = { version = "0.9", features = ["cuda"] }
