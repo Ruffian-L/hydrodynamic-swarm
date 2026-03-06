@@ -119,27 +119,30 @@ impl Default for MicroDreamConfig {
 }
 
 impl Config {
-    /// Load from a TOML file. Returns defaults if file doesn't exist.
-    /// Validates all numeric invariants after deserialization.
+    /// Load configuration from a TOML file. Fills missing sections with defaults.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let config: Self = if !path.exists() {
-            Self::default()
-        } else {
-            match std::fs::read_to_string(path) {
-                Ok(contents) => match toml::from_str(&contents) {
-                    Ok(c) => {
-                        println!("    Config loaded from: {}", path.display());
-                        c
-                    }
-                    Err(e) => {
-                        return Err(format!("Failed to parse config {}: {}", path.display(), e));
-                    }
-                },
-                Err(e) => {
-                    return Err(format!("Failed to read config {}: {}", path.display(), e));
+        if !path.exists() {
+            return Err(format!(
+                "Config file not found at {}. Please copy config.toml.example and edit it.",
+                path.display()
+            ));
+        }
+
+        let config: Self = match std::fs::read_to_string(path) {
+            Ok(contents) => match toml::from_str(&contents) {
+                Ok(c) => {
+                    println!("    Config loaded from: {}", path.display());
+                    c
                 }
+                Err(e) => {
+                    return Err(format!("Failed to parse config {}: {}", path.display(), e));
+                }
+            },
+            Err(e) => {
+                return Err(format!("Failed to read config {}: {}", path.display(), e));
             }
         };
+
         config.validate()?;
         Ok(config)
     }
@@ -265,5 +268,31 @@ max_tokens = 200
         let cfg = Config::default();
         assert!(cfg.generation.eos_token_ids.contains(&128009));
         assert!(cfg.generation.eos_token_ids.contains(&128001));
+    }
+
+    #[test]
+    fn load_missing_file_returns_error() {
+        let path = Path::new("non_existent_config_file_12345.toml");
+        let cfg = Config::load(path);
+        assert!(cfg.is_err());
+        if let Err(e) = cfg {
+            assert!(e.starts_with("Config file not found at "));
+        }
+    }
+
+    #[test]
+    fn load_malformed_toml_returns_error() {
+        let path = Path::new("malformed_test_config.toml");
+        let malformed_content = "[invalid\ntoml = ";
+        std::fs::write(path, malformed_content).unwrap();
+
+        let cfg = Config::load(path);
+        assert!(cfg.is_err());
+        if let Err(e) = cfg {
+            assert!(e.starts_with("Failed to parse config "));
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(path);
     }
 }
