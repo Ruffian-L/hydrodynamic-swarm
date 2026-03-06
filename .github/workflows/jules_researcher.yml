@@ -1,0 +1,41 @@
+name: Jules Researcher (Repo Groundskeeper)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-labs-code/jules-action@v1.0.0
+        with:
+          starting_branch: master
+          include_last_commit: true
+          include_commit_log: true
+          prompt: |
+            You are the Repo Groundskeeper for the SplatRAG v1 / Hydrodynamic Swarm project.
+            Read your full instructions in AGENTS.md at the repo root.
+
+            Your task for this invocation:
+
+            1. Read AGENTS.md for your boundaries and persona.
+            2. Read FOUNDATION.md and project_brain_dump.json for project context.
+            3. Analyze the latest commit diff provided to you.
+            4. Read any relevant JSONL log files in logs/ if the commit touched generation or steering code.
+            5. Write a new research entry file in research_logs/ following the template in research_logs/TEMPLATE.md.
+               Name it: research_logs/YYYY-MM-DD_<short-description>.md
+            6. Append a one-line summary row to the table in research_logs/timeline.md.
+
+            CRITICAL RULES:
+            - You may ONLY create or modify files inside research_logs/
+            - Do NOT modify any source code, configs, or docs outside research_logs/
+            - Write like a research lab notebook -- cite specific values, parameter changes, and metrics
+            - Connect every change back to the physics framework in FOUNDATION.md
+            - If the commit is trivial (typo fix, formatting), write a brief entry but still log it in the timeline
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
