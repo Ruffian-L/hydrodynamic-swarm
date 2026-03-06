@@ -247,3 +247,52 @@ fn days_to_date(mut days: u64) -> (u64, u64, u64) {
 fn is_leap(year: u64) -> bool {
     (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_log_step_accumulation() {
+        let label = "test_accumulation";
+        let model_variant = "test_model";
+        let mut logger = SessionLogger::new(label, model_variant).unwrap();
+
+        let step1 = StepEntry {
+            step: 1,
+            token_id: 101,
+            token_text: "hello".to_string(),
+            steering_delta: 0.5,
+            residual_norm: 1.0,
+            grad_force_mag: 0.1,
+            splat_force_mag: 0.2,
+            goal_force_mag: 0.3,
+        };
+
+        let step2 = StepEntry {
+            step: 2,
+            token_id: 102,
+            token_text: "world".to_string(),
+            steering_delta: 1.5,
+            residual_norm: 1.2,
+            grad_force_mag: 0.2,
+            splat_force_mag: 0.3,
+            goal_force_mag: 0.4,
+        };
+
+        logger.log_step(step1).unwrap();
+        logger.log_step(step2).unwrap();
+
+        // Verify that deltas have accumulated correctly
+        assert_eq!(logger.deltas.len(), 2);
+        assert!((logger.deltas[0] - 0.5).abs() < f32::EPSILON);
+        assert!((logger.deltas[1] - 1.5).abs() < f32::EPSILON);
+
+        // Clean up the log file
+        let path = logger.path();
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
