@@ -10,6 +10,7 @@
 
 use crate::viz::VizRenderData;
 use std::path::Path;
+use std::process::Command;
 
 /// Generate an HTML 3D viewer and open it in the default browser.
 pub fn launch(data: VizRenderData) {
@@ -676,12 +677,61 @@ requestAnimationFrame(frame);
     }
 
     println!("    [VIZ] 3D viewer: {}", html_path.display());
-    let _ = std::process::Command::new("/usr/bin/open").arg(&html_path).spawn();
+    try_open_viewer(&html_path);
 }
 
 // ---------------------------------------------------------------
 // Serialization helpers
 // ---------------------------------------------------------------
+
+fn try_open_viewer(path: &Path) {
+    let mut last_error = None;
+    for (program, args) in viewer_open_commands(path) {
+        match Command::new(program).args(&args).spawn() {
+            Ok(_) => return,
+            Err(err) => last_error = Some(format!("{}: {}", program, err)),
+        }
+    }
+
+    if let Some(err) = last_error {
+        eprintln!("    [VIZ] Viewer auto-open unavailable: {}", err);
+        eprintln!("    [VIZ] Open this file manually: {}", path.display());
+    }
+}
+
+fn viewer_open_commands(path: &Path) -> Vec<(&'static str, Vec<String>)> {
+    let resolved = path
+        .canonicalize()
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .into_owned();
+
+    #[cfg(target_os = "macos")]
+    {
+        vec![("open", vec![resolved])]
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        vec![
+            ("xdg-open", vec![resolved.clone()]),
+            ("gio", vec!["open".to_string(), resolved]),
+        ]
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        vec![(
+            "cmd",
+            vec!["/C".to_string(), "start".to_string(), "".to_string(), resolved],
+        )]
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    {
+        Vec::new()
+    }
+}
 
 fn points_to_js(points: &[[f32; 3]]) -> String {
     let entries: Vec<String> = points
@@ -694,4 +744,35 @@ fn points_to_js(points: &[[f32; 3]]) -> String {
 fn floats_to_js(vals: &[f32]) -> String {
     let entries: Vec<String> = vals.iter().map(|v| format!("{:.4}", v)).collect();
     format!("[{}]", entries.join(","))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn viewer_open_commands_have_platform_candidates() {
+        let commands = viewer_open_commands(Path::new("logs/splatlens_viewer.html"));
+
+        #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+        assert!(
+            !commands.is_empty(),
+            "viewer auto-open should have at least one platform candidate"
+        );
+
+        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+        assert!(
+            commands.is_empty(),
+            "unsupported platforms should return empty command list"
+        );
+
+        #[cfg(target_os = "linux")]
+        assert_eq!(commands[0].0, "xdg-open");
+
+        #[cfg(target_os = "macos")]
+        assert_eq!(commands[0].0, "open");
+
+        #[cfg(target_os = "windows")]
+        assert_eq!(commands[0].0, "cmd");
+    }
 }

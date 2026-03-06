@@ -15,10 +15,13 @@ use candle_core::{Result, Tensor};
 /// a significant trajectory warp -- a "hydraulic jump" in the latent stream.
 pub const DREAM_CORRECTION_THRESHOLD: f32 = 6.0;
 
+/// Full dream replay engine (Langevin + consolidate). Reserved for future use.
+#[allow(dead_code)]
 pub struct DreamEngine {
     memory: SplatMemory,
 }
 
+#[allow(dead_code)]
 impl DreamEngine {
     pub fn new(memory: SplatMemory) -> Self {
         Self { memory }
@@ -67,6 +70,8 @@ impl DreamEngine {
 pub struct MicroDreamResult {
     pub consolidated: Tensor,
     pub correction_norm: f32,
+    /// Set when correction_norm exceeded threshold; reserved for TopoCoT injection.
+    #[allow(dead_code)]
     pub reflection_triggered: bool,
 }
 

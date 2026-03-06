@@ -30,7 +30,8 @@ pub trait PhysicsBackend {
     fn splat_force(&self, memory: &SplatMemory, pos: &Tensor) -> Result<Tensor>;
 
     /// Batch field gradient for multiple positions (shape `(M, D)` -> `(M, D)`).
-    /// Used by micro-dream forward projection and ridge-running ensembles.
+    /// Used by micro-dream forward projection and ridge-running ensembles (e.g. with `metal-compute`).
+    #[allow(dead_code)]
     fn batch_field_gradient(&self, field: &ContinuousField, positions: &Tensor) -> Result<Tensor>;
 
     /// Name string for telemetry logging.
