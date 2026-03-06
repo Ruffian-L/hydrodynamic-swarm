@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! JSONL Telemetry Logger
 //!
 //! Logs every generation step and session summary to `logs/` as JSONL.
