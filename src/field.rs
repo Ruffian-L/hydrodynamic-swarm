@@ -8,6 +8,20 @@
 use candle_core::{DType, Device, Result, Tensor};
 use std::path::Path;
 
+#[derive(PartialEq)]
+struct OrderedF32(f32);
+impl Eq for OrderedF32 {}
+impl PartialOrd for OrderedF32 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+impl Ord for OrderedF32 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
 pub struct ContinuousField {
     /// Memory positions from embeddings, shape (N, D)
     pub positions: Tensor,
@@ -234,18 +248,27 @@ impl ContinuousField {
         let n = dist_sq.len();
         let dim = self.dim;
 
-        // Build (index, neg_dist_sq) pairs and partial sort for top-K
-        let mut indices: Vec<(usize, f32)> =
-            dist_sq.iter().enumerate().map(|(i, &d)| (i, d)).collect();
-        // Partial sort: put K smallest dist_sq at front
         let k = k.min(n);
-        if k == 0 || indices.is_empty() {
+        if k == 0 || dist_sq.is_empty() {
             return Ok(Vec::new());
         }
-        indices.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        indices.truncate(k);
+
+        // Use a max-heap to keep track of the K smallest distances
+        let mut heap: std::collections::BinaryHeap<(OrderedF32, usize)> =
+            std::collections::BinaryHeap::with_capacity(k);
+
+        for (i, &d) in dist_sq.iter().enumerate() {
+            if heap.len() < k {
+                heap.push((OrderedF32(d), i));
+            } else if let Some(max_val) = heap.peek() {
+                if d < max_val.0.0 {
+                    heap.pop();
+                    heap.push((OrderedF32(d), i));
+                }
+            }
+        }
+
+        let indices: Vec<(usize, f32)> = heap.into_iter().map(|(d, i)| (i, d.0)).collect();
 
         // Compute cosine similarity for the K nearest
         let mut results: Vec<(u32, f32)> = indices
@@ -286,18 +309,23 @@ impl ContinuousField {
         let diff_all = self.positions.broadcast_sub(&pos_expanded)?;
         let dist_sq_all: Vec<f32> = diff_all.sqr()?.sum(1)?.to_vec1()?;
 
-        // Partial sort to find K nearest indices
-        let mut indexed: Vec<(usize, f32)> = dist_sq_all
-            .iter()
-            .enumerate()
-            .map(|(i, &d)| (i, d))
-            .collect();
-        indexed.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // Use a max-heap to keep track of the K nearest indices
+        let mut heap: std::collections::BinaryHeap<(OrderedF32, usize)> =
+            std::collections::BinaryHeap::with_capacity(k);
+
+        for (i, &d) in dist_sq_all.iter().enumerate() {
+            if heap.len() < k {
+                heap.push((OrderedF32(d), i));
+            } else if let Some(max_val) = heap.peek() {
+                if d < max_val.0.0 {
+                    heap.pop();
+                    heap.push((OrderedF32(d), i));
+                }
+            }
+        }
 
         // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
+        let topk_indices: Vec<usize> = heap.into_iter().map(|(_, i)| i).collect();
         let topk_rows: Vec<Tensor> = topk_indices
             .iter()
             .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
