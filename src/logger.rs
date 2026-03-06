@@ -8,13 +8,13 @@
 //! the logger will track which domain each splat originated from,
 //! enabling cross-domain influence analysis.
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Per-step telemetry entry
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StepEntry {
     pub step: usize,
     pub token_id: u32,
@@ -27,7 +27,7 @@ pub struct StepEntry {
 }
 
 /// Session config snapshot
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SessionConfig {
     pub prompt: String,
     pub dt: f32,
@@ -46,7 +46,7 @@ pub struct SessionConfig {
 }
 
 /// Final session summary
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SessionSummary {
     pub prompt: String,
     pub prompt_token_count: usize,
@@ -62,7 +62,7 @@ pub struct SessionSummary {
 }
 
 /// Top-level log entry -- one per line in the JSONL file
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LogEntry {
     pub timestamp: String,
     pub session_id: String,
@@ -246,4 +246,92 @@ fn days_to_date(mut days: u64) -> (u64, u64, u64) {
 
 fn is_leap(year: u64) -> bool {
     (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    struct FileCleanup(PathBuf);
+    impl Drop for FileCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
+    #[test]
+    fn test_logger_deltas_accumulation() {
+        let label = "test_run";
+        let mut logger = SessionLogger::new(label, "test_variant").unwrap();
+
+        let path = logger.path();
+        let _cleanup = FileCleanup(path.clone());
+
+        logger.log_step(StepEntry {
+            step: 1,
+            token_id: 10,
+            token_text: "a".to_string(),
+            steering_delta: 2.5,
+            residual_norm: 1.0,
+            grad_force_mag: 0.1,
+            splat_force_mag: 0.2,
+            goal_force_mag: 0.3,
+        }).unwrap();
+
+        logger.log_step(StepEntry {
+            step: 2,
+            token_id: 11,
+            token_text: "b".to_string(),
+            steering_delta: 5.5,
+            residual_norm: 1.1,
+            grad_force_mag: 0.1,
+            splat_force_mag: 0.2,
+            goal_force_mag: 0.3,
+        }).unwrap();
+
+        logger.log_step(StepEntry {
+            step: 3,
+            token_id: 12,
+            token_text: "c".to_string(),
+            steering_delta: 1.0,
+            residual_norm: 1.2,
+            grad_force_mag: 0.1,
+            splat_force_mag: 0.2,
+            goal_force_mag: 0.3,
+        }).unwrap();
+
+        assert_eq!(logger.deltas.len(), 3);
+        assert_eq!(logger.deltas[0], 2.5);
+        assert_eq!(logger.deltas[1], 5.5);
+        assert_eq!(logger.deltas[2], 1.0);
+
+        let summary = SessionSummary {
+            prompt: "test".to_string(),
+            prompt_token_count: 1,
+            generated_token_count: 3,
+            goal_attractor_norm: 0.0,
+            splat_count_before: 0,
+            splat_count_after: 0,
+            splat_type_added: "none".to_string(),
+            decoded_output: "a b c".to_string(),
+            delta_min: 0.0,
+            delta_max: 0.0,
+            delta_mean: 0.0,
+        };
+
+        logger.log_summary(summary).unwrap();
+
+        // Read the last line of the file and parse as LogEntry
+        let content = fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = content.trim().split('\n').collect();
+        let last_line = lines.last().unwrap();
+        let log_entry: LogEntry = serde_json::from_str(last_line).unwrap();
+
+        let logged_summary = log_entry.summary.unwrap();
+        assert_eq!(logged_summary.delta_min, 1.0);
+        assert_eq!(logged_summary.delta_max, 5.5);
+        assert_eq!(logged_summary.delta_mean, 3.0); // (2.5 + 5.5 + 1.0) / 3 = 3.0
+    }
 }
