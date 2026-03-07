@@ -61,28 +61,6 @@ pub struct VizSession {
     pub goal_position_3d: [f32; 3],
 }
 
-/// Lightweight render data passed to the Metal window.
-pub struct VizRenderData {
-    pub field_points_3d: Vec<[f32; 3]>,
-    pub trajectory_3d: Vec<[f32; 3]>,
-    pub trajectory_deltas: Vec<f32>,
-    pub trajectory_tokens: Vec<String>,
-    pub splat_positions_3d: Vec<[f32; 3]>,
-    pub splat_alphas: Vec<f32>,
-    pub goal_position_3d: [f32; 3],
-    pub prompt: String,
-    /// Per-step neighbor data: Vec of (step_index, neighbors)
-    pub step_neighbors: Vec<Vec<StepNeighbor>>,
-    /// Ridge ghost trail (predicted path from ridge runner)
-    pub ridge_ghost: Vec<[f32; 3]>,
-}
-
-/// Neighbor data for a single step, ready for rendering.
-pub struct StepNeighbor {
-    pub token_text: String,
-    pub probability: f32,
-    pub position_3d: [f32; 3],
-}
 
 // ---------------------------------------------------------------
 // Collector
@@ -299,53 +277,6 @@ impl VizCollector {
         Ok(())
     }
 
-    /// Convert into render data for the Metal window.
-    pub fn into_render_data(self) -> VizRenderData {
-        let trajectory_3d: Vec<[f32; 3]> = self.snapshots.iter().map(|s| s.position_3d).collect();
-        let trajectory_deltas: Vec<f32> = self.snapshots.iter().map(|s| s.steering_delta).collect();
-        let trajectory_tokens: Vec<String> = self
-            .snapshots
-            .iter()
-            .map(|s| s.token_text.clone())
-            .collect();
-
-        // Collect per-step neighbor data for rendering
-        let step_neighbors: Vec<Vec<StepNeighbor>> = self
-            .snapshots
-            .iter()
-            .map(|s| {
-                s.neighbors
-                    .iter()
-                    .map(|n| StepNeighbor {
-                        token_text: n.token_text.clone(),
-                        probability: n.probability,
-                        position_3d: n.position_3d,
-                    })
-                    .collect()
-            })
-            .collect();
-
-        VizRenderData {
-            field_points_3d: self.field_points_3d,
-            trajectory_3d,
-            trajectory_deltas,
-            trajectory_tokens,
-            splat_positions_3d: self
-                .splat_scars_cache
-                .iter()
-                .map(|&(pos, _, _)| pos)
-                .collect(),
-            splat_alphas: self
-                .splat_scars_cache
-                .iter()
-                .map(|&(_, alpha, _)| alpha)
-                .collect(),
-            goal_position_3d: self.goal_3d,
-            prompt: self.prompt,
-            step_neighbors,
-            ridge_ghost: self.ridge_ghost,
-        }
-    }
 
     /// Number of snapshots collected so far.
     #[allow(dead_code)]

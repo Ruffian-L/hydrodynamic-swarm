@@ -18,7 +18,7 @@ mod ridge;
 mod splat;
 mod tui;
 mod viz;
-mod viz_metal;
+// mod viz_metal; // removed: XSS-vulnerable HTML viewer (security audit 2026-03-07)
 
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
@@ -113,7 +113,8 @@ async fn main() -> Result<()> {
         .iter()
         .position(|a| a == "--tokens")
         .and_then(|i| args.get(i + 1).and_then(|v| v.parse().ok()))
-        .unwrap_or(cfg.generation.max_tokens);
+        .unwrap_or(cfg.generation.max_tokens)
+        .min(50_000); // security: cap to prevent DoS-level resource exhaustion
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
 
@@ -807,7 +808,7 @@ async fn main() -> Result<()> {
     }
 
     // =========================================================
-    // Visualization export + Metal window
+    // Visualization export (JSON only — HTML viewer removed)
     // =========================================================
     if let Some(mut collector) = viz_collector {
         // Load real splat scar data from engine memory
@@ -816,10 +817,6 @@ async fn main() -> Result<()> {
         // Export JSON snapshot data
         let viz_path = logger.path().with_extension("viz.json");
         let _ = collector.export_json(&viz_path);
-
-        // Launch Metal 3D window (does not return on macOS)
-        let render_data = collector.into_render_data();
-        viz_metal::launch(render_data);
     }
 
     Ok(())
