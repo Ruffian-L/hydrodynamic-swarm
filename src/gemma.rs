@@ -278,7 +278,21 @@ impl ModelWeights {
         ) as f64;
         let rope_base = get_f32("gemma3.rope.freq_base", "llama.rope.freq_base", 10000.0);
 
-        let head_dim = hidden_dim / n_head;
+        // Gemma 3: head_dim is NOT hidden_dim/n_head (5376/32=168 is WRONG).
+        // Read from GGUF metadata (attention.key_length) or infer from Q norm tensor.
+        // Gemma 3 27B uses head_dim=128, Q output = n_head * 128 = 4096.
+        let head_dim = ct.metadata
+            .get("gemma3.attention.key_length")
+            .or_else(|| ct.metadata.get("llama.attention.key_length"))
+            .and_then(|v| v.to_u32().ok())
+            .map(|v| v as usize)
+            .unwrap_or_else(|| {
+                // Fallback: infer from blk.0.attn_q_norm.weight shape
+                // That tensor is [head_dim], so its shape tells us directly
+                ct.tensor(reader, "blk.0.attn_q_norm.weight", device)
+                    .map(|t| t.shape().dims()[0])
+                    .unwrap_or(hidden_dim / n_head)
+            });
 
         println!(
             "    [Gemma3] heads={}, kv_heads={}, blocks={}, hidden={}, head_dim={}, rope_base={:.1}",

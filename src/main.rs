@@ -36,6 +36,58 @@ use std::path::Path;
 use tokenizers::Tokenizer;
 use viz::VizCollector;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Model: dispatch enum wrapping Llama and Gemma for physics steering
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Unified model interface for the Niodoo physics engine.
+/// Both variants expose the same 4 methods used by the generation loop.
+enum Model {
+    Llama(llama::ModelWeights),
+    Gemma(gemma::ModelWeights),
+}
+
+impl Model {
+    fn forward(&mut self, tokens: &Tensor, index_pos: usize) -> candle_core::Result<Tensor> {
+        match self {
+            Model::Llama(m) => m.forward(tokens, index_pos),
+            Model::Gemma(m) => m.forward(tokens, index_pos),
+        }
+    }
+
+    fn forward_with_hidden(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+    ) -> candle_core::Result<(Tensor, Tensor)> {
+        match self {
+            Model::Llama(m) => m.forward_with_hidden(tokens, index_pos),
+            Model::Gemma(m) => m.forward_with_hidden(tokens, index_pos),
+        }
+    }
+
+    fn project_to_logits(&self, hidden: &Tensor) -> candle_core::Result<Tensor> {
+        match self {
+            Model::Llama(m) => m.project_to_logits(hidden),
+            Model::Gemma(m) => m.project_to_logits(hidden),
+        }
+    }
+
+    fn token_embeddings(&self) -> &Tensor {
+        match self {
+            Model::Llama(m) => m.token_embeddings(),
+            Model::Gemma(m) => m.token_embeddings(),
+        }
+    }
+
+    fn variant_name(&self) -> &'static str {
+        match self {
+            Model::Llama(_) => "llama3.1",
+            Model::Gemma(_) => "gemma27b",
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
@@ -70,28 +122,52 @@ async fn main() -> Result<()> {
     println!("[*] Using CUDA GPU (forced - all tensors/physics on NVIDIA)");
 
     // =========================================================
-    // Phase 1: Load Llama 3.1 GGUF + Tokenizer
+    // Phase 1: Load Model (Llama or Gemma) + Tokenizer
     // =========================================================
-    println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
+    let use_gemma = cli_model.as_deref() == Some("gemma27b") || cli_model.as_deref() == Some("gemma");
 
-    // Find GGUF model
-    let llama_path = find_file(
-        "data/bartowski/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        "data/llama3.1/Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-    )?;
-    println!("    Model: {}", llama_path);
+    let (mut model, model_path, tokenizer_path) = if use_gemma {
+        println!("\n--- Phase 1: Loading Gemma 3 27B + Tokenizer ---");
+        let gemma_path = find_file(
+            "data/google/gemma-3-27b-it-Q8_0.gguf",
+            "data/google/gemma-3-27b-it-q8_0.gguf",
+        )?;
+        println!("    Model: {}", gemma_path);
 
-    let mut file = std::fs::File::open(&llama_path)?;
-    let mut reader = BufReader::new(&mut file);
-    let ct = gguf_file::Content::read(&mut reader)?;
-    let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
-    println!("    Llama 3.1 loaded");
+        let mut file = std::fs::File::open(&gemma_path)?;
+        let mut reader = BufReader::new(&mut file);
+        let ct = gguf_file::Content::read(&mut reader)?;
+        let weights = gemma::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+        println!("    Gemma 3 27B loaded (hidden_dim={})", weights.hidden_dim);
 
-    // Find tokenizer (prefer the official Llama 3.1 tokenizer from bartowski)
-    let tokenizer_path = find_file(
-        "data/bartowski/tokenizer_official.json",
-        "data/bartowski/tokenizer_nous.json",
-    )?;
+        let tok_path = find_file(
+            "data/google/tokenizer.json",
+            "data/google/tokenizer_gemma.json",
+        )?;
+
+        (Model::Gemma(weights), gemma_path, tok_path)
+    } else {
+        println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
+        let llama_path = find_file(
+            "data/bartowski/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+            "data/llama3.1/Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        )?;
+        println!("    Model: {}", llama_path);
+
+        let mut file = std::fs::File::open(&llama_path)?;
+        let mut reader = BufReader::new(&mut file);
+        let ct = gguf_file::Content::read(&mut reader)?;
+        let weights = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+        println!("    Llama 3.1 loaded");
+
+        let tok_path = find_file(
+            "data/bartowski/tokenizer_official.json",
+            "data/bartowski/tokenizer_nous.json",
+        )?;
+
+        (Model::Llama(weights), llama_path, tok_path)
+    };
+
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
     println!("    Tokenizer loaded ({})", tokenizer_path);
@@ -100,7 +176,7 @@ async fn main() -> Result<()> {
     // Phase 2: Build live Diderot field from model embeddings
     // =========================================================
     println!("\n--- Phase 2: Building Diderot Field ---");
-    let field = ContinuousField::from_embeddings(llama.token_embeddings(), &device)?;
+    let field = ContinuousField::from_embeddings(model.token_embeddings(), &device)?;
     let dim = field.dim;
 
     // =========================================================
@@ -146,19 +222,25 @@ async fn main() -> Result<()> {
     // Chat TUI mode (--chat)
     // =========================================================
     if chat_mode {
-        return tui::run_chat(
-            &mut llama,
-            &tokenizer,
-            &mut engine,
-            &device,
-            dim,
-            max_tokens,
-            &cfg,
-        );
+        // TUI is stub — extract inner Llama for now
+        if let Model::Llama(ref mut llama) = model {
+            return tui::run_chat(
+                llama,
+                &tokenizer,
+                &mut engine,
+                &device,
+                dim,
+                max_tokens,
+                &cfg,
+            );
+        } else {
+            eprintln!("    [TUI] Chat mode not yet supported for Gemma — use --prompt instead");
+            return Ok(());
+        }
     }
 
     // Initialize telemetry logger
-    let model_variant = cli_model.as_deref().unwrap_or("llama3.1");
+    let model_variant = model.variant_name();
     let prompt = cli_prompt
         .as_deref()
         .unwrap_or(cfg.generation.default_prompt.as_str());
@@ -179,7 +261,7 @@ async fn main() -> Result<()> {
         kernel_sigma: engine.field_kernel_sigma(),
         embedding_dim: dim,
         field_points: engine.field_n_points(),
-        model: llama_path.clone(),
+        model: model_path.clone(),
         model_variant: model_variant.to_string(),
         backend: engine.backend_name().to_string(),
         splat_sigma: cfg.physics.splat_sigma,
@@ -208,10 +290,10 @@ async fn main() -> Result<()> {
 
     // Use forward_with_hidden when steer_hidden is enabled
     let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
-        let (logits, hidden) = llama.forward_with_hidden(&prompt_tensor, 0)?;
+        let (logits, hidden) = model.forward_with_hidden(&prompt_tensor, 0)?;
         (logits, Some(hidden))
     } else {
-        let logits = llama.forward(&prompt_tensor, 0)?;
+        let logits = model.forward(&prompt_tensor, 0)?;
         (logits, None)
     };
     let mut index_pos = prompt_ids.len();
@@ -354,9 +436,8 @@ async fn main() -> Result<()> {
             }
         }
 
-        // === REAL TOPOCOT CYBERNETICS LOOP — self-talk warm-up rounds ===
+        // === Micro-dream: entropy-adaptive steering consolidation ===
         let steered_slice = if step > 12 {
-            // Estimate entropy + adaptive params (kept for dream_steps/blend)
             let raw_probs_slice = candle_nn::ops::softmax(&raw_logits, 1)?;
             let raw_probs_flat: Vec<f32> = raw_probs_slice.squeeze(0)?.to_vec1()?;
             let sample_n = raw_probs_flat.len().min(1000);
@@ -370,29 +451,6 @@ async fn main() -> Result<()> {
             let blend = if entropy > 2.5 { 0.12 } else { 0.07 };
 
             let result = micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
-
-            if result.reflection_triggered {
-                // Build recent context so the model can literally "look back"
-                let start = generated_tokens.len().saturating_sub(40);
-                let recent = &generated_tokens[start..];
-
-                println!("\n\n[thinking to myself]");
-                let (think_tokens, think_text) = generate_self_thought(&mut llama, &tokenizer, recent, 32, &device)?;
-                print!("{}", think_text);
-                std::io::stdout().flush().ok();
-
-                // Feed the model's own thinking back into context (closed loop)
-                generated_tokens.extend_from_slice(&think_tokens);
-
-                // Second warm-up round if the correction was very strong
-                if result.correction_norm > 55.0 {
-                    let (round2, round2_text) = generate_self_thought(&mut llama, &tokenizer, &generated_tokens, 22, &device)?;
-                    print!("{}", round2_text);
-                    std::io::stdout().flush().ok();
-                    generated_tokens.extend_from_slice(&round2);
-                }
-            }
-
             result.consolidated
         } else {
             steered_slice
@@ -401,7 +459,7 @@ async fn main() -> Result<()> {
         // Reconstruct full logits for sampling
         let steered_logits = if is_hidden_steer {
             // Project steered hidden state through lm_head to get full vocab logits
-            llama.project_to_logits(&steered_slice)?
+            model.project_to_logits(&steered_slice)?
         } else {
             // Logit-space steering: cat steered slice with remaining logits
             if raw_logits.dim(1)? > dim {
@@ -554,11 +612,11 @@ async fn main() -> Result<()> {
         // Feed next token
         let next_input = Tensor::new(&[next_token], &device)?.unsqueeze(0)?;
         if cfg.physics.steer_hidden {
-            let (logits, hidden) = llama.forward_with_hidden(&next_input, index_pos)?;
+            let (logits, hidden) = model.forward_with_hidden(&next_input, index_pos)?;
             raw_logits = logits;
             raw_hidden = Some(hidden);
         } else {
-            raw_logits = llama.forward(&next_input, index_pos)?;
+            raw_logits = model.forward(&next_input, index_pos)?;
             raw_hidden = None;
         }
         index_pos += 1;
@@ -702,7 +760,7 @@ async fn main() -> Result<()> {
     println!("\n========================================");
     println!("  SplatRAG v1.1 -- OPERATIONAL");
     println!("========================================");
-    println!("  Model:    {}", llama_path);
+    println!("  Model:    {}", model_path);
     println!("  Variant:  {}", model_variant);
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
@@ -765,44 +823,6 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn generate_self_thought(
-    llama: &mut crate::llama::ModelWeights,
-    tokenizer: &tokenizers::Tokenizer,
-    recent_tokens: &[u32],
-    max_new: usize,
-    device: &candle_core::Device,
-) -> anyhow::Result<(Vec<u32>, String)> {
-    let mut tokens = recent_tokens.to_vec();
-    let mut current = Tensor::new(&[tokens.last().copied().unwrap_or(0)], &device)?.unsqueeze(0)?;
-    let mut output = vec![];
-
-    for _ in 0..max_new {
-        let logits = llama.forward(&current, tokens.len() - 1)?;
-        let scaled = (&logits / 0.62)?; // low temp = thoughtful self-talk
-        let probs = candle_nn::ops::softmax(&scaled, 1)?;
-        let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
-
-        let roll: f32 = rand::random();
-        let mut cum = 0.0;
-        let mut next = 0;
-        for (i, &p) in probs_vec.iter().enumerate() {
-            cum += p;
-            if roll < cum {
-                next = i as u32;
-                break;
-            }
-        }
-        output.push(next);
-        tokens.push(next);
-        current = Tensor::new(&[next], &device)?.unsqueeze(0)?;
-        if next == 128009 || next == 128001 {
-            break;
-        }
-    }
-    let text = tokenizer.decode(&output, true).map_err(|e| anyhow::anyhow!("tokenizer decode: {}", e))?;
-    Ok((output, text))
 }
 
 /// Find a file at primary path, fallback to secondary.
