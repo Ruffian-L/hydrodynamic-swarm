@@ -13,7 +13,7 @@
 
 use crate::field::ContinuousField;
 use crate::gpu::PhysicsBackend;
-use crate::memory::SplatMemory;
+use crate::memory::{PrimeGovernor, SplatMemory};
 use candle_core::{Result, Tensor};
 
 /// Result of a single steering step, including force telemetry.
@@ -27,6 +27,7 @@ pub struct SteerResult {
 pub struct NiodooEngine {
     field: ContinuousField,
     memory: SplatMemory,
+    prime_governor: PrimeGovernor,
     backend: Box<dyn PhysicsBackend>,
     dt: f32,
     viscosity_scale: f32,
@@ -46,6 +47,7 @@ impl NiodooEngine {
         Self {
             field,
             memory,
+            prime_governor: PrimeGovernor::new(),
             backend,
             dt,
             viscosity_scale,
@@ -70,7 +72,7 @@ impl NiodooEngine {
         &self,
         baseline_residual: &Tensor,
         goal_pos: &Tensor,
-        _step: usize,
+        step: usize,
     ) -> Result<SteerResult> {
         // Shape validation: require exactly (1, D)
         let dims = baseline_residual.dims();
@@ -104,8 +106,10 @@ impl NiodooEngine {
         // 2. Splat scar tissue force (via backend)
         let splat_force = self.backend.splat_force(&self.memory, &pos)?;
 
-        // 3. Goal attractor
-        let goal_force = (goal_pos - &pos)?;
+        // 3. Goal attractor governed by PrimeGovernor + Embed phases
+        let progress = (step as f32 / 200.0).min(1.0);
+        let gov_factor = self.prime_governor.govern(1.0, progress);
+        let goal_force = (goal_pos - &pos)?.affine(gov_factor as f64, 0.0)?;
 
         // Force telemetry: capture magnitudes for JSONL logging
         let splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();

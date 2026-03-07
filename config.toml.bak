@@ -1,0 +1,39 @@
+[physics]
+dt = 0.035
+viscosity_scale = 0.35
+force_cap = 7.5
+splat_sigma = 35.0
+splat_alpha = 2.0
+min_splat_dist = 100.0
+splat_delta_threshold = 12.0
+gradient_topk = 2048
+steer_hidden = true
+manifold_pullback = 0.15
+bundle_min_dist = 0.05
+splat_lambda_default = 0.02
+pain_decay_factor = 0.7
+dream_correction_threshold = 6.0
+
+[generation]
+max_tokens = 500
+temperature = 0.9
+default_prompt = "Explain the Physics of Friendship in one paragraph."
+eos_token_ids = [128009, 128001]
+rep_penalty = 1.18
+min_success_tokens = 15
+pleasure_alpha = 1.8
+pain_alpha = -0.9
+
+[memory]
+max_splats = 500
+consolidation_dist = 80.0
+decay_rate = 0.98
+prune_threshold = 0.01
+
+[micro_dream]
+entropy_threshold = 3.0
+fixed_interval = 25
+adaptive_interval = 8
+blend_normal = 0.10
+blend_high_entropy = 0.15
+topocot_threshold = 18.0

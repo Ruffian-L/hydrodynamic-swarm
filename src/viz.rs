@@ -245,7 +245,8 @@ impl VizCollector {
         for splat in memory.splats_ref() {
             if let Ok(flat) = splat.mu.flatten_all().and_then(|t| t.to_vec1::<f32>()) {
                 let pos_3d = project_vec(&flat, &self.projection, self.dim);
-                self.splat_scars_cache.push((pos_3d, splat.alpha, splat.sigma));
+                self.splat_scars_cache
+                    .push((pos_3d, splat.alpha, splat.sigma));
             }
         }
     }
@@ -276,11 +277,15 @@ impl VizCollector {
             } else {
                 self.field_points_3d.clone()
             },
-            splat_scars: self.splat_scars_cache.iter().map(|&(pos, alpha, sigma)| VizSplat {
-                position_3d: pos,
-                alpha,
-                sigma,
-            }).collect(),
+            splat_scars: self
+                .splat_scars_cache
+                .iter()
+                .map(|&(pos, alpha, sigma)| VizSplat {
+                    position_3d: pos,
+                    alpha,
+                    sigma,
+                })
+                .collect(),
             goal_position_3d: self.goal_3d,
         };
 
@@ -325,8 +330,16 @@ impl VizCollector {
             trajectory_3d,
             trajectory_deltas,
             trajectory_tokens,
-            splat_positions_3d: self.splat_scars_cache.iter().map(|&(pos, _, _)| pos).collect(),
-            splat_alphas: self.splat_scars_cache.iter().map(|&(_, alpha, _)| alpha).collect(),
+            splat_positions_3d: self
+                .splat_scars_cache
+                .iter()
+                .map(|&(pos, _, _)| pos)
+                .collect(),
+            splat_alphas: self
+                .splat_scars_cache
+                .iter()
+                .map(|&(_, alpha, _)| alpha)
+                .collect(),
             goal_position_3d: self.goal_3d,
             prompt: self.prompt,
             step_neighbors,

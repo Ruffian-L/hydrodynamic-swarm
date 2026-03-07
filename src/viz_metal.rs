@@ -723,7 +723,12 @@ fn viewer_open_commands(path: &Path) -> Vec<(&'static str, Vec<String>)> {
     {
         vec![(
             "cmd",
-            vec!["/C".to_string(), "start".to_string(), "".to_string(), resolved],
+            vec![
+                "/C".to_string(),
+                "start".to_string(),
+                "".to_string(),
+                resolved,
+            ],
         )]
     }
 
