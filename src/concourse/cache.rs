@@ -380,25 +380,21 @@ impl CacheManager {
 
     /// Generate cache key from input
     fn generate_cache_key(input: &str, prefix: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        prefix.hash(&mut hasher);
-        input.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(prefix.as_bytes());
+        hasher.update(input.as_bytes());
+        format!("{:x}", hasher.finalize())
     }
 
     /// Generate cache key for edge relationship
     fn generate_edge_key(text_a: &str, text_b: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        "edge".hash(&mut hasher);
-        text_a.hash(&mut hasher);
-        text_b.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(b"edge");
+        hasher.update(text_a.as_bytes());
+        hasher.update(text_b.as_bytes());
+        format!("{:x}", hasher.finalize())
     }
 }
 
