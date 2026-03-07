@@ -63,11 +63,11 @@ pub struct SessionSummary {
 
 /// Top-level log entry -- one per line in the JSONL file
 #[derive(Serialize)]
-pub struct LogEntry {
+pub struct LogEntry<'a> {
     pub timestamp: String,
-    pub session_id: String,
-    pub model_variant: String,
-    pub entry_type: String, // "config", "step", "summary"
+    pub session_id: &'a str,
+    pub model_variant: &'a str,
+    pub entry_type: &'a str, // "config", "step", "summary"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<SessionConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -140,31 +140,35 @@ impl SessionLogger {
 
     /// Log the session config
     pub fn log_config(&mut self, config: SessionConfig) -> std::io::Result<()> {
+        let timestamp = self.now_str();
         let entry = LogEntry {
-            timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "config".to_string(),
+            timestamp,
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "config",
             config: Some(config),
             step: None,
             summary: None,
         };
-        self.write_entry(&entry)
+        let json = serde_json::to_string(&entry).unwrap();
+        self.write_json(&json)
     }
 
     /// Log a single generation step
     pub fn log_step(&mut self, step: StepEntry) -> std::io::Result<()> {
         self.deltas.push(step.steering_delta);
+        let timestamp = self.now_str();
         let entry = LogEntry {
-            timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "step".to_string(),
+            timestamp,
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "step",
             config: None,
             step: Some(step),
             summary: None,
         };
-        self.write_entry(&entry)
+        let json = serde_json::to_string(&entry).unwrap();
+        self.write_json(&json)
     }
 
     /// Log final session summary
@@ -179,16 +183,18 @@ impl SessionLogger {
                 .fold(f32::NEG_INFINITY, f32::max);
             summary.delta_mean = self.deltas.iter().sum::<f32>() / self.deltas.len() as f32;
         }
+        let timestamp = self.now_str();
         let entry = LogEntry {
-            timestamp: self.now_str(),
-            session_id: self.session_id.clone(),
-            model_variant: self.model_variant.clone(),
-            entry_type: "summary".to_string(),
+            timestamp,
+            session_id: &self.session_id,
+            model_variant: &self.model_variant,
+            entry_type: "summary",
             config: None,
             step: None,
             summary: Some(summary),
         };
-        self.write_entry(&entry)
+        let json = serde_json::to_string(&entry).unwrap();
+        self.write_json(&json)
     }
 
     /// Get the log file path
@@ -201,8 +207,7 @@ impl SessionLogger {
         &self.session_id
     }
 
-    fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
-        let json = serde_json::to_string(entry).unwrap();
+    fn write_json(&mut self, json: &str) -> std::io::Result<()> {
         writeln!(self.file, "{}", json)?;
         self.file.flush()
     }
