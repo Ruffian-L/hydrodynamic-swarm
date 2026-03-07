@@ -676,7 +676,7 @@ requestAnimationFrame(frame);
     }
 
     println!("    [VIZ] 3D viewer: {}", html_path.display());
-    let _ = std::process::Command::new("open").arg(&html_path).spawn();
+    let _ = std::process::Command::new("/usr/bin/open").arg(&html_path).spawn();
 }
 
 // ---------------------------------------------------------------
