@@ -46,6 +46,13 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
+    // 🛡️ Sentinel: Prevent path traversal in log file creation
+    // Validate that 'tokens' only contains alphanumeric characters to prevent directory traversal
+    if !tokens.chars().all(|c| c.is_ascii_alphanumeric()) {
+        eprintln!("[crucible] Error: tokens argument must be alphanumeric");
+        std::process::exit(1);
+    }
+
     // Build release if needed
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
