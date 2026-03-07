@@ -40,9 +40,9 @@ impl DreamEngine {
         for traj in trajectories {
             let noise = Tensor::randn(0.0f32, noise_scale, traj.dims(), traj.device())?;
             let noisy = (&traj + &noise)?;
-            let created = self
-                .memory
-                .consolidate_trajectory(&noisy, sigma, alpha_bonus, min_dist, None)?;
+            let created =
+                self.memory
+                    .consolidate_trajectory(&noisy, sigma, alpha_bonus, min_dist, None)?;
             println!(
                 "    Dream replay: {} points -> {} splats (noise {:.4})",
                 traj.dim(0).unwrap_or(0),
@@ -70,9 +70,9 @@ impl DreamEngine {
 pub struct MicroDreamResult {
     pub consolidated: Tensor,
     pub correction_norm: f32,
-    /// Set when correction_norm exceeded threshold; reserved for TopoCoT injection.
-    #[allow(dead_code)]
     pub reflection_triggered: bool,
+    pub reflection_tokens: Vec<u32>,
+    pub reflection_text: String,
 }
 
 /// Micro-dream: short forward+backward physics burst for real-time consolidation.
@@ -85,18 +85,20 @@ pub struct MicroDreamResult {
 /// TopoCoT reflection event -- the model hit a wall and course-corrected.
 pub fn micro_dream(
     engine: &NiodooEngine,
-    current_pos: &Tensor,  // (1, D) steered logits
-    goal_pos: &Tensor,     // (D,) goal attractor
-    step: usize,           // current generation step
-    steps: usize,          // forward projection steps (2-3)
-    blend_factor: f64,     // how much of the correction to apply (0.05-0.15)
+    current_pos: &Tensor, // (1, D) steered logits
+    goal_pos: &Tensor,    // (D,) goal attractor
+    step: usize,          // current generation step
+    steps: usize,         // forward projection steps (2-3)
+    blend_factor: f64,    // how much of the correction to apply (0.05-0.15)
 ) -> Result<MicroDreamResult> {
     let mut projected = current_pos.clone();
 
     // Forward projection: steer N steps into the future
     for fwd in 0..steps {
         // Use step + offset so force logging shows projection steps
-        projected = engine.steer(&projected, goal_pos, 1000 + step * 10 + fwd)?.steered;
+        projected = engine
+            .steer(&projected, goal_pos, 1000 + step * 10 + fwd)?
+            .steered;
     }
 
     // Backward anchor: compute the pull from the future back to goal
@@ -122,5 +124,13 @@ pub fn micro_dream(
         consolidated,
         correction_norm,
         reflection_triggered,
+        reflection_tokens: vec![],
+        reflection_text: if reflection_triggered {
+            format!(
+                "Wait... the trajectory just jumped. The scar tissue from earlier is pulling harder than I expected. Recalibrating toward the original goal now...\n"
+            )
+        } else {
+            String::new()
+        },
     })
 }

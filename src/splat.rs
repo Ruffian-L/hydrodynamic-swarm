@@ -62,6 +62,12 @@ pub struct Splat {
     pub scale: SplatScale,
     /// Anchor splat: core fact, lambda forced to 0.
     pub is_anchor: bool,
+    /// Flux: positive energy from resonance (LivingCell port)
+    pub flux: f32,
+    /// Friction: dimensional erosion factor from MRL
+    pub friction: f32,
+    /// Current active dimension after MRL truncation
+    pub current_dim: usize,
 }
 
 impl Splat {
@@ -75,6 +81,9 @@ impl Splat {
             created_at: now_secs(),
             scale: SplatScale::Fine,
             is_anchor: false,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 
@@ -95,6 +104,9 @@ impl Splat {
             created_at: now_secs(),
             scale,
             is_anchor: false,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 
@@ -108,6 +120,9 @@ impl Splat {
             created_at: now_secs(),
             scale: SplatScale::Coarse,
             is_anchor: true,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 }

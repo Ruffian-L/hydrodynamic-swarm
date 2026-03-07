@@ -33,7 +33,8 @@ use std::path::Path;
 use tokenizers::Tokenizer;
 use viz::VizCollector;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
 
     // Load configuration (falls back to defaults if no config.toml)
@@ -323,8 +324,8 @@ fn main() -> Result<()> {
         // Prevents cumulative drift off the Llama manifold
         if cfg.physics.manifold_pullback > 0.0 {
             let pb = cfg.physics.manifold_pullback as f64;
-            steered_slice = (&steered_slice.affine(1.0 - pb, 0.0)?
-                + &steer_input.affine(pb, 0.0)?)?;
+            steered_slice =
+                (&steered_slice.affine(1.0 - pb, 0.0)? + &steer_input.affine(pb, 0.0)?)?;
         }
 
         // Bundle stress: collective force from nearby splats (emergent fluid structure)
@@ -348,8 +349,8 @@ fn main() -> Result<()> {
             if step > 50 && step % 100 == 0 && (step - last_reflex_step) >= 100 {
                 if let Ok(true) = ridge::check_vr_h1_reflex(&recent_hidden, 2.0) {
                     last_reflex_step = step;
-                    steered_slice = (&steered_slice.affine(0.7, 0.0)?
-                        + &steer_input.affine(0.3, 0.0)?)?;
+                    steered_slice =
+                        (&steered_slice.affine(0.7, 0.0)? + &steer_input.affine(0.3, 0.0)?)?;
                     println!(
                         "    [REFLEX] step {} | VR H1 collapse -> corrective blend applied",
                         step
@@ -358,10 +359,9 @@ fn main() -> Result<()> {
             }
         }
 
-        // Micro-dream consolidation: adaptive frequency based on token entropy
-        // Runs when entropy is high (uncertain generation) or on fixed schedule
-        let steered_slice = if step > 10 {
-            // Estimate entropy from raw logits (cheap: first 1000 logits only)
+        // === REAL TOPOCOT CYBERNETICS LOOP — self-talk warm-up rounds ===
+        let steered_slice = if step > 12 {
+            // Estimate entropy + adaptive params (kept for dream_steps/blend)
             let raw_probs_slice = candle_nn::ops::softmax(&raw_logits, 1)?;
             let raw_probs_flat: Vec<f32> = raw_probs_slice.squeeze(0)?.to_vec1()?;
             let sample_n = raw_probs_flat.len().min(1000);
@@ -371,34 +371,34 @@ fn main() -> Result<()> {
                 .map(|p| -p * p.ln())
                 .sum();
 
-            let should_dream = (step % cfg.micro_dream.fixed_interval == 0)
-                || (entropy > cfg.micro_dream.entropy_threshold && step % cfg.micro_dream.adaptive_interval == 0);
-            if should_dream {
-                // Adaptive depth: higher entropy -> deeper projection
-                let dream_steps = if entropy > 4.0 {
-                    4
-                } else if entropy > 3.0 {
-                    3
-                } else {
-                    2
-                };
-                let blend = if entropy > cfg.micro_dream.entropy_threshold {
-                    cfg.micro_dream.blend_high_entropy
-                } else {
-                    cfg.micro_dream.blend_normal
-                };
-                let result =
-                    micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
-                if step <= 15 || step % 50 == 0 {
-                    println!(
-                        "    [MICRO-DREAM] step {} | correction: {:.2} | entropy: {:.2} | depth: {}",
-                        step, result.correction_norm, entropy, dream_steps,
-                    );
+            let dream_steps = if entropy > 4.0 { 4 } else if entropy > 3.0 { 3 } else { 2 };
+            let blend = if entropy > 2.5 { 0.12 } else { 0.07 };
+
+            let result = micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
+
+            if result.reflection_triggered {
+                // Build recent context so the model can literally "look back"
+                let start = generated_tokens.len().saturating_sub(40);
+                let recent = &generated_tokens[start..];
+
+                println!("\n\n[thinking to myself]");
+                let (think_tokens, think_text) = generate_self_thought(&mut llama, &tokenizer, recent, 32, &device)?;
+                print!("{}", think_text);
+                std::io::stdout().flush().ok();
+
+                // Feed the model's own thinking back into context (closed loop)
+                generated_tokens.extend_from_slice(&think_tokens);
+
+                // Second warm-up round if the correction was very strong
+                if result.correction_norm > 55.0 {
+                    let (round2, round2_text) = generate_self_thought(&mut llama, &tokenizer, &generated_tokens, 22, &device)?;
+                    print!("{}", round2_text);
+                    std::io::stdout().flush().ok();
+                    generated_tokens.extend_from_slice(&round2);
                 }
-                result.consolidated
-            } else {
-                steered_slice
             }
+
+            result.consolidated
         } else {
             steered_slice
         };
@@ -460,7 +460,9 @@ fn main() -> Result<()> {
         if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
-                let too_close = engine.memory().has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
+                let too_close = engine
+                    .memory()
+                    .has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
                     // Alpha proportional to steering delta (advantage signal)
                     let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
@@ -593,7 +595,8 @@ fn main() -> Result<()> {
         let pos_1d = final_pos.squeeze(0)?;
         if generated_tokens.len() > cfg.generation.min_success_tokens {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, cfg.physics.splat_sigma,
+                pos_1d,
+                cfg.physics.splat_sigma,
                 cfg.generation.pleasure_alpha,
             ));
             println!(
@@ -602,7 +605,8 @@ fn main() -> Result<()> {
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, cfg.physics.splat_sigma,
+                pos_1d,
+                cfg.physics.splat_sigma,
                 cfg.generation.pain_alpha,
             ));
             println!(
@@ -621,11 +625,16 @@ fn main() -> Result<()> {
     }
 
     // Consolidate and cap splat memory before saving
-    let _ = engine.memory_mut().consolidate(cfg.memory.consolidation_dist);
+    let _ = engine
+        .memory_mut()
+        .consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
     // TODO: re-enable splat persistence + museum once steering is stable
-    println!("    Splats in memory: {} (persistence disabled)", engine.memory().len());
+    println!(
+        "    Splats in memory: {} (persistence disabled)",
+        engine.memory().len()
+    );
 
     // =========================================================
     // Phase 6: Dream Replay (REAL — replays actual generation trajectory)
@@ -703,6 +712,7 @@ fn main() -> Result<()> {
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
     println!("  Log:      {}", logger.path().display());
+    println!("  TACO:     {}", logger.taco_stats());
     println!("  Backend:  {} + Niodoo physics", engine.backend_name());
     println!("========================================");
 
@@ -760,6 +770,44 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn generate_self_thought(
+    llama: &mut crate::llama::ModelWeights,
+    tokenizer: &tokenizers::Tokenizer,
+    recent_tokens: &[u32],
+    max_new: usize,
+    device: &candle_core::Device,
+) -> anyhow::Result<(Vec<u32>, String)> {
+    let mut tokens = recent_tokens.to_vec();
+    let mut current = Tensor::new(&[tokens.last().copied().unwrap_or(0)], &device)?.unsqueeze(0)?;
+    let mut output = vec![];
+
+    for _ in 0..max_new {
+        let logits = llama.forward(&current, tokens.len() - 1)?;
+        let scaled = (&logits / 0.62)?; // low temp = thoughtful self-talk
+        let probs = candle_nn::ops::softmax(&scaled, 1)?;
+        let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
+
+        let roll: f32 = rand::random();
+        let mut cum = 0.0;
+        let mut next = 0;
+        for (i, &p) in probs_vec.iter().enumerate() {
+            cum += p;
+            if roll < cum {
+                next = i as u32;
+                break;
+            }
+        }
+        output.push(next);
+        tokens.push(next);
+        current = Tensor::new(&[next], &device)?.unsqueeze(0)?;
+        if next == 128009 || next == 128001 {
+            break;
+        }
+    }
+    let text = tokenizer.decode(&output, true).map_err(|e| anyhow::anyhow!("tokenizer decode: {}", e))?;
+    Ok((output, text))
 }
 
 /// Find a file at primary path, fallback to secondary.

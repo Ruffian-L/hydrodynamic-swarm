@@ -7,11 +7,11 @@
 
 use std::collections::HashMap;
 
-use candle_transformers::quantized_nn::RmsNorm;
 use candle_core::quantized::QTensor;
 use candle_core::quantized::{ggml_file, gguf_file};
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Module};
+use candle_transformers::quantized_nn::RmsNorm;
 
 pub const MAX_SEQ_LEN: usize = 4096;
 

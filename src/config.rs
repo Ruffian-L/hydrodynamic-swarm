@@ -1,4 +1,3 @@
-
 //! Configuration Module
 //!
 //! TOML-deserializable configuration for all physics parameters.
@@ -35,6 +34,10 @@ pub struct PhysicsConfig {
     pub steer_hidden: bool,
     /// Per-step blend factor pulling steered state back toward baseline (0.0 = off, 0.15 = gentle).
     pub manifold_pullback: f32,
+    pub bundle_min_dist: f32,
+    pub splat_lambda_default: f32,
+    pub pain_decay_factor: f32,
+    pub dream_correction_threshold: f32,
 }
 
 /// Generation parameters.
@@ -86,6 +89,10 @@ impl Default for PhysicsConfig {
             gradient_topk: 2048,
             steer_hidden: true,
             manifold_pullback: 0.15,
+            bundle_min_dist: 0.05,
+            splat_lambda_default: 0.02,
+            pain_decay_factor: 0.7,
+            dream_correction_threshold: 6.0,
         }
     }
 }
@@ -178,6 +185,18 @@ impl Config {
         }
         if p.splat_delta_threshold < 0.0 {
             return Err("physics.splat_delta_threshold must be >= 0".into());
+        }
+        if p.bundle_min_dist <= 0.0 {
+            return Err("physics.bundle_min_dist must be > 0".into());
+        }
+        if p.splat_lambda_default < 0.0 {
+            return Err("physics.splat_lambda_default must be >= 0".into());
+        }
+        if p.pain_decay_factor <= 0.0 || p.pain_decay_factor > 1.0 {
+            return Err("physics.pain_decay_factor must be in (0,1]".into());
+        }
+        if p.dream_correction_threshold < 0.0 {
+            return Err("physics.dream_correction_threshold must be >= 0".into());
         }
 
         let g = &self.generation;
