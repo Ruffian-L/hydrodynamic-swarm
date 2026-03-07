@@ -66,3 +66,5 @@ yarn-error.log*
 
 .aider*
 data/google/
+.quality-gate-failed
+logs/reviews/
