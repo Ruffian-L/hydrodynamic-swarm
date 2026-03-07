@@ -70,18 +70,20 @@ pub struct MicroDreamResult {
 /// TopoCoT reflection event -- the model hit a wall and course-corrected.
 pub fn micro_dream(
     engine: &NiodooEngine,
-    current_pos: &Tensor,  // (1, D) steered logits
-    goal_pos: &Tensor,     // (D,) goal attractor
-    step: usize,           // current generation step
-    steps: usize,          // forward projection steps (2-3)
-    blend_factor: f64,     // how much of the correction to apply (0.05-0.15)
+    current_pos: &Tensor, // (1, D) steered logits
+    goal_pos: &Tensor,    // (D,) goal attractor
+    step: usize,          // current generation step
+    steps: usize,         // forward projection steps (2-3)
+    blend_factor: f64,    // how much of the correction to apply (0.05-0.15)
 ) -> Result<MicroDreamResult> {
     let mut projected = current_pos.clone();
 
     // Forward projection: steer N steps into the future
     for fwd in 0..steps {
         // Use step + offset so force logging shows projection steps
-        projected = engine.steer(&projected, goal_pos, 1000 + step * 10 + fwd)?.steered;
+        projected = engine
+            .steer(&projected, goal_pos, 1000 + step * 10 + fwd)?
+            .steered;
     }
 
     // Backward anchor: compute the pull from the future back to goal
