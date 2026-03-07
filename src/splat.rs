@@ -119,3 +119,41 @@ fn now_secs() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::Device;
+
+    #[test]
+    fn test_with_scale() {
+        let device = Device::Cpu;
+        let mu = Tensor::zeros(10, candle_core::DType::F32, &device).unwrap();
+        let base_sigma = 1.0;
+        let alpha = 0.5;
+        let epsilon = 1e-5;
+
+        // delta_norm <= 20.0 -> Fine
+        let splat_fine1 = Splat::with_scale(mu.clone(), base_sigma, alpha, 10.0);
+        assert_eq!(splat_fine1.scale, SplatScale::Fine);
+        assert!((splat_fine1.sigma - base_sigma * SplatScale::Fine.sigma_multiplier()).abs() < epsilon);
+
+        let splat_fine2 = Splat::with_scale(mu.clone(), base_sigma, alpha, 20.0);
+        assert_eq!(splat_fine2.scale, SplatScale::Fine);
+        assert!((splat_fine2.sigma - base_sigma * SplatScale::Fine.sigma_multiplier()).abs() < epsilon);
+
+        // 20.0 < delta_norm <= 30.0 -> Medium
+        let splat_medium1 = Splat::with_scale(mu.clone(), base_sigma, alpha, 25.0);
+        assert_eq!(splat_medium1.scale, SplatScale::Medium);
+        assert!((splat_medium1.sigma - base_sigma * SplatScale::Medium.sigma_multiplier()).abs() < epsilon);
+
+        let splat_medium2 = Splat::with_scale(mu.clone(), base_sigma, alpha, 30.0);
+        assert_eq!(splat_medium2.scale, SplatScale::Medium);
+        assert!((splat_medium2.sigma - base_sigma * SplatScale::Medium.sigma_multiplier()).abs() < epsilon);
+
+        // delta_norm > 30.0 -> Coarse
+        let splat_coarse1 = Splat::with_scale(mu.clone(), base_sigma, alpha, 35.0);
+        assert_eq!(splat_coarse1.scale, SplatScale::Coarse);
+        assert!((splat_coarse1.sigma - base_sigma * SplatScale::Coarse.sigma_multiplier()).abs() < epsilon);
+    }
+}
