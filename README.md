@@ -53,7 +53,7 @@ Config: `sigma=150, alpha=2.0, force_cap=80, T=0.9, min_dist=100`
 - Persistent splat memory via safetensors (save/load across runs)
 - Micro-dream real-time consolidation (forward projection + backward anchoring)
 - 5-prompt evaluation sweep (`./scripts/sweep.sh [model]`)
-- CLI flags: `--prompt`, `--model`, `--clear-memory`
+- CLI flags: `--prompt`, `--model`, `--clear-memory`, `--chat`
 - Full JSONL telemetry logging with experiment metadata
 
 See [experiments.md](docs/experiments.md) for detailed findings.
@@ -66,6 +66,9 @@ cargo run
 
 # With a custom prompt
 cargo run -- --prompt "Describe consciousness as a wave function"
+
+# Interactive Chat TUI mode
+cargo run -- --chat
 
 # Limit token count
 cargo run -- --tokens 200

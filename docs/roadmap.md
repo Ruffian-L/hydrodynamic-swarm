@@ -54,7 +54,7 @@ Expose the true hidden state. This is the single biggest coherence win and the h
 
 If the memory doesn't breathe, it gridlocks. If it doesn't anchor, it drifts.
 
-- [ ] **Build the Evaporation Engine (Time-Degrading Memory)**
+- [x] **Build the Evaporation Engine (Time-Degrading Memory)**
   - Implement organic decay using V(t) = V_0 * exp(-lambda * delta_t). Old habits (Flux) wash away unless actively reinforced, preventing topological gridlock.
   - Establish a Culling Horizon: Auto-purge splats that drop below a set threshold (e.g., 5% of original Viscosity) to keep the safetensors file lightning fast.
 
@@ -69,20 +69,20 @@ If the memory doesn't breathe, it gridlocks. If it doesn't anchor, it drifts.
 - [ ] **Unified Emergent Splat Memory**
   - Move from per-prompt silos to a shared, cross-domain splat pool. Ensure physics scars from a creative prompt organically influence the viscosity of a technical coding prompt.
 
-- [ ] **Multi-Scale Splat Memory (Hierarchical Sigma)**
+- [x] **Multi-Scale Splat Memory (Hierarchical Sigma)**
   - Introduce hierarchical splats -- coarse-grain memories (large sigma) for broad regions, fine-grain (small sigma) for precise scars.
   - Add `scale` field to `Splat`. Modify `query_force` to sum contributions from all scales.
   - During splat creation, decide scale based on steering delta magnitude (big jumps -> coarse).
   - GPU kernel already handles multiple splats; just pass the sigma array.
 
-- [ ] **Online Clustering & Memory Consolidation**
+- [x] **Online Clustering & Memory Consolidation**
   - After each generation, merge nearby splats with similar alpha signs (pleasure/pain) to prevent memory explosion.
   - Implement `SplatMemory::consolidate(threshold)` using fast approximate nearest neighbor (GPU k-means style) to find clusters, replace each cluster with a weighted mean splat.
   - Run every N generations or when count exceeds `memory.max_splats`.
   - Config fields already exist in `config.rs` (`consolidation_dist`, `max_splats`, `prune_threshold`).
   - **Must route through `PhysicsBackend` trait.**
 
-- [ ] **Smarter Splat Creation Heuristics (Advantage-Based)**
+- [x] **Smarter Splat Creation Heuristics (Advantage-Based)**
   - Pain splats also when the model produces low-probability tokens (surprise).
   - Splat alpha magnitude proportional to the advantage of that step (how much better the chosen token was than the average).
   - Store token log probabilities during generation.
@@ -101,7 +101,7 @@ Giving the cybernetic loop the ability to consolidate and vote.
   - Runs in microseconds on Metal, zero latency impact on main 8B generation.
   - **This turns the swarm into true gravitational steering instead of slow voting.**
 
-- [ ] **Micro-Dream Real-Time Consolidation**
+- [x] **Micro-Dream Real-Time Consolidation**
   - Trigger on **entropy + steering_delta > 18.0** (not fixed interval alone).
   - Adaptive depth: if entropy > threshold, run 3-5 forward steps instead of 2, with higher blend factor.
   - **Rate limit: max 1 micro-dream per 25 tokens** to prevent thrashing.
@@ -122,7 +122,7 @@ Giving the cybernetic loop the ability to consolidate and vote.
   - After each N steps, recompute goal as the mean of the last K generated token embeddings (or attention-weighted sum).
   - Lightweight, can be done on CPU/GPU trivially.
 
-- [ ] **TopoCoT as a First-Class Token**
+- [x] **TopoCoT as a First-Class Token**
   - Actually inject a special token (e.g., `[HYDRAULIC_JUMP]`) into the generated text when reflection is triggered.
   - Makes the model's "thought process" visible and usable for chain-of-thought steering in follow-up prompts.
   - When `reflection_triggered` is true, push that token into `generated_tokens` and feed it to the model in the next forward pass.
@@ -252,20 +252,20 @@ We take the physics of alignment public.
 
 ### Milestone 3: Memory Intelligence (Weeks 3-4)
 
-- [ ] Multi-scale splat memory (hierarchical sigma)
-- [ ] Online clustering & memory consolidation (GPU k-means)
-- [ ] Smarter splat creation heuristics (advantage-based alpha)
+- [x] Multi-scale splat memory (hierarchical sigma)
+- [x] Online clustering & memory consolidation (GPU k-means)
+- [x] Smarter splat creation heuristics (advantage-based alpha)
 - [ ] Anchor Splats via Attention-Entropy Scan during prefill
 - [ ] Test: Verify splat count stays bounded over 20+ generations. Verify multi-scale field produces smoother forces.
 
 ### Milestone 4: Micro-Dream & Swarm Dynamics (Weeks 4-6)
 
-- [ ] Micro-dream trigger: entropy + steering_delta > 18.0 with adaptive depth
-- [ ] Rate limit: max 1 per 25 tokens
-- [ ] Forward prediction (1-5 steps) + backward anchoring -- recursive collision -- quick synthesis spike
+- [x] Micro-dream trigger: entropy + steering_delta > 18.0 with adaptive depth
+- [x] Rate limit: max 1 per 25 tokens
+- [x] Forward prediction (1-5 steps) + backward anchoring -- recursive collision -- quick synthesis spike
 - [ ] Dynamic & learned physics parameters (hyper-network)
 - [ ] Contextual goal attractor (rolling re-center)
-- [ ] TopoCoT as first-class token (`[HYDRAULIC_JUMP]` injection)
+- [x] TopoCoT as first-class token (`[HYDRAULIC_JUMP]` injection)
 - [ ] Test: Run 32k token tasks. Measure coherence score and hallucination rate before/after enabled
 
 ### Milestone 5: Unified Emergent Splat Memory + Cross-Domain Synthesis (Weeks 6-7)
