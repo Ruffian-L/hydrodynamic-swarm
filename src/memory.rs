@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+
 //! SplatMemory — manages a collection of splats and computes aggregate forces.
 //!
 //! This is the "scar tissue" layer: accumulated experience that biases
@@ -101,6 +101,7 @@ impl SplatMemory {
     }
 
     /// Read-only access to splat data (used by GPU backend for buffer upload).
+    #[allow(dead_code)]
     pub fn splats_ref(&self) -> &[Splat] {
         &self.splats
     }
@@ -122,6 +123,7 @@ impl SplatMemory {
     }
 
     /// Prune dead splats below threshold.
+    #[allow(dead_code)]
     pub fn prune(&mut self, threshold: f32) {
         self.splats.retain(|s| s.alpha.abs() >= threshold);
     }
@@ -425,6 +427,7 @@ impl SplatMemory {
     }
 
     /// Load and display metadata sidecar if it exists.
+    #[allow(dead_code)]
     pub fn load_metadata(safetensors_path: &Path) -> Option<serde_json::Value> {
         let meta_path = safetensors_path.with_extension("meta.json");
         if !meta_path.exists() {
