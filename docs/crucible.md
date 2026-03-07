@@ -62,8 +62,8 @@ Run through every Phase 2 iteration. No changing the goalposts.
 cargo run -- --prompt "Imagine a solid 3x3x3 Rubik's cube..."
 
 # Run full crucible sweep
-bash sweep.sh unsloth   # then compare with:
-bash sweep.sh bert
+./scripts/sweep.sh unsloth   # then compare with:
+./scripts/sweep.sh bert
 ```
 
 ## Scoring (per prompt)
