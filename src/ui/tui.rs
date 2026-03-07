@@ -6,14 +6,14 @@
 
 use anyhow::Result;
 use candle_core::Tensor;
-use crate::llama::ModelWeights;
+use crate::model::llama::ModelWeights;
 use std::io::{self, Write};
 use tokenizers::Tokenizer;
 
 use crate::config::Config;
-use crate::dream::micro_dream;
-use crate::niodoo::NiodooEngine;
-use crate::splat::Splat;
+use crate::memory::dream::micro_dream;
+use crate::physics::niodoo::NiodooEngine;
+use crate::memory::splat::Splat;
 
 // ANSI color codes
 const RESET: &str = "\x1b[0m";

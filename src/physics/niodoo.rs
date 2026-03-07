@@ -11,9 +11,9 @@
 //! The combined force is clamped per-element (force cap) to prevent runaway,
 //! then scaled by dt and added to the residual.
 
-use crate::field::ContinuousField;
-use crate::gpu::PhysicsBackend;
-use crate::memory::SplatMemory;
+use crate::physics::field::ContinuousField;
+use crate::physics::gpu::PhysicsBackend;
+use crate::memory::memory::SplatMemory;
 use candle_core::{Result, Tensor};
 
 /// Result of a single steering step, including force telemetry.

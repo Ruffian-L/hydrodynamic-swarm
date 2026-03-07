@@ -8,7 +8,7 @@
 //! Attractors: soft gold/amber, subtle.  Splats: teal (pleasure) / rust (pain).
 //! Token orbs: small, at real 3D positions with force-directed label avoidance.
 
-use crate::viz::VizRenderData;
+use crate::ui::viz::VizRenderData;
 use std::path::Path;
 
 /// Generate an HTML 3D viewer and open it in the default browser.

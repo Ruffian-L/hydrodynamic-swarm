@@ -9,21 +9,26 @@
 
 ```
 src/
-  main.rs           -- Entry point, CLI, generation loop
-  config.rs          -- TOML config (physics, generation, memory, micro-dream)
-  llama.rs           -- Vendored quantized Llama (hidden-state steering)
-  niodoo.rs          -- Physics steering engine (3-force model)
-  field.rs           -- Continuous Diderot embedding field
-  memory.rs          -- Splat memory (scar tissue)
-  splat.rs           -- Gaussian splat data type
-  gpu.rs             -- PhysicsBackend trait + CPU/Metal backends
-  dream.rs           -- Dream replay + micro-dream + TopoCoT
-  ridge.rs           -- Ridge-running particle simulation
-  logger.rs          -- JSONL telemetry logger
-  tui.rs             -- Chat-style TUI mode
-  viz.rs             -- 3D visualization data collector
-  viz_metal.rs       -- HTML/Canvas 3D viewer generator
-  bin/crucible.rs    -- 8-prompt standardized test suite
+  main.rs                 -- Entry point, CLI, generation loop
+  config.rs               -- TOML config (physics, generation, memory, micro-dream)
+  bin/crucible.rs         -- 8-prompt standardized test suite
+  physics/
+    niodoo.rs             -- Physics steering engine (3-force model)
+    field.rs              -- Continuous Diderot embedding field
+    gpu.rs                -- PhysicsBackend trait + CPU/Metal backends
+    ridge.rs              -- Ridge-running particle simulation
+  memory/
+    memory.rs             -- Splat memory (scar tissue)
+    splat.rs              -- Gaussian splat data type
+    dream.rs              -- Dream replay + micro-dream + TopoCoT
+  model/
+    llama.rs              -- Vendored quantized Llama (hidden-state steering)
+  telemetry/
+    logger.rs             -- JSONL telemetry logger
+  ui/
+    tui.rs                -- Chat-style TUI mode
+    viz.rs                -- 3D visualization data collector
+    viz_metal.rs          -- HTML/Canvas 3D viewer generator
 ```
 
 ---

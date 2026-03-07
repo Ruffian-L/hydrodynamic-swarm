@@ -10,8 +10,8 @@
 
 use candle_core::{Result, Tensor};
 
-use crate::field::ContinuousField;
-use crate::memory::SplatMemory;
+use crate::physics::field::ContinuousField;
+use crate::memory::memory::SplatMemory;
 
 // ---------------------------------------------------------------
 // Trait
@@ -734,7 +734,7 @@ mod tests {
     fn cpu_backend_field_gradient_matches_direct() {
         let device = Device::Cpu;
         let positions = Tensor::randn(0.0f32, 1.0, &[10, 4], &device).unwrap();
-        let field = crate::field::ContinuousField {
+        let field = crate::physics::field::ContinuousField {
             device: device.clone(),
             positions,
             kernel_sigma: 1.0,
@@ -766,9 +766,9 @@ mod tests {
     #[test]
     fn cpu_backend_splat_force_matches_direct() {
         let device = Device::Cpu;
-        let mut memory = crate::memory::SplatMemory::new(device.clone());
+        let mut memory = crate::memory::memory::SplatMemory::new(device.clone());
         let mu = Tensor::zeros(&[4], DType::F32, &device).unwrap();
-        memory.add_splat(crate::splat::Splat::new(mu, 1.0, 3.0));
+        memory.add_splat(crate::memory::splat::Splat::new(mu, 1.0, 3.0));
 
         let backend = CpuBackend::new();
         let pos = Tensor::new(&[1.0f32, 0.0, 0.0, 0.0], &device).unwrap();
@@ -796,7 +796,7 @@ mod tests {
     fn cpu_backend_batch_gradient_shape() {
         let device = Device::Cpu;
         let positions = Tensor::randn(0.0f32, 1.0, &[5, 4], &device).unwrap();
-        let field = crate::field::ContinuousField {
+        let field = crate::physics::field::ContinuousField {
             device: device.clone(),
             positions,
             kernel_sigma: 1.0,

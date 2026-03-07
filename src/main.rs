@@ -3,35 +3,28 @@
 //! Full Llama 3.1 + Niodoo physics steering with real tokenization.
 //! Type a prompt → physics steers generation → decoded text output.
 
-mod config;
-mod dream;
-mod field;
-mod gpu;
-mod llama;
-mod logger;
+mod physics;
 mod memory;
-mod niodoo;
-mod ridge;
-mod splat;
-mod tui;
-mod viz;
-mod viz_metal;
+mod model;
+mod ui;
+mod telemetry;
+mod config;
 
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use config::Config;
-use dream::{micro_dream, DreamEngine};
-use field::ContinuousField;
-use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
-use memory::SplatMemory;
-use niodoo::{NiodooEngine, SteerResult};
+use memory::dream::{micro_dream, DreamEngine};
+use physics::field::ContinuousField;
+use telemetry::logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
+use memory::memory::SplatMemory;
+use physics::niodoo::{NiodooEngine, SteerResult};
 use rand::Rng;
-use splat::Splat;
+use memory::splat::Splat;
 use std::io::BufReader;
 use std::path::Path;
 use tokenizers::Tokenizer;
-use viz::VizCollector;
+use ui::viz::VizCollector;
 
 fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
@@ -88,7 +81,7 @@ fn main() -> Result<()> {
     let mut file = std::fs::File::open(&llama_path)?;
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
-    let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+    let mut llama = model::llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
     println!("    Llama 3.1 loaded");
 
     // Find tokenizer
@@ -112,7 +105,7 @@ fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
-    let backend = gpu::select_backend();
+    let backend = physics::gpu::select_backend();
     let mut engine = NiodooEngine::new(
         field,
         memory,
@@ -150,7 +143,7 @@ fn main() -> Result<()> {
     // Chat TUI mode (--chat)
     // =========================================================
     if chat_mode {
-        return tui::run_chat(
+        return ui::tui::run_chat(
             &mut llama,
             &tokenizer,
             &mut engine,
@@ -780,7 +773,7 @@ fn main() -> Result<()> {
 
         // Launch Metal 3D window (does not return on macOS)
         let render_data = collector.into_render_data();
-        viz_metal::launch(render_data);
+        ui::viz_metal::launch(render_data);
     }
 
     Ok(())
