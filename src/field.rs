@@ -6,7 +6,29 @@
 //! `probe_gradient(pos)` returns the gradient vector — the ridge-running force.
 
 use candle_core::{DType, Device, Result, Tensor};
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::path::Path;
+
+#[derive(PartialEq)]
+struct FloatWithIndex {
+    val: f32,
+    idx: usize,
+}
+
+impl Eq for FloatWithIndex {}
+
+impl PartialOrd for FloatWithIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FloatWithIndex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.val.partial_cmp(&other.val).unwrap_or(Ordering::Equal)
+    }
+}
 
 pub struct ContinuousField {
     /// Memory positions from embeddings, shape (N, D)
@@ -234,18 +256,24 @@ impl ContinuousField {
         let n = dist_sq.len();
         let dim = self.dim;
 
-        // Build (index, neg_dist_sq) pairs and partial sort for top-K
-        let mut indices: Vec<(usize, f32)> =
-            dist_sq.iter().enumerate().map(|(i, &d)| (i, d)).collect();
-        // Partial sort: put K smallest dist_sq at front
         let k = k.min(n);
-        if k == 0 || indices.is_empty() {
+        if k == 0 || dist_sq.is_empty() {
             return Ok(Vec::new());
         }
-        indices.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
-        indices.truncate(k);
+
+        let mut heap = BinaryHeap::with_capacity(k);
+        for (i, &d) in dist_sq.iter().enumerate().take(k) {
+            heap.push(FloatWithIndex { val: d, idx: i });
+        }
+        for (i, &d) in dist_sq.iter().enumerate().skip(k) {
+            if d < heap.peek().unwrap().val {
+                let mut peek = heap.peek_mut().unwrap();
+                peek.val = d;
+                peek.idx = i;
+            }
+        }
+        let indices: Vec<(usize, f32)> =
+            heap.into_iter().map(|item| (item.idx, item.val)).collect();
 
         // Compute cosine similarity for the K nearest
         let mut results: Vec<(u32, f32)> = indices
@@ -286,18 +314,22 @@ impl ContinuousField {
         let diff_all = self.positions.broadcast_sub(&pos_expanded)?;
         let dist_sq_all: Vec<f32> = diff_all.sqr()?.sum(1)?.to_vec1()?;
 
-        // Partial sort to find K nearest indices
-        let mut indexed: Vec<(usize, f32)> = dist_sq_all
-            .iter()
-            .enumerate()
-            .map(|(i, &d)| (i, d))
-            .collect();
-        indexed.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
+        if k == 0 || dist_sq_all.is_empty() {
+            return Tensor::zeros(pos.dims(), candle_core::DType::F32, &self.device);
+        }
+        let k = k.min(dist_sq_all.len());
+        let mut heap = BinaryHeap::with_capacity(k);
+        for (i, &d) in dist_sq_all.iter().enumerate().take(k) {
+            heap.push(FloatWithIndex { val: d, idx: i });
+        }
+        for (i, &d) in dist_sq_all.iter().enumerate().skip(k) {
+            if d < heap.peek().unwrap().val {
+                let mut peek = heap.peek_mut().unwrap();
+                peek.val = d;
+                peek.idx = i;
+            }
+        }
+        let topk_indices: Vec<usize> = heap.into_iter().map(|item| item.idx).collect();
         let topk_rows: Vec<Tensor> = topk_indices
             .iter()
             .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
