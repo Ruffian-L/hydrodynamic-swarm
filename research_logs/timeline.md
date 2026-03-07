@@ -19,3 +19,4 @@
 | 2026-03-03 | bd6d213efc104eca649e427caf6cfcd996bb1429 | fix: correct force cap mismatch (80->35) and TUI generation loop off-by-one |
 | 2026-03-03 | d7f194e32a4373723a15f1353158c89421afe0f9 | feat: vendor quantized_llama, add hidden-state steering (Phase 2.1) |
 | 2026-03-03 | ab40b6c1fdefd6b72843d8e396b872a85f4c9479 | fix: resolve 3D hidden-state shape bug, rewrite crucible runner |
+| 2026-03-05 | ed62790b592554b44318c3f4df70bd22f7bc3bc6 | docs: Update README.md with project context, running instructions, and ethos |
