@@ -1,4 +1,3 @@
-
 //! Configuration Module
 //!
 //! TOML-deserializable configuration for all physics parameters.
