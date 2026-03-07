@@ -25,15 +25,24 @@ jobs:
           echo "$FILES"
 
           # Check every file is inside research_logs/
+          is_research_only="true"
           while IFS= read -r file; do
-            if [[ "$file" != research_logs/* ]]; then
-              echo "BLOCKED: PR modifies '$file' which is outside research_logs/"
-              exit 1
+            if [[ -n "$file" && "$file" != research_logs/* ]]; then
+              echo "PR modifies '$file' which is outside research_logs/ - Skipping auto-merge."
+              is_research_only="false"
+              break
             fi
           done <<< "$FILES"
-          echo "All files are inside research_logs/ -- safe to merge."
+
+          if [[ "$is_research_only" == "true" ]]; then
+            echo "All files are inside research_logs/ -- safe to merge."
+            echo "DO_MERGE=true" >> "$GITHUB_ENV"
+          else
+            echo "DO_MERGE=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Auto-merge
+        if: env.DO_MERGE == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
