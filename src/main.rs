@@ -3,9 +3,12 @@
 //! Full Llama 3.1 + Niodoo physics steering with real tokenization.
 //! Type a prompt → physics steers generation → decoded text output.
 
+#[allow(dead_code, unused_imports, unused_variables)]
+mod concourse;
 mod config;
 mod dream;
 mod field;
+mod gemma;
 mod gpu;
 mod llama;
 mod logger;
@@ -62,17 +65,9 @@ async fn main() -> Result<()> {
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
 
-    // Use CUDA GPU if available, fall back to CPU
-    let device = match Device::new_cuda(0) {
-        Ok(d) => {
-            println!("[*] Using CUDA GPU");
-            d
-        }
-        Err(_) => {
-            println!("[*] CUDA not available, using CPU");
-            Device::Cpu
-        }
-    };
+    // Force full NVIDIA CUDA for all Candle ops + physics (post-upgrade)
+    let device = Device::new_cuda(0).expect("CUDA GPU required - nvidia-smi shows GB10. Fix: export CUDA_VISIBLE_DEVICES=0 && sudo apt install nvidia-cuda-toolkit");
+    println!("[*] Using CUDA GPU (forced - all tensors/physics on NVIDIA)");
 
     // =========================================================
     // Phase 1: Load Llama 3.1 GGUF + Tokenizer
