@@ -1,0 +1,32 @@
+[physics]
+dt = 0.001
+viscosity_scale = 0.0
+force_cap = 0.0
+steer_hidden = false
+enable_online_splats = false
+splat_alpha = 0.0
+
+[generation]
+temperature = 0.7
+max_tokens = 50
+
+[micro_dream]
+entropy_threshold = 999.0
+fixed_interval = 99999
+adaptive_interval = 99999
+
+# ─── Model + Tokenizer ───────────────────────────────────────────────────────
+# IMPORTANT: model_path and tokenizer_path MUST be from the same model family.
+# Mismatching them (e.g. Llama tokenizer + Qwen model) produces garbage output.
+#
+# Paths can be relative (from repo root) or absolute. Symlinks are fine.
+# The data/ symlinks point into ../models/ where the real files live.
+#
+# Active: Qwen 3.5 4B
+[models]
+model_path     = "data/qwen3.5-model.gguf"
+tokenizer_path = "data/qwen3.5-tokenizer.json"
+
+# ── Switch to Llama 3.1 8B by uncommenting these two lines instead ────────
+# model_path     = "data/llama3.1-model.gguf"
+# tokenizer_path = "data/llama3.1-tokenizer.json"
