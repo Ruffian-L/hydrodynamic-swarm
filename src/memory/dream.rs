@@ -6,8 +6,8 @@
 //! TopoCoT: When correction_norm exceeds threshold, inject a reflection marker
 //! into the generated token stream so the model "feels" the hydraulic jump.
 
-use crate::memory::SplatMemory;
-use crate::niodoo::NiodooEngine;
+use crate::memory::memory::SplatMemory;
+use crate::physics::niodoo::NiodooEngine;
 use candle_core::{Result, Tensor};
 
 /// Threshold for dream correction injection.

@@ -6,7 +6,7 @@
 //! Pain lasts longer than pleasure (asymmetric decay).
 //! Supports save/load to disk via safetensors for persistent memory.
 
-use crate::splat::Splat;
+use crate::memory::splat::Splat;
 use candle_core::{DType, Result, Tensor};
 use std::path::Path;
 
@@ -363,7 +363,7 @@ impl SplatMemory {
 
             let lambda = lambda_data.as_ref().map_or(0.02, |v| v[i]);
             let created_at = created_at_data.as_ref().map_or(now, |v| v[i] as u64);
-            let scale = scale_data.as_ref().map_or(crate::splat::SplatScale::Fine, |v| crate::splat::SplatScale::from_u8(v[i] as u8));
+            let scale = scale_data.as_ref().map_or(crate::memory::splat::SplatScale::Fine, |v| crate::memory::splat::SplatScale::from_u8(v[i] as u8));
             let is_anchor = anchor_data.as_ref().is_some_and(|v| v[i] > 0.5);
 
             self.splats.push(Splat {

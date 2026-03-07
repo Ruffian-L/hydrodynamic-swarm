@@ -5,9 +5,9 @@
 //! steered by splat scar tissue, until it settles on a stable ridge.
 //! This proves the physics works before we touch the LLM.
 
-use crate::field::ContinuousField;
-use crate::gpu::PhysicsBackend;
-use crate::memory::SplatMemory;
+use crate::physics::field::ContinuousField;
+use crate::physics::gpu::PhysicsBackend;
+use crate::memory::memory::SplatMemory;
 use candle_core::{DType, Result, Tensor};
 
 /// A particle that rides the field gradient toward high-density ridges.
