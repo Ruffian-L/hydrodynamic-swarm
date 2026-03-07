@@ -6,6 +6,25 @@
 //! `probe_gradient(pos)` returns the gradient vector — the ridge-running force.
 
 use candle_core::{DType, Device, Result, Tensor};
+use std::collections::BinaryHeap;
+use std::cmp::Ordering;
+
+#[derive(PartialEq)]
+struct MaxNonNan(usize, f32);
+
+impl Eq for MaxNonNan {}
+
+impl PartialOrd for MaxNonNan {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.1.partial_cmp(&other.1)
+    }
+}
+
+impl Ord for MaxNonNan {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+    }
+}
 use std::path::Path;
 
 pub struct ContinuousField {
@@ -286,18 +305,23 @@ impl ContinuousField {
         let diff_all = self.positions.broadcast_sub(&pos_expanded)?;
         let dist_sq_all: Vec<f32> = diff_all.sqr()?.sum(1)?.to_vec1()?;
 
-        // Partial sort to find K nearest indices
-        let mut indexed: Vec<(usize, f32)> = dist_sq_all
-            .iter()
-            .enumerate()
-            .map(|(i, &d)| (i, d))
-            .collect();
-        indexed.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // Use a max-heap to keep track of the K smallest distances
+        let mut heap = BinaryHeap::with_capacity(k);
+
+        let mut iter = dist_sq_all.iter().enumerate();
+        for (i, &d) in iter.by_ref().take(k) {
+            heap.push(MaxNonNan(i, d));
+        }
+
+        for (i, &d) in iter {
+            if d < heap.peek().unwrap().1 {
+                let mut top = heap.peek_mut().unwrap();
+                *top = MaxNonNan(i, d);
+            }
+        }
 
         // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
+        let topk_indices: Vec<usize> = heap.into_iter().map(|x| x.0).collect();
         let topk_rows: Vec<Tensor> = topk_indices
             .iter()
             .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
