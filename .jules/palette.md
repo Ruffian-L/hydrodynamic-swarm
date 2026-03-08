@@ -1,0 +1,3 @@
+## 2026-03-01 - DOM Accessibility in Canvas Dashboards
+**Learning:** Complex, canvas-heavy dashboards (like SplatLens) often implement rich WebGL/2D graphics but completely neglect fundamental DOM accessibility for their overlay UI. Interactive elements like setting panels and scrubber controls frequently lack linked `<label>`s and keyboard focus states, rendering them unusable for screen readers and keyboard navigators.
+**Action:** Always run basic a11y checks (like clicking labels to focus inputs and tabbing through the UI) on HTML overlays, even when the primary application is a canvas element. Adding `for` attributes and `:focus-visible` styles takes minutes but significantly improves usability.
