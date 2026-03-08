@@ -188,11 +188,16 @@ impl SplatMemory {
             let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
             dists.push((i, dist_sq));
         }
-        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let take = k.min(dists.len());
+        if take > 0 {
+            // Bolt: Use select_nth_unstable_by instead of sort_by for O(N) top-K finding
+            dists.select_nth_unstable_by(take - 1, |a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        }
+        dists.truncate(take);
 
         let mut force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
-        let take = k.min(dists.len());
-        for &(idx, dist_sq) in dists.iter().take(take) {
+        for &(idx, dist_sq) in dists.iter() {
             let splat = &self.splats[idx];
             let diff = (&splat.mu - pos)?;
             // Bundle stress should saturate inside a small core radius instead of

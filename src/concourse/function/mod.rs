@@ -58,10 +58,17 @@ impl ActiveGraph {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let k_min = k.min(distances.len());
+        if k_min > 0 {
+            // Bolt: Use select_nth_unstable_by instead of sort_by for O(N) top-K finding
+            distances.select_nth_unstable_by(k_min - 1, |a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            // Optional: sort the top K elements if strict ordering is required.
+            distances[..k_min].sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        }
+        distances.truncate(k_min);
+
         distances
             .into_iter()
-            .take(k)
             .map(|(_, node)| node)
             .collect()
     }

@@ -5,7 +5,7 @@ edition = "2021"
 description = "Unified Hydrodynamic Ouroboros Swarm — SplatRAG + 9-Node Matrix"
 
 [features]
-default = ["with-candle", "with-cuda"]
+default = ["with-candle"]
 with-candle = ["candle-core", "candle-nn", "candle-transformers", "hf-hub"]
 with-cuda = ["candle-core/cuda", "candle-nn/cuda"]
 with-metal = ["candle-core/metal", "candle-nn/metal"]
