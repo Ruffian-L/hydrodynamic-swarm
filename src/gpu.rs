@@ -78,10 +78,22 @@ impl PhysicsBackend for CpuBackend {
             return Tensor::zeros(&[0, d], candle_core::DType::F32, &field.device);
         }
         let mut grads = Vec::with_capacity(m);
-        for i in 0..m {
-            let pos_i = positions.get(i)?;
-            let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
-            grads.push(grad_i);
+
+        // OPTIMIZATION: Use top-K gradient approximation when computing batch gradients on CPU
+        // if the field is large enough. This significantly speeds up micro-dreams.
+        let k = 1024;
+        if field.n_points() > k * 2 {
+            for i in 0..m {
+                let pos_i = positions.get(i)?;
+                let grad_i = field.probe_gradient_topk(&pos_i, k)?.unsqueeze(0)?;
+                grads.push(grad_i);
+            }
+        } else {
+            for i in 0..m {
+                let pos_i = positions.get(i)?;
+                let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
+                grads.push(grad_i);
+            }
         }
         Tensor::cat(&grads, 0)
     }
@@ -673,10 +685,21 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
                     return Tensor::zeros(&[0, dim], candle_core::DType::F32, &field.device);
                 }
                 let mut grads = Vec::with_capacity(m);
-                for i in 0..m {
-                    let pos_i = positions.get(i)?;
-                    let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
-                    grads.push(grad_i);
+
+                // OPTIMIZATION: Use top-K gradient approximation
+                let k = 1024;
+                if field.n_points() > k * 2 {
+                    for i in 0..m {
+                        let pos_i = positions.get(i)?;
+                        let grad_i = field.probe_gradient_topk(&pos_i, k)?.unsqueeze(0)?;
+                        grads.push(grad_i);
+                    }
+                } else {
+                    for i in 0..m {
+                        let pos_i = positions.get(i)?;
+                        let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
+                        grads.push(grad_i);
+                    }
                 }
                 return Tensor::cat(&grads, 0);
             }

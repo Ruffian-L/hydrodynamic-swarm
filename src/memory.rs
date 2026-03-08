@@ -168,6 +168,13 @@ impl SplatMemory {
             let dist_sq: f32 = diff.sqr()?.sum_all()?.to_scalar()?;
             let sigma_sq = splat.sigma * splat.sigma;
             let kernel = (-dist_sq / sigma_sq).exp();
+
+            // OPTIMIZATION: Skip force accumulation if kernel is practically zero.
+            // This saves a tensor affine transformation and addition per skipped splat.
+            if kernel < 1e-10 {
+                continue;
+            }
+
             let scale = (splat.alpha * kernel) as f64;
             let signed_force = diff.affine(scale, 0.0)?;
             total_force = (&total_force + &signed_force)?;
@@ -188,10 +195,19 @@ impl SplatMemory {
             let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
             dists.push((i, dist_sq));
         }
-        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
         let take = k.min(dists.len());
+        if take == 0 {
+            return Ok(force);
+        }
+
+        // OPTIMIZATION: Use partial sort for Top-K instead of full sort.
+        // This is O(N) instead of O(N log N).
+        dists.select_nth_unstable_by(take - 1, |a, b| {
+            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
         for &(idx, dist_sq) in dists.iter().take(take) {
             let splat = &self.splats[idx];
             let diff = (&splat.mu - pos)?;
