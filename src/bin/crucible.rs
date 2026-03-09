@@ -45,6 +45,10 @@ const TESTS: &[(&str, &str)] = &[
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
+    if !tokens.chars().all(|c| c.is_ascii_digit()) {
+        eprintln!("[crucible] Error: tokens argument must be purely numeric.");
+        std::process::exit(1);
+    }
 
     // Build release if needed
     let binary = "target/release/hydrodynamic-swarm";
