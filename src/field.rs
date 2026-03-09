@@ -297,12 +297,9 @@ impl ContinuousField {
         });
 
         // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
-        let topk_rows: Vec<Tensor> = topk_indices
-            .iter()
-            .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
-            .collect::<Result<Vec<_>>>()?;
-        let topk_positions = Tensor::cat(&topk_rows, 0)?;
+        let topk_indices: Vec<u32> = indexed[..k].iter().map(|&(i, _)| i as u32).collect();
+        let topk_idx_tensor = Tensor::from_vec(topk_indices, k, &self.device)?;
+        let topk_positions = self.positions.index_select(&topk_idx_tensor, 0)?;
 
         // Standard gradient computation on just the K nearest
         let diff = topk_positions.broadcast_sub(&pos_expanded)?;
