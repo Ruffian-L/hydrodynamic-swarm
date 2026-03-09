@@ -188,11 +188,18 @@ impl SplatMemory {
             let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
             dists.push((i, dist_sq));
         }
-        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // ⚡ Bolt: Replace O(N log N) full sort with O(N) partial sort to extract K nearest splats
+        let take = k.min(dists.len());
+        if take > 0 {
+            dists.select_nth_unstable_by(take.saturating_sub(1), |a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            dists.truncate(take);
+        } else {
+            dists.clear();
+        }
 
         let mut force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
-        let take = k.min(dists.len());
-        for &(idx, dist_sq) in dists.iter().take(take) {
+        for &(idx, dist_sq) in dists.iter() {
             let splat = &self.splats[idx];
             let diff = (&splat.mu - pos)?;
             // Bundle stress should saturate inside a small core radius instead of
@@ -379,9 +386,15 @@ impl SplatMemory {
         if self.splats.len() <= max_count {
             return;
         }
-        self.splats
-            .sort_by(|a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
-        self.splats.truncate(max_count);
+
+        // ⚡ Bolt: Replace O(N log N) full sort with O(N) partial sort to extract max_count strongest splats
+        if max_count > 0 {
+            self.splats.select_nth_unstable_by(max_count.saturating_sub(1), |a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
+            self.splats.truncate(max_count);
+        } else {
+            self.splats.clear();
+        }
+
         println!("    [PRUNE] Capped to {} strongest splats", max_count);
     }
 
