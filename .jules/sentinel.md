@@ -1,0 +1,4 @@
+## 2024-05-24 - [Path Traversal Fix in `crucible.rs`]
+**Vulnerability:** A vulnerability to path traversal existed in `src/bin/crucible.rs` where the `tokens` CLI argument was directly passed to `format!("logs/crucible_{}t.txt", tokens)` without any input sanitization. This allowed any user calling the application to supply malicious string paths like `../` to redirect log output.
+**Learning:** External user inputs, even those simply determining output filename segments or identifiers, must be carefully sanitized before utilization to prevent system path redirection and data writing vulnerabilities.
+**Prevention:** Strictly enforce format and constraints on external data inputs prior to inclusion within system paths. For numeric inputs such as 'tokens', verifying the string is composed purely of numerical characters ensures complete mitigation against directory hopping characters like slashes (`/`) and dots (`.`).
