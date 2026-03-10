@@ -1,0 +1,4 @@
+## 2026-03-10 - Path Traversal via Unvalidated CLI Arguments
+**Vulnerability:** A path traversal vulnerability existed in `src/bin/crucible.rs` where a command-line argument (`tokens`) was passed unsanitized into a file path formatting operation (`format!("logs/crucible_{}t.txt", tokens)`). This allowed an attacker to overwrite arbitrary files using relative path maneuvers like `../../`.
+**Learning:** Command-line inputs should never be implicitly trusted, particularly when they construct sensitive outputs like file system paths. Even an argument expected to be a number can harbor malicious path traversal patterns if unsanitized.
+**Prevention:** Always apply strict, type-appropriate validation on all CLI arguments. In this case, `tokens` was validated to strictly contain only numeric characters (`tokens.chars().all(|c| c.is_ascii_digit())`) before any further processing.
