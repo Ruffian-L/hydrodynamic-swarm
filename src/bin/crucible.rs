@@ -46,6 +46,12 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
+    // Prevent path traversal by strictly requiring numeric input
+    if tokens.parse::<u32>().is_err() {
+        eprintln!("[crucible] Error: tokens argument must be strictly numeric to prevent path traversal.");
+        std::process::exit(1);
+    }
+
     // Build release if needed
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
