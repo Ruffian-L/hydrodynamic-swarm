@@ -134,6 +134,12 @@
       background: rgba(60, 80, 120, 0.3)
     }
 
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid #40E0D0;
+      outline-offset: 2px;
+    }
+
     #controls button.active {
       background: rgba(64, 224, 208, 0.15);
       color: #40E0D0;
@@ -166,6 +172,11 @@
       border-radius: 2px;
       outline: none;
       cursor: pointer;
+    }
+
+    .ctrl-slider:focus-visible {
+      outline: 2px solid #40E0D0;
+      outline-offset: 6px;
     }
 
     .ctrl-slider::-webkit-slider-thumb {
@@ -330,6 +341,11 @@
       border-color: rgba(64, 224, 208, 0.4)
     }
 
+    #prompt-input:focus-visible {
+      outline: 2px solid #40E0D0;
+      outline-offset: 0;
+    }
+
     #replay-btn {
       background: linear-gradient(135deg, rgba(64, 224, 208, 0.2), rgba(64, 224, 208, 0.08));
       border: 1px solid rgba(64, 224, 208, 0.35);
@@ -353,7 +369,7 @@
 
 <body>
   <div id="prompt-bar">
-    <label>PROMPT</label>
+    <label for="prompt-input">PROMPT</label>
     <input type="text" id="prompt-input" value="Explain the Physics of Friendship in one paragraph." spellcheck="false">
     <button id="replay-btn">Replay</button>
   </div>
@@ -377,12 +393,12 @@
     <button id="btn-play" class="active">Play</button>
     <button id="btn-pause">Pause</button>
     <div class="slider-group">
-      <label>Step</label>
+      <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
       <span id="step-label">50/50</span>
     </div>
     <div class="slider-group">
-      <label>Speed</label>
+      <label for="speed">Speed</label>
       <input type="range" id="speed" class="ctrl-slider" min="30" max="800" value="200">
       <span id="speed-label">200ms</span>
     </div>
@@ -406,17 +422,17 @@
       <button id="btn-rotate-off" class="mode-btn">Off</button>
     </div>
     <div class="setting-row">
-      <label>UI Scale</label>
+      <label for="ui-scale">UI Scale</label>
       <input type="range" id="ui-scale" class="ctrl-slider" min="50" max="150" value="100">
       <span id="ui-scale-val">100%</span>
     </div>
     <div class="setting-row">
-      <label>Text Size</label>
+      <label for="text-scale">Text Size</label>
       <input type="range" id="text-scale" class="ctrl-slider" min="50" max="200" value="100">
       <span id="text-scale-val">100%</span>
     </div>
     <div class="setting-row">
-      <label>Particles</label>
+      <label for="particle-density">Particles</label>
       <input type="range" id="particle-density" class="ctrl-slider" min="0" max="300" value="80">
       <span id="particle-val">80</span>
     </div>

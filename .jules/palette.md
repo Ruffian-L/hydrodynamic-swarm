@@ -1,0 +1,4 @@
+## 2024-05-14 - HTML UI Controls and Visual Indicators
+
+**Learning:** The SplatLens viewer uses a highly custom canvas renderer and custom control styling. Standard HTML range sliders (`<input type="range">`) were styled with `outline: none;` and custom pseudo-elements (`::-webkit-slider-thumb`) which entirely stripped keyboard focus visibility, causing major accessibility barriers for users not using a mouse. Further, none of the setting configuration labels were associated to their target forms, hurting screen reader usability.
+**Action:** Overrode `outline: none;` explicitly during keyboard navigation with `:focus-visible` using the application's thematic teal (`#40E0D0`). Paired standard `for` and `id` linking across all custom range/text inputs to ensure programmatic screen-reader association. Always ensure visual focus outlines are restored using `:focus-visible` when stripping default input styles.
