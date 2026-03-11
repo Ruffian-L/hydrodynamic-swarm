@@ -1,0 +1,3 @@
+## 2026-03-11 - Fast tensor row extraction with index_select
+**Learning:** In `candle_core`, looping over a tensor to extract rows using `.get().and_then(|r| r.unsqueeze(0))` and then concatenating them with `Tensor::cat` causes many small intermediate allocations, leading to a performance bottleneck during batch row retrieval.
+**Action:** Use `Tensor::index_select` with a 1D index tensor (e.g., of type `u32`) to extract rows directly on the device. This minimizes host-device synchronization and memory allocations, providing measurable performance gains for operations like Top-K gradient approximations.
