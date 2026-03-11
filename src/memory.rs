@@ -188,11 +188,21 @@ impl SplatMemory {
             let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
             dists.push((i, dist_sq));
         }
-        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let take = k.min(dists.len());
+        if take > 0 && take < dists.len() {
+            // Optimization: select_nth_unstable_by finds the K nearest splats in O(N) time
+            // instead of O(N log N) for a full sort, which is much faster for large memory banks.
+            dists.select_nth_unstable_by(take - 1, |a, b| {
+                a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            dists.truncate(take);
+        } else if take == 0 {
+            dists.clear();
+        }
 
         let mut force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
-        let take = k.min(dists.len());
-        for &(idx, dist_sq) in dists.iter().take(take) {
+        for &(idx, dist_sq) in dists.iter() {
             let splat = &self.splats[idx];
             let diff = (&splat.mu - pos)?;
             // Bundle stress should saturate inside a small core radius instead of
@@ -379,9 +389,16 @@ impl SplatMemory {
         if self.splats.len() <= max_count {
             return;
         }
-        self.splats
-            .sort_by(|a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
-        self.splats.truncate(max_count);
+        if max_count > 0 && max_count < self.splats.len() {
+            // Optimization: select_nth_unstable_by keeps the N strongest splats in O(N) time
+            // instead of O(N log N) for a full sort, which is much faster for large memory banks.
+            self.splats.select_nth_unstable_by(max_count - 1, |a, b| {
+                b.alpha.abs().total_cmp(&a.alpha.abs())
+            });
+            self.splats.truncate(max_count);
+        } else if max_count == 0 {
+            self.splats.clear();
+        }
         println!("    [PRUNE] Capped to {} strongest splats", max_count);
     }
 
