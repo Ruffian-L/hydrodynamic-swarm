@@ -1,0 +1,3 @@
+## 2026-03-11 - Add Focus Styles and Accessibility to SplatLens Viewer
+**Learning:** Native HTML range inputs and custom buttons without explicit `:focus-visible` styles fail to clearly indicate keyboard focus in dark-themed UIs. Similarly, disconnected `<label>` tags and dynamically updating text elements without `aria-live` attributes hinder screen reader navigation and experience in bespoke data-visualization tools.
+**Action:** Always map `<label>` tags to their inputs using `for="[id]"` attributes, use the primary theme accent color (`#40E0D0` in SplatLens) for `:focus-visible` outlines, and apply `aria-live="polite"` to dynamically changing text nodes like step counters or configuration readouts.
