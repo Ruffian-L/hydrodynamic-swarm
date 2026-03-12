@@ -1,0 +1,4 @@
+## 2024-05-24 - [Path Traversal in logs via unvalidated tokens arg]
+**Vulnerability:** In `src/bin/crucible.rs`, the program accepted a CLI argument `tokens` which was later injected directly into a file path via `format!("logs/crucible_{}t.txt", tokens);` without validation. An attacker could input something like `../crucible` to create or modify files outside of the intended directory.
+**Learning:** Raw CLI inputs must never be used directly in file paths, especially when formatted with user-provided strings. Even seemingly innocuous arguments like `--tokens` can be abused if not strictly validated against their expected type.
+**Prevention:** Implement strict input validation on all CLI arguments, particularly those used in file paths. For numeric inputs, ensure they only contain ascii digits (e.g., `tokens.chars().all(|c| c.is_ascii_digit())`) rather than generic alphanumeric checks.

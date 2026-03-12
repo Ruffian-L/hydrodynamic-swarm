@@ -46,6 +46,14 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
+    // 🛡️ Sentinel: Security Enhancement - Input validation to prevent path traversal
+    // The `tokens` argument is used directly in a file path below (`logs/crucible_{tokens}t.txt`).
+    // If an attacker provides something like `../crucible`, it will write outside the intended directory.
+    if !tokens.chars().all(|c| c.is_ascii_digit()) {
+        eprintln!("[crucible] Error: 'tokens' argument must be a valid positive integer.");
+        std::process::exit(1);
+    }
+
     // Build release if needed
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
