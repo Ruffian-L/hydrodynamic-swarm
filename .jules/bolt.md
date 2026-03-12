@@ -1,0 +1,3 @@
+## 2023-10-27 - Cache Hit Borrowing
+**Learning:** `LruCache::get` in `src/concourse/cache.rs` returns an owned `Option<CacheEntry>` rather than an `Option<&CacheEntry>`. Returning `entry.value` from a `LruCache` hit is perfectly safe and valid without calling `.clone()`, avoiding an unnecessary allocation. However, `TtlCache::get` returns `Option<&CacheEntry>`, so its hit branch requires `.clone()` when the value is needed for returning or passing into `LruCache::put`.
+**Action:** Always check the exact return type of the local implementation of caches in this codebase. Do not assume all `.get()` methods return shared references. Take advantage of owned returns to remove redundant clones.
