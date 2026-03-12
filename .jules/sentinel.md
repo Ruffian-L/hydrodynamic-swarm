@@ -1,0 +1,4 @@
+## 2024-05-24 - Validate Numeric CLI Inputs against Path Traversal
+**Vulnerability:** Path traversal vulnerability in `src/bin/crucible.rs` via the `tokens` CLI argument, which was used unsanitized in formatting the `logs/crucible_{tokens}t.txt` output path.
+**Learning:** Numeric CLI arguments used in file paths must be strictly validated for their expected type (e.g., asserting all characters are ASCII digits) rather than relying on generic alphanumeric checks or leaving them unsanitized.
+**Prevention:** Always validate and sanitize user input before using it to construct file paths, especially when the input is expected to follow a specific numeric format.
