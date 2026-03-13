@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimize caching allocations in stacked layers
+**Learning:** In caching layers that stack (like TTL to LRU promotion), reusing already-serialized bytes avoids redundant heap allocations from `bincode::serialize`. Additionally, avoiding `.clone()` on owned `entry.value` when returning from `LruCache::get` further minimizes memory pressure. Also `cache_key` can be moved directly into functions when it's the last usage instead of being cloned.
+**Action:** When implementing layered caches, promote serialized values directly. Exploit owned values when returning from cache layers that return `Option<CacheEntry>` (like `LruCache`) to avoid redundant `.clone()` calls. Ensure last usages of variables in a function are moved, not cloned.
