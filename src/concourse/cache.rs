@@ -271,12 +271,10 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            let serialized = bincode::serialize(&embedding)
-                .map_err(|e| anyhow!("Failed to serialize embedding: {}", e))?;
-
+            // ⚡ Bolt: Reuse serialized entry.value to avoid redundant allocations and serialization
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
-                serialized.clone(),
+                cache_key,
+                entry.value.clone(),
                 entry.ttl_seconds,
             );
 
@@ -314,18 +312,22 @@ impl CacheManager {
 
         // Check LRU cache
         if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
-            return Ok(Some(entry.value.clone()));
+            // ⚡ Bolt: LruCache::get returns an owned value, so we can return it directly without cloning
+            return Ok(Some(entry.value));
         }
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
             // Promote to LRU cache
+            // ⚡ Bolt: TtlCache::get returns a shared ref, so we clone entry.value
+            // but we can move cache_key since it's not used again
+            let value = entry.value.clone();
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
-                entry.value.clone(),
+                cache_key,
+                value.clone(),
                 entry.ttl_seconds,
             );
-            return Ok(Some(entry.value.clone()));
+            return Ok(Some(value));
         }
 
         Ok(None)
