@@ -1,0 +1,4 @@
+## 2024-03-14 - Path Traversal in File Output
+**Vulnerability:** Path traversal vulnerability in `src/bin/crucible.rs` where the `tokens` CLI argument was directly interpolated into a log file path (`"logs/crucible_{}t.txt"`) without any validation, allowing for writing logs to arbitrary directories.
+**Learning:** Even internal testing or CLI tools require strict input validation when user-supplied arguments are used to construct file paths or execute subcommands.
+**Prevention:** Always validate numeric or structured CLI arguments before use. If an argument is expected to be a number, rigorously verify it contains only digits (e.g. `chars().all(|c| c.is_ascii_digit())`) rather than assuming it's safe.
