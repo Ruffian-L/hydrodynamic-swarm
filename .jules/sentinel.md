@@ -1,0 +1,4 @@
+## 2024-05-24 - [Path Traversal in Output Log File]
+**Vulnerability:** The `crucible` binary used an unvalidated CLI argument (`tokens`) directly in a file path `format!("logs/crucible_{}t.txt", tokens)`. This allowed a user to pass an argument like `../../` to write the output log to arbitrary locations on the file system, potentially overwriting critical files.
+**Learning:** Even internal tooling and basic CLI arguments can introduce severe vulnerabilities if they are used to construct file paths without validation. Do not assume input is valid just because it is meant to represent an integer.
+**Prevention:** Strictly sanitize all CLI arguments used in file operations according to their expected type. For numeric inputs, enforce character-level checks like `.chars().all(|c| c.is_ascii_digit())` to prevent path traversal via `../` patterns.
