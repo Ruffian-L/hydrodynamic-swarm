@@ -1,0 +1,4 @@
+## 2024-05-24 - [Path Traversal in CLI Arguments]
+**Vulnerability:** The `tokens` CLI argument in `src/bin/crucible.rs` lacked input validation. It was directly used in file path formatting (`format!("logs/crucible_{}t.txt", tokens)`), which could allow an attacker to traverse the file system by providing a payload like `../something`.
+**Learning:** When using `.all(|c| c.is_ascii_digit())` to validate numeric input strings in Rust, you must explicitly check `!tokens.is_empty()`. An empty string evaluates to `true` for `.all()`, which would bypass validation entirely.
+**Prevention:** Always validate all user input, including CLI arguments, before using them to construct paths or system commands. For numeric constraints, enforce strict type checking and account for empty string edge cases when using iterative validators.
