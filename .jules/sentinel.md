@@ -1,0 +1,4 @@
+## 2024-05-01 - Path Traversal in CLI Arguments
+**Vulnerability:** Path traversal vulnerability in `src/bin/crucible.rs` where the `tokens` CLI argument is used directly to construct a log file path without validation.
+**Learning:** CLI arguments must be validated, especially if they are used to construct file paths or executed as commands. Even if an argument is expected to be a number, it's still received as a string and can contain malicious input like `../`.
+**Prevention:** Always validate and sanitize CLI arguments. For numeric arguments, verify that they are non-empty strings consisting only of ASCII digits before using them in file paths.
