@@ -250,10 +250,11 @@
       margin-bottom: 8px
     }
 
-    .setting-row label {
+    .setting-row label, .setting-row .setting-label {
       color: #5A6A82;
       font-size: 10px;
-      min-width: 60px
+      min-width: 60px;
+      display: inline-block;
     }
 
     .setting-row .ctrl-slider {
@@ -348,12 +349,17 @@
       background: linear-gradient(135deg, rgba(64, 224, 208, 0.35), rgba(64, 224, 208, 0.15));
       box-shadow: 0 0 16px rgba(64, 224, 208, 0.2)
     }
+
+    *:focus-visible {
+      outline: 2px solid #40E0D0;
+      outline-offset: 2px;
+    }
   </style>
 </head>
 
 <body>
   <div id="prompt-bar">
-    <label>PROMPT</label>
+    <label for="prompt-input">PROMPT</label>
     <input type="text" id="prompt-input" value="Explain the Physics of Friendship in one paragraph." spellcheck="false">
     <button id="replay-btn">Replay</button>
   </div>
@@ -372,19 +378,19 @@
     </div>
     <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
   </div>
-  <div id="gen-text"></div>
+  <div id="gen-text" aria-live="polite"></div>
   <div id="controls">
     <button id="btn-play" class="active">Play</button>
     <button id="btn-pause">Pause</button>
     <div class="slider-group">
-      <label>Step</label>
+      <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
-      <span id="step-label">50/50</span>
+      <span id="step-label" aria-live="polite">50/50</span>
     </div>
     <div class="slider-group">
-      <label>Speed</label>
+      <label for="speed">Speed</label>
       <input type="range" id="speed" class="ctrl-slider" min="30" max="800" value="200">
-      <span id="speed-label">200ms</span>
+      <span id="speed-label" aria-live="polite">200ms</span>
     </div>
     <span style="color:#1A1E2A;margin:0 2px">|</span>
     <button id="btn-field" class="active">Field</button>
@@ -396,29 +402,29 @@
   <div id="settings-panel">
     <h3>SETTINGS</h3>
     <div class="setting-row">
-      <label>Theme</label>
+      <span class="setting-label">Theme</span>
       <button id="btn-dark" class="mode-btn active">Dark</button>
       <button id="btn-light" class="mode-btn">Light</button>
     </div>
     <div class="setting-row">
-      <label>Rotate</label>
+      <span class="setting-label">Rotate</span>
       <button id="btn-rotate-on" class="mode-btn active">On</button>
       <button id="btn-rotate-off" class="mode-btn">Off</button>
     </div>
     <div class="setting-row">
-      <label>UI Scale</label>
+      <label for="ui-scale">UI Scale</label>
       <input type="range" id="ui-scale" class="ctrl-slider" min="50" max="150" value="100">
-      <span id="ui-scale-val">100%</span>
+      <span id="ui-scale-val" aria-live="polite">100%</span>
     </div>
     <div class="setting-row">
-      <label>Text Size</label>
+      <label for="text-scale">Text Size</label>
       <input type="range" id="text-scale" class="ctrl-slider" min="50" max="200" value="100">
-      <span id="text-scale-val">100%</span>
+      <span id="text-scale-val" aria-live="polite">100%</span>
     </div>
     <div class="setting-row">
-      <label>Particles</label>
+      <label for="particle-density">Particles</label>
       <input type="range" id="particle-density" class="ctrl-slider" min="0" max="300" value="80">
-      <span id="particle-val">80</span>
+      <span id="particle-val" aria-live="polite">80</span>
     </div>
   </div>
   <canvas id="c"></canvas>
