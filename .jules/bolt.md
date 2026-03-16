@@ -1,0 +1,4 @@
+
+## 2024-05-15 - Redundant serialization in cache promotion
+**Learning:** Found an unnecessary `bincode::serialize` operation in `src/concourse/cache.rs` when promoting a value from the TTL cache to the LRU cache. The `entry.value` already contained the serialized bytes, making the serialization of the deserialized value completely redundant and a waste of CPU cycles and heap allocations. Also noticed redundant `.clone()` calls on `String` keys being passed to `LruCache::put` right before returning, which could be avoided by moving the key.
+**Action:** When implementing caching layers that serialize/deserialize data (like caching API responses or embeddings), always check if the raw serialized bytes can be reused when migrating data between cache tiers (e.g., TTL to LRU). Avoid cloning keys when they can be moved into the final consumer.

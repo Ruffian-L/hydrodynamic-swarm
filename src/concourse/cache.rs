@@ -271,12 +271,11 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            let serialized = bincode::serialize(&embedding)
-                .map_err(|e| anyhow!("Failed to serialize embedding: {}", e))?;
-
+            // Performance optimization: reuse the existing serialized bytes for promotion
+            // instead of calling bincode::serialize again. Move cache_key directly.
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
-                serialized.clone(),
+                cache_key,
+                entry.value.clone(),
                 entry.ttl_seconds,
             );
 
@@ -319,13 +318,15 @@ impl CacheManager {
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache
+            // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
+            // and move cache_key directly instead of cloning.
+            let val = entry.value.clone();
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
-                entry.value.clone(),
+                cache_key,
+                val.clone(),
                 entry.ttl_seconds,
             );
-            return Ok(Some(entry.value.clone()));
+            return Ok(Some(val));
         }
 
         Ok(None)
@@ -334,16 +335,17 @@ impl CacheManager {
     /// Cache edge relationship result
     pub fn cache_edge_relationship(&self, text_a: &str, text_b: &str, result: &[u8]) -> Result<()> {
         let cache_key = Self::generate_edge_key(text_a, text_b);
+        let val = result.to_vec();
 
         self.lru_cache.write().unwrap().put(
             cache_key.clone(),
-            result.to_vec(),
+            val.clone(),
             Some(600), // 10 minute TTL for edges
         );
 
         self.ttl_cache.write().unwrap().put(
             cache_key,
-            result.to_vec(),
+            val,
             Some(1800), // 30 minute TTL for edges
         );
 
