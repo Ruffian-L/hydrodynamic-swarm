@@ -46,6 +46,11 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
+    if tokens.is_empty() || !tokens.chars().all(|c| c.is_ascii_digit()) {
+        eprintln!("[crucible] Error: tokens argument must be a positive integer.");
+        std::process::exit(1);
+    }
+
     // Build release if needed
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
