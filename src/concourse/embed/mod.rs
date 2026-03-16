@@ -16,9 +16,9 @@ use crate::concourse::cache::CacheManager;
 use std::sync::OnceLock;
 
 #[cfg(feature = "with-candle")]
-pub mod quantized_gemma;
-#[cfg(feature = "with-candle")]
 mod gemma;
+#[cfg(feature = "with-candle")]
+pub mod quantized_gemma;
 #[cfg(feature = "with-candle")]
 use self::gemma::{EmbeddingGemma300M, GemmaEmbedder};
 
