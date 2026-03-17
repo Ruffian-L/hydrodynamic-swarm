@@ -546,8 +546,11 @@ mod tests {
     fn test_priority_queue() {
         let mut queue = PriorityTaskQueue::new(3);
 
-        let node_high =
-            crate::concourse::types::Node::new("high".to_string(), NodeClass::Axiom, "test".to_string());
+        let node_high = crate::concourse::types::Node::new(
+            "high".to_string(),
+            NodeClass::Axiom,
+            "test".to_string(),
+        );
         let task_high = SwarmTask::new(node_high);
 
         let node_low = crate::concourse::types::Node::new(
@@ -574,8 +577,11 @@ mod tests {
             .await
             .unwrap();
 
-        let node =
-            crate::concourse::types::Node::new("test".to_string(), NodeClass::Axiom, "test".to_string());
+        let node = crate::concourse::types::Node::new(
+            "test".to_string(),
+            NodeClass::Axiom,
+            "test".to_string(),
+        );
         let task = SwarmTask::new(node);
 
         let result = worker_pool.submit_task(task).await;
