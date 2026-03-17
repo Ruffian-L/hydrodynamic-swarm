@@ -81,8 +81,8 @@ impl InstructGemmaModel {
         let ct = gguf_file::Content::read(&mut reader)
             .map_err(|e| SwarmError::Embedding(format!("GGUF read: {e}")))?;
         let device = Device::Cpu;
-        let model = ModelWeights::from_gguf(ct, &mut reader, &device)
-            .map_err(|e| SwarmError::Candle(e))?;
+        let model =
+            ModelWeights::from_gguf(ct, &mut reader, &device).map_err(|e| SwarmError::Candle(e))?;
         info!("InstructGemma loaded. Hidden dim: {}", model.hidden_dim);
 
         let tokenizer = Self::load_tokenizer()?;
@@ -96,15 +96,12 @@ impl InstructGemmaModel {
     fn load_tokenizer() -> SwarmResult<Tokenizer> {
         // Local first, then HF Hub
         if std::path::Path::new(LOCAL_TOKENIZER_PATH).exists() {
-            return Tokenizer::from_file(LOCAL_TOKENIZER_PATH).map_err(|e| {
-                SwarmError::Embedding(format!("Tokenizer load failed: {e}"))
-            });
+            return Tokenizer::from_file(LOCAL_TOKENIZER_PATH)
+                .map_err(|e| SwarmError::Embedding(format!("Tokenizer load failed: {e}")));
         }
         // Reuse the HF hub logic from the embed model
         use hf_hub::api::sync::Api;
-        let api = Api::new().map_err(|e| {
-            SwarmError::Embedding(format!("HF API: {e}"))
-        })?;
+        let api = Api::new().map_err(|e| SwarmError::Embedding(format!("HF API: {e}")))?;
         let path = api
             .model("unsloth/embeddinggemma-300m-GGUF".to_string())
             .get("tokenizer.json")

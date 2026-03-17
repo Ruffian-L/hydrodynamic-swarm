@@ -80,15 +80,23 @@ impl Module for MlpOrMoe {
                 let mut selected_rws = vec![vec![]; experts.len()];
                 for (row_idx, rw) in routing_weights.iter().enumerate() {
                     let mut dst = (0..rw.len() as u32).collect::<Vec<u32>>();
-                    dst.sort_by(|&i, &j| rw[j as usize].total_cmp(&rw[i as usize]));
+                    let take = (*n_expert_used).min(dst.len());
+                    if take > 0 {
+                        dst.select_nth_unstable_by(take - 1, |&i, &j| rw[j as usize].total_cmp(&rw[i as usize]));
+                        dst.truncate(take);
+                        // The order of selected experts does not affect correctness here
+                    } else {
+                        dst.truncate(0);
+                    }
+
                     let mut sum_routing_weights = 0f32;
-                    for &expert_idx in dst.iter().take(*n_expert_used) {
+                    for &expert_idx in dst.iter() {
                         let expert_idx = expert_idx as usize;
                         let routing_weight = rw[expert_idx];
                         sum_routing_weights += routing_weight;
                         top_x[expert_idx].push(row_idx as u32);
                     }
-                    for &expert_idx in dst.iter().take(*n_expert_used) {
+                    for &expert_idx in dst.iter() {
                         let expert_idx = expert_idx as usize;
                         let routing_weight = rw[expert_idx];
                         selected_rws[expert_idx].push(routing_weight / sum_routing_weights)
