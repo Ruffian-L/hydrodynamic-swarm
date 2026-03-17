@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Physics Backend Abstraction
 //!
 //! Defines the `PhysicsBackend` trait for GPU-accelerated physics computations.
@@ -31,11 +30,24 @@ pub trait PhysicsBackend {
     fn splat_force(&self, memory: &SplatMemory, pos: &Tensor) -> Result<Tensor>;
 
     /// Batch field gradient for multiple positions (shape `(M, D)` -> `(M, D)`).
-    /// Used by micro-dream forward projection and ridge-running ensembles.
+    /// Used by micro-dream forward projection and ridge-running ensembles (e.g. with `metal-compute`).
+    #[allow(dead_code)]
     fn batch_field_gradient(&self, field: &ContinuousField, positions: &Tensor) -> Result<Tensor>;
 
     /// Name string for telemetry logging.
     fn name(&self) -> &'static str;
+
+    /// Top-K approximate gradient: only consider the K nearest field points.
+    /// Default implementation falls back to exact gradient.
+    fn field_gradient_topk(
+        &self,
+        field: &ContinuousField,
+        pos: &Tensor,
+        k: usize,
+    ) -> Result<Tensor> {
+        let _ = k; // unused in default -- exact gradient
+        self.field_gradient(field, pos)
+    }
 }
 
 // ---------------------------------------------------------------
@@ -76,6 +88,15 @@ impl PhysicsBackend for CpuBackend {
 
     fn name(&self) -> &'static str {
         "CPU"
+    }
+
+    fn field_gradient_topk(
+        &self,
+        field: &ContinuousField,
+        pos: &Tensor,
+        k: usize,
+    ) -> Result<Tensor> {
+        field.probe_gradient_topk(pos, k)
     }
 }
 
@@ -688,8 +709,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
 /// Select the best available physics backend at runtime.
 ///
-/// With `metal-compute` feature: tries MetalBackend first, falls back to CPU.
-/// Without feature: always returns CpuBackend.
+/// CpuBackend delegates to candle tensor ops which run on whatever device
+/// the tensors live on (CPU or CUDA). The backend name reflects the actual
+/// device, not a separate code path.
 pub fn select_backend() -> Box<dyn PhysicsBackend> {
     #[cfg(feature = "metal-compute")]
     {
@@ -697,10 +719,14 @@ pub fn select_backend() -> Box<dyn PhysicsBackend> {
             println!("[*] Physics backend: Metal Compute (wgpu)");
             return Box::new(metal);
         }
-        println!("[*] Metal compute init failed, falling back to CPU physics");
+        println!("[*] Metal compute init failed, falling back to tensor backend");
     }
 
-    println!("[*] Physics backend: CPU");
+    let cuda = candle_core::utils::cuda_is_available();
+    println!(
+        "[*] Physics backend: Tensor ops (device: {})",
+        if cuda { "CUDA" } else { "CPU" }
+    );
     Box::new(CpuBackend::new())
 }
 

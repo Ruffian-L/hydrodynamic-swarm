@@ -13,7 +13,7 @@
 
 use crate::field::ContinuousField;
 use crate::gpu::PhysicsBackend;
-use crate::memory::SplatMemory;
+use crate::memory::{PrimeGovernor, SplatMemory};
 use candle_core::{Result, Tensor};
 
 /// Result of a single steering step, including force telemetry.
@@ -27,10 +27,12 @@ pub struct SteerResult {
 pub struct NiodooEngine {
     field: ContinuousField,
     memory: SplatMemory,
+    prime_governor: PrimeGovernor,
     backend: Box<dyn PhysicsBackend>,
     dt: f32,
     viscosity_scale: f32,
     force_cap: f32,
+    gradient_topk: usize,
 }
 
 impl NiodooEngine {
@@ -45,11 +47,19 @@ impl NiodooEngine {
         Self {
             field,
             memory,
+            prime_governor: PrimeGovernor::new(),
             backend,
             dt,
             viscosity_scale,
             force_cap,
+            gradient_topk: 0, // 0 = exact gradient (default)
         }
+    }
+
+    /// Set the Top-K gradient approximation parameter.
+    /// 0 = exact gradient, >0 = use K nearest field points.
+    pub fn set_gradient_topk(&mut self, k: usize) {
+        self.gradient_topk = k;
     }
 
     /// Core steering: apply physics to LLM residual stream.
@@ -62,7 +72,7 @@ impl NiodooEngine {
         &self,
         baseline_residual: &Tensor,
         goal_pos: &Tensor,
-        _step: usize,
+        step: usize,
     ) -> Result<SteerResult> {
         // Shape validation: require exactly (1, D)
         let dims = baseline_residual.dims();
@@ -84,17 +94,22 @@ impl NiodooEngine {
         // Extract position vector: (1, D) -> (D,)
         let pos = baseline_residual.squeeze(0)?;
 
-        // 1. Field gradient: ridge-running force (via backend)
-        let grad_force = self
-            .backend
-            .field_gradient(&self.field, &pos)?
-            .affine(self.viscosity_scale as f64, 0.0)?;
+        // 1. Field gradient: ridge-running force (via backend, with optional Top-K)
+        let raw_grad = if self.gradient_topk > 0 {
+            self.backend
+                .field_gradient_topk(&self.field, &pos, self.gradient_topk)?
+        } else {
+            self.backend.field_gradient(&self.field, &pos)?
+        };
+        let grad_force = raw_grad.affine(self.viscosity_scale as f64, 0.0)?;
 
         // 2. Splat scar tissue force (via backend)
         let splat_force = self.backend.splat_force(&self.memory, &pos)?;
 
-        // 3. Goal attractor
-        let goal_force = (goal_pos - &pos)?;
+        // 3. Goal attractor governed by PrimeGovernor + Embed phases
+        let progress = (step as f32 / 200.0).min(1.0);
+        let gov_factor = self.prime_governor.govern(1.0, progress);
+        let goal_force = (goal_pos - &pos)?.affine(gov_factor as f64, 0.0)?;
 
         // Force telemetry: capture magnitudes for JSONL logging
         let splat_mag: f32 = splat_force.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
@@ -110,6 +125,21 @@ impl NiodooEngine {
         // Restore batch dim: (D,) -> (1, D) and add to baseline
         let steering_2d = steering.unsqueeze(0)?;
         let steered = (baseline_residual + &steering_2d)?;
+
+        // === RENORMALIZATION: stay on the Llama manifold ===
+        // Without this, cumulative steering drifts the hidden state norm,
+        // causing lm_head to produce garbage after ~40-80 tokens.
+        let baseline_norm: f32 = baseline_residual
+            .sqr()?
+            .sum_all()?
+            .to_scalar::<f32>()?
+            .sqrt();
+        let steered_norm: f32 = steered.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+        let steered = if steered_norm > 0.0 && baseline_norm > 0.0 {
+            steered.affine((baseline_norm / steered_norm) as f64, 0.0)?
+        } else {
+            steered
+        };
 
         Ok(SteerResult {
             steered,
