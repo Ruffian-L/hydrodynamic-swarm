@@ -1,0 +1,6 @@
+=== Physics NCA Tuning: 10 runs ===
+Prompt: Explain quantum entanglement simply. | Max tokens: 80
+Varying: dt, force_cap, viscosity_scale
+
+Run 1/10
+  Params: dt=0.02 force=5.5 visc=0.265

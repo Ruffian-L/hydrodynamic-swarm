@@ -1,4 +1,3 @@
-
 //! Configuration Module
 //!
 //! TOML-deserializable configuration for all physics parameters.
@@ -29,6 +28,16 @@ pub struct PhysicsConfig {
     pub splat_alpha: f32,
     pub min_splat_dist: f32,
     pub splat_delta_threshold: f32,
+    /// Top-K nearest points for gradient approximation (0 = exact gradient).
+    pub gradient_topk: usize,
+    /// Steer the hidden state (pre-lm_head) instead of logits.
+    pub steer_hidden: bool,
+    /// Per-step blend factor pulling steered state back toward baseline (0.0 = off, 0.15 = gentle).
+    pub manifold_pullback: f32,
+    pub bundle_min_dist: f32,
+    pub splat_lambda_default: f32,
+    pub pain_decay_factor: f32,
+    pub dream_correction_threshold: f32,
 }
 
 /// Generation parameters.
@@ -39,6 +48,10 @@ pub struct GenerationConfig {
     pub temperature: f64,
     pub default_prompt: String,
     pub eos_token_ids: Vec<u32>,
+    pub rep_penalty: f32,
+    pub min_success_tokens: usize,
+    pub pleasure_alpha: f32,
+    pub pain_alpha: f32,
 }
 
 /// Splat memory management.
@@ -66,13 +79,20 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.08,
+            dt: 0.035,
             viscosity_scale: 0.35,
-            force_cap: 35.0,
+            force_cap: 7.5,
             splat_sigma: 35.0,
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
             splat_delta_threshold: 12.0,
+            gradient_topk: 2048,
+            steer_hidden: true,
+            manifold_pullback: 0.15,
+            bundle_min_dist: 0.05,
+            splat_lambda_default: 0.02,
+            pain_decay_factor: 0.7,
+            dream_correction_threshold: 6.0,
         }
     }
 }
@@ -84,6 +104,10 @@ impl Default for GenerationConfig {
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
             eos_token_ids: vec![128009, 128001],
+            rep_penalty: 1.18,
+            min_success_tokens: 15,
+            pleasure_alpha: 1.8,
+            pain_alpha: -0.9,
         }
     }
 }
@@ -162,13 +186,25 @@ impl Config {
         if p.splat_delta_threshold < 0.0 {
             return Err("physics.splat_delta_threshold must be >= 0".into());
         }
+        if p.bundle_min_dist <= 0.0 {
+            return Err("physics.bundle_min_dist must be > 0".into());
+        }
+        if p.splat_lambda_default < 0.0 {
+            return Err("physics.splat_lambda_default must be >= 0".into());
+        }
+        if p.pain_decay_factor <= 0.0 || p.pain_decay_factor > 1.0 {
+            return Err("physics.pain_decay_factor must be in (0,1]".into());
+        }
+        if p.dream_correction_threshold < 0.0 {
+            return Err("physics.dream_correction_threshold must be >= 0".into());
+        }
 
         let g = &self.generation;
         if g.max_tokens == 0 {
             return Err("generation.max_tokens must be > 0".into());
         }
-        if g.temperature < 0.0 {
-            return Err("generation.temperature must be >= 0".into());
+        if g.temperature <= 0.0 {
+            return Err("generation.temperature must be > 0 (zero causes division-by-zero in sampling)".into());
         }
 
         let m = &self.memory;
