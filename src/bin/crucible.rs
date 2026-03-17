@@ -47,7 +47,7 @@ fn main() {
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
     if tokens.is_empty() || !tokens.chars().all(|c| c.is_ascii_digit()) {
-        eprintln!("[crucible] Error: tokens must be a positive integer.");
+        eprintln!("[crucible] Error: tokens argument must be a positive integer.");
         std::process::exit(1);
     }
 
