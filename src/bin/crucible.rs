@@ -46,7 +46,6 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let tokens = args.get(1).map(|s| s.as_str()).unwrap_or("200");
 
-    // Sentinel: Fix path traversal by enforcing tokens to be strictly numeric digits
     if tokens.is_empty() || !tokens.chars().all(|c| c.is_ascii_digit()) {
         eprintln!("[crucible] Error: tokens argument must be a positive integer.");
         std::process::exit(1);
@@ -73,7 +72,10 @@ fn main() {
 
     println!();
     println!("============================================================");
-    println!("  THE CRUCIBLE  |  {} tokens per prompt  |  8 tests", tokens);
+    println!(
+        "  THE CRUCIBLE  |  {} tokens per prompt  |  8 tests",
+        tokens
+    );
     println!("============================================================");
 
     let total_start = Instant::now();
@@ -95,9 +97,12 @@ fn main() {
         let status = Command::new(binary)
             .args([
                 "--clear-memory",
-                "--model", "unsloth",
-                "--tokens", tokens,
-                "--prompt", prompt,
+                "--model",
+                "unsloth",
+                "--tokens",
+                tokens,
+                "--prompt",
+                prompt,
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -107,10 +112,22 @@ fn main() {
         let elapsed = start.elapsed();
 
         println!();
-        println!("  -- [{}/8] {} done in {:.1}s (exit: {}) --", i + 1, name, elapsed.as_secs_f64(), status);
+        println!(
+            "  -- [{}/8] {} done in {:.1}s (exit: {}) --",
+            i + 1,
+            name,
+            elapsed.as_secs_f64(),
+            status
+        );
         println!();
 
-        writeln!(log_file, "TIME: {:.1}s | EXIT: {}", elapsed.as_secs_f64(), status).ok();
+        writeln!(
+            log_file,
+            "TIME: {:.1}s | EXIT: {}",
+            elapsed.as_secs_f64(),
+            status
+        )
+        .ok();
         writeln!(log_file).ok();
     }
 

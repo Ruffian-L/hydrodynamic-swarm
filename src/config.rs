@@ -204,7 +204,10 @@ impl Config {
             return Err("generation.max_tokens must be > 0".into());
         }
         if g.temperature <= 0.0 {
-            return Err("generation.temperature must be > 0 (zero causes division-by-zero in sampling)".into());
+            return Err(
+                "generation.temperature must be > 0 (zero causes division-by-zero in sampling)"
+                    .into(),
+            );
         }
 
         let m = &self.memory;

@@ -424,7 +424,13 @@ async fn main() -> Result<()> {
                 .map(|p| -p * p.ln())
                 .sum();
 
-            let dream_steps = if entropy > 4.0 { 4 } else if entropy > 3.0 { 3 } else { 2 };
+            let dream_steps = if entropy > 4.0 {
+                4
+            } else if entropy > 3.0 {
+                3
+            } else {
+                2
+            };
             let blend = if entropy > 2.5 { 0.12 } else { 0.07 };
 
             let result = micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
