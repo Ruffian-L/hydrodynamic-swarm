@@ -1,0 +1,3 @@
+## 2024-05-19 - Optimization Strategy
+**Learning:** In `src/concourse/cache.rs`, `LruCache::get` and `TtlCache::get` return shared references, requiring `.clone()` for ownership. However, allocations can be reduced by moving `cache_key` into `put()` calls instead of cloning them when they are no longer needed. Performance in `src/concourse/cache.rs:get_embedding` is optimized by reusing the existing serialized `entry.value` from the TTL cache for LRU promotion on a hit, bypassing redundant `bincode::serialize` cycles and associated heap allocations.
+**Action:** Review cache methods to eliminate redundant clones of `cache_key`.
