@@ -79,14 +79,14 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.035,
-            viscosity_scale: 0.35,
-            force_cap: 7.5,
+            dt: 0.04,
+            viscosity_scale: 0.15,
+            force_cap: 8.0,
             splat_sigma: 35.0,
             splat_alpha: 2.0,
             min_splat_dist: 100.0,
             splat_delta_threshold: 12.0,
-            gradient_topk: 2048,
+            gradient_topk: 512,
             steer_hidden: true,
             manifold_pullback: 0.15,
             bundle_min_dist: 0.05,
@@ -275,7 +275,7 @@ max_tokens = 200
         assert!((cfg.generation.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.generation.max_tokens, 200);
         // Non-specified fields get defaults
-        assert!((cfg.physics.viscosity_scale - 0.35).abs() < 1e-6);
+        assert!((cfg.physics.viscosity_scale - 0.15).abs() < 1e-6);
         assert!(cfg.validate().is_ok());
     }
 

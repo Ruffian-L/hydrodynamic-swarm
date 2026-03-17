@@ -123,53 +123,28 @@ async fn main() -> Result<()> {
     println!("[*] Using CUDA GPU (forced - all tensors/physics on NVIDIA)");
 
     // =========================================================
-    // Phase 1: Load Model (Llama or Gemma) + Tokenizer
+    // Phase 1: Load Llama 3.1 GGUF + Tokenizer
     // =========================================================
-    let use_gemma =
-        cli_model.as_deref() == Some("gemma27b") || cli_model.as_deref() == Some("gemma");
+    println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
 
-    let (mut model, model_path, tokenizer_path) = if use_gemma {
-        println!("\n--- Phase 1: Loading Gemma 3 27B + Tokenizer ---");
-        let gemma_path = find_file(
-            "data/google/gemma-3-27b-it-Q8_0.gguf",
-            "data/google/gemma-3-27b-it-q8_0.gguf",
-        )?;
-        println!("    Model: {}", gemma_path);
+    // Find GGUF model
+    let llama_path = find_file(
+        "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+    )?;
+    println!("    Model: {}", llama_path);
 
-        let mut file = std::fs::File::open(&gemma_path)?;
-        let mut reader = BufReader::new(&mut file);
-        let ct = gguf_file::Content::read(&mut reader)?;
-        let weights = gemma::ModelWeights::from_gguf(ct, &mut reader, &device)?;
-        println!("    Gemma 3 27B loaded (hidden_dim={})", weights.hidden_dim);
+    let mut file = std::fs::File::open(&llama_path)?;
+    let mut reader = BufReader::new(&mut file);
+    let ct = gguf_file::Content::read(&mut reader)?;
+    let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+    println!("    Llama 3.1 loaded");
 
-        let tok_path = find_file(
-            "data/google/tokenizer.json",
-            "data/google/tokenizer_gemma.json",
-        )?;
-
-        (Model::Gemma(weights), gemma_path, tok_path)
-    } else {
-        println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
-        let llama_path = find_file(
-            "data/bartowski/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-            "data/llama3.1/Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        )?;
-        println!("    Model: {}", llama_path);
-
-        let mut file = std::fs::File::open(&llama_path)?;
-        let mut reader = BufReader::new(&mut file);
-        let ct = gguf_file::Content::read(&mut reader)?;
-        let weights = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
-        println!("    Llama 3.1 loaded");
-
-        let tok_path = find_file(
-            "data/bartowski/tokenizer_official.json",
-            "data/bartowski/tokenizer_nous.json",
-        )?;
-
-        (Model::Llama(weights), llama_path, tok_path)
-    };
-
+    // Find tokenizer
+    let tokenizer_path = find_file(
+        "data/tokenizer.json",
+        "/Users/j/Desktop/models/tokenizer.json",
+    )?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
     println!("    Tokenizer loaded ({})", tokenizer_path);
@@ -178,7 +153,7 @@ async fn main() -> Result<()> {
     // Phase 2: Build live Diderot field from model embeddings
     // =========================================================
     println!("\n--- Phase 2: Building Diderot Field ---");
-    let field = ContinuousField::from_embeddings(model.token_embeddings(), &device)?;
+    let field = ContinuousField::from_embeddings(llama.token_embeddings(), &device)?;
     let dim = field.dim;
 
     // =========================================================
