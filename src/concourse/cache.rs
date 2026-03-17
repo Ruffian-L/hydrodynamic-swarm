@@ -297,7 +297,7 @@ impl CacheManager {
         );
 
         self.ttl_cache.write().unwrap().put(
-            cache_key,
+            cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             serialized,
             Some(3600), // 1 hour TTL for TTL cache
         );
@@ -316,13 +316,15 @@ impl CacheManager {
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache
+            // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
+            // and move cache_key directly instead of cloning.
+            let val = entry.value.clone();
             self.lru_cache.write().unwrap().put(
                 cache_key,
                 entry.value.clone(),
                 entry.ttl_seconds,
             );
-            return Ok(Some(entry.value.clone()));
+            return Ok(Some(val));
         }
 
         Ok(None)
@@ -331,16 +333,17 @@ impl CacheManager {
     /// Cache edge relationship result
     pub fn cache_edge_relationship(&self, text_a: &str, text_b: &str, result: &[u8]) -> Result<()> {
         let cache_key = Self::generate_edge_key(text_a, text_b);
+        let val = result.to_vec();
 
         self.lru_cache.write().unwrap().put(
             cache_key.clone(),
-            result.to_vec(),
+            val.clone(),
             Some(600), // 10 minute TTL for edges
         );
 
         self.ttl_cache.write().unwrap().put(
             cache_key,
-            result.to_vec(),
+            val,
             Some(1800), // 30 minute TTL for edges
         );
 

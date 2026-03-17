@@ -58,10 +58,17 @@ impl ActiveGraph {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let take = k.min(distances.len());
+        if take > 0 {
+            distances.select_nth_unstable_by(take - 1, |a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.truncate(take);
+            distances.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        } else {
+            distances.truncate(0);
+        }
+
         distances
             .into_iter()
-            .take(k)
             .map(|(_, node)| node)
             .collect()
     }
