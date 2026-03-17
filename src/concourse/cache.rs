@@ -271,12 +271,11 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            let serialized = bincode::serialize(&embedding)
-                .map_err(|e| anyhow!("Failed to serialize embedding: {}", e))?;
-
+            // ⚡ Bolt: Use existing serialized value for LRU promotion instead of redundant reserialization
+            // also we can move cache_key into put() without cloning
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
-                serialized.clone(),
+                cache_key,
+                entry.value.clone(),
                 entry.ttl_seconds,
             );
 
@@ -300,7 +299,7 @@ impl CacheManager {
         );
 
         self.ttl_cache.write().unwrap().put(
-            cache_key,
+            cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             serialized,
             Some(3600), // 1 hour TTL for TTL cache
         );
@@ -321,7 +320,7 @@ impl CacheManager {
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
             // Promote to LRU cache
             self.lru_cache.write().unwrap().put(
-                cache_key.clone(),
+                cache_key, // ⚡ Bolt: reduce heap allocations by moving cache_key without cloning
                 entry.value.clone(),
                 entry.ttl_seconds,
             );
@@ -342,7 +341,7 @@ impl CacheManager {
         );
 
         self.ttl_cache.write().unwrap().put(
-            cache_key,
+            cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             result.to_vec(),
             Some(1800), // 30 minute TTL for edges
         );

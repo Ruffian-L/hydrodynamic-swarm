@@ -1,0 +1,7 @@
+## 2024-05-19 - Optimization Strategy
+**Learning:** In `src/concourse/cache.rs`, `LruCache::get` and `TtlCache::get` return shared references, requiring `.clone()` for ownership. However, allocations can be reduced by moving `cache_key` into `put()` calls instead of cloning them when they are no longer needed. Performance in `src/concourse/cache.rs:get_embedding` is optimized by reusing the existing serialized `entry.value` from the TTL cache for LRU promotion on a hit, bypassing redundant `bincode::serialize` cycles and associated heap allocations.
+**Action:** Review cache methods to eliminate redundant clones of `cache_key`.
+
+## 2024-05-20 - Top-K Performance Optimization
+**Learning:** When extracting Top-K nearest neighbors from vectors (e.g., in `src/memory.rs` and `src/concourse/function/mod.rs`), avoid O(N log N) full sorting (`sort_by`). Instead, use the partial sort `select_nth_unstable_by` (O(N)) followed by `.truncate(k)`. If strictly sorted order is needed by the caller, applying `.sort_unstable_by()` on the truncated slice yields a much more efficient O(N + K log K) complexity. This codebase pattern significantly improves nearest neighbor searches over large sets of points.
+**Action:** Always replace `sort_by` combined with `.take(k)` on vectors with `select_nth_unstable_by` and `.truncate(k)` when extracting Top-K items, applying a secondary sort only if the consumer demands it.
