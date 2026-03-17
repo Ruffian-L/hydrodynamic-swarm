@@ -271,8 +271,6 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            // Performance optimization: reuse the existing serialized bytes for promotion
-            // instead of calling bincode::serialize again. Move cache_key directly.
             self.lru_cache.write().unwrap().put(
                 cache_key,
                 entry.value.clone(),
@@ -323,7 +321,7 @@ impl CacheManager {
             let val = entry.value.clone();
             self.lru_cache.write().unwrap().put(
                 cache_key,
-                val.clone(),
+                entry.value.clone(),
                 entry.ttl_seconds,
             );
             return Ok(Some(val));
