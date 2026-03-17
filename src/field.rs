@@ -104,6 +104,73 @@ impl ContinuousField {
         })
     }
 
+    /// Build the field directly from a model's token embedding matrix.
+    /// This is the preferred path: no external files, guaranteed alignment
+    /// with the actual model, and no risk of all-zero placeholder data.
+    ///
+    /// `embeddings` should be shape (vocab_size, hidden_dim) -- the raw
+    /// `tok_embeddings` tensor from the loaded ModelWeights.
+    pub fn from_embeddings(embeddings: &Tensor, device: &Device) -> Result<Self> {
+        let positions = embeddings.to_dtype(DType::F32)?.to_device(device)?;
+        let dim = positions.dim(positions.dims().len() - 1)?;
+        let n = positions.dim(0)?;
+
+        println!("    Building Diderot field from model tok_embeddings...");
+        println!("    Shape: {} tokens x {} dims", n, dim);
+
+        // Auto-tune sigma from sampled pairwise distances
+        let sigma = if n >= 2 {
+            let n_pairs = 200usize.min(n * (n - 1) / 2);
+            let mut total_dist = 0.0f64;
+            let mut rng = 42u64; // deterministic LCG
+            for _ in 0..n_pairs {
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let i = (rng >> 33) as usize % n;
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let mut j = (rng >> 33) as usize % (n - 1);
+                if j >= i {
+                    j += 1;
+                }
+                let pi = positions.get(i)?;
+                let pj = positions.get(j)?;
+                let diff = (&pi - &pj)?;
+                let dist: f32 = diff.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
+                total_dist += dist as f64;
+            }
+            let mean_dist = (total_dist / n_pairs as f64) as f32;
+            let s = if mean_dist > 1.0 {
+                mean_dist * 0.5
+            } else {
+                // L2-normalized embeddings: typical dist ~ sqrt(2)
+                // Fallback for degenerate data
+                (dim as f32).sqrt() * 0.035
+            };
+            println!(
+                "    Sigma auto-tuned: mean_dist={:.2}, sigma={:.4}",
+                mean_dist, s
+            );
+            s
+        } else {
+            (dim as f32).sqrt() * 0.035
+        };
+
+        println!(
+            "    Field LIVE: {} points x {} dims | sigma = {:.4}",
+            n, dim, sigma
+        );
+
+        Ok(Self {
+            positions,
+            device: device.clone(),
+            kernel_sigma: sigma,
+            dim,
+        })
+    }
+
     /// Load dummy random embeddings (for testing).
     #[allow(dead_code)]
     pub fn load_dummy(dim: usize, n_points: usize, device: &Device) -> Result<Self> {

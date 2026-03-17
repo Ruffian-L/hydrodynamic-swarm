@@ -1,3 +1,5 @@
+Below is config for Jules
+
 # Jules Agent Configuration -- Repo Groundskeeper
 
 ## Identity

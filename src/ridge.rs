@@ -219,3 +219,56 @@ pub struct RunStats {
     pub final_speed: f32,
     pub final_density: f32,
 }
+
+/// Vietoris-Rips H1 reflex check.
+///
+/// Given a sliding window of recent positions (hidden states), checks all
+/// triples for zero-persistence H1: a 1-cycle that is born and immediately
+/// killed when the 2-simplex appears at the same filtration radius.
+///
+/// Detection: for a triple (a, b, c) with sorted edge lengths d0 <= d1 <= d2,
+/// an H1 cycle is born at radius d1 (when the last of the first two edges
+/// appears) and killed at d2 (when the third edge + 2-simplex appear).
+/// Persistence = d2 - d1.  Zero-persistence ≈ d2/d1 close to 1.
+///
+/// Returns true if any triple has persistence ratio < `threshold` (e.g. 1.05).
+pub fn check_vr_h1_reflex(positions: &[Tensor], threshold: f32) -> Result<bool> {
+    let n = positions.len();
+    if n < 3 {
+        return Ok(false);
+    }
+
+    let start = n.saturating_sub(8);
+    for i in start..n {
+        for j in (i + 1)..n {
+            for k in (j + 1)..n {
+                let d01: f32 = (&positions[i] - &positions[j])?
+                    .sqr()?
+                    .sum_all()?
+                    .to_scalar::<f32>()?
+                    .sqrt();
+                let d02: f32 = (&positions[i] - &positions[k])?
+                    .sqr()?
+                    .sum_all()?
+                    .to_scalar::<f32>()?
+                    .sqrt();
+                let d12: f32 = (&positions[j] - &positions[k])?
+                    .sqr()?
+                    .sum_all()?
+                    .to_scalar::<f32>()?
+                    .sqrt();
+
+                let mut edges = [d01, d02, d12];
+                edges.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+                let d_mid = edges[1];
+                let d_max = edges[2];
+
+                if d_mid > 1e-8 && d_max / d_mid < threshold {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
