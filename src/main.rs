@@ -3,10 +3,14 @@
 //! Full Llama 3.1 + Niodoo physics steering with real tokenization.
 //! Type a prompt → physics steers generation → decoded text output.
 
+#[allow(dead_code, unused_imports, unused_variables)]
+mod concourse;
 mod config;
 mod dream;
 mod field;
+mod gemma;
 mod gpu;
+mod llama;
 mod logger;
 mod memory;
 mod niodoo;
@@ -14,13 +18,13 @@ mod ridge;
 mod splat;
 mod tui;
 mod viz;
-mod viz_metal;
+// mod viz_metal; // removed: XSS-vulnerable HTML viewer (security audit 2026-03-07)
 
 use anyhow::Result;
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
-use candle_transformers::models::quantized_llama::ModelWeights;
-use dream::{micro_dream, DreamEngine};
+use config::Config;
+use dream::micro_dream;
 use field::ContinuousField;
 use logger::{SessionConfig, SessionLogger, SessionSummary, StepEntry};
 use memory::SplatMemory;
@@ -32,8 +36,67 @@ use std::path::Path;
 use tokenizers::Tokenizer;
 use viz::VizCollector;
 
-fn main() -> Result<()> {
+// ═══════════════════════════════════════════════════════════════════════════════
+// Model: dispatch enum wrapping Llama and Gemma for physics steering
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Unified model interface for the Niodoo physics engine.
+/// Both variants expose the same 4 methods used by the generation loop.
+enum Model {
+    Llama(llama::ModelWeights),
+    Gemma(gemma::ModelWeights),
+}
+
+impl Model {
+    fn forward(&mut self, tokens: &Tensor, index_pos: usize) -> candle_core::Result<Tensor> {
+        match self {
+            Model::Llama(m) => m.forward(tokens, index_pos),
+            Model::Gemma(m) => m.forward(tokens, index_pos),
+        }
+    }
+
+    fn forward_with_hidden(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+    ) -> candle_core::Result<(Tensor, Tensor)> {
+        match self {
+            Model::Llama(m) => m.forward_with_hidden(tokens, index_pos),
+            Model::Gemma(m) => m.forward_with_hidden(tokens, index_pos),
+        }
+    }
+
+    fn project_to_logits(&self, hidden: &Tensor) -> candle_core::Result<Tensor> {
+        match self {
+            Model::Llama(m) => m.project_to_logits(hidden),
+            Model::Gemma(m) => m.project_to_logits(hidden),
+        }
+    }
+
+    fn token_embeddings(&self) -> &Tensor {
+        match self {
+            Model::Llama(m) => m.token_embeddings(),
+            Model::Gemma(m) => m.token_embeddings(),
+        }
+    }
+
+    fn variant_name(&self) -> &'static str {
+        match self {
+            Model::Llama(_) => "llama3.1",
+            Model::Gemma(_) => "gemma27b",
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
+
+    // Load configuration (falls back to defaults if no config.toml)
+    let cfg = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
+        eprintln!("    [CONFIG] {}, using defaults", e);
+        Config::default()
+    });
 
     // Parse CLI args
     let args: Vec<String> = std::env::args().collect();
@@ -41,64 +104,81 @@ fn main() -> Result<()> {
     let cli_prompt = args
         .iter()
         .position(|a| a == "--prompt")
-        .map(|i| args[i + 1].clone());
+        .and_then(|i| args.get(i + 1).cloned());
     let cli_model = args
         .iter()
         .position(|a| a == "--model")
-        .map(|i| args[i + 1].clone());
+        .and_then(|i| args.get(i + 1).cloned());
     let max_tokens: usize = args
         .iter()
         .position(|a| a == "--tokens")
-        .map(|i| args[i + 1].parse().unwrap_or(500))
-        .unwrap_or(500);
+        .and_then(|i| args.get(i + 1).and_then(|v| v.parse().ok()))
+        .unwrap_or(cfg.generation.max_tokens)
+        .min(50_000); // security: cap to prevent DoS-level resource exhaustion
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
 
-    // Use Metal GPU if available
-    let device = match Device::new_metal(0) {
-        Ok(d) => {
-            println!("[*] Using Metal GPU");
-            d
-        }
-        Err(_) => {
-            println!("[*] Metal not available, using CPU");
-            Device::Cpu
-        }
+    // Force full NVIDIA CUDA for all Candle ops + physics (post-upgrade)
+    let device = Device::new_cuda(0).expect("CUDA GPU required - nvidia-smi shows GB10. Fix: export CUDA_VISIBLE_DEVICES=0 && sudo apt install nvidia-cuda-toolkit");
+    println!("[*] Using CUDA GPU (forced - all tensors/physics on NVIDIA)");
+
+    // =========================================================
+    // Phase 1: Load Model (Llama or Gemma) + Tokenizer
+    // =========================================================
+    let use_gemma = cli_model.as_deref() == Some("gemma27b") || cli_model.as_deref() == Some("gemma");
+
+    let (mut model, model_path, tokenizer_path) = if use_gemma {
+        println!("\n--- Phase 1: Loading Gemma 3 27B + Tokenizer ---");
+        let gemma_path = find_file(
+            "data/google/gemma-3-27b-it-Q8_0.gguf",
+            "data/google/gemma-3-27b-it-q8_0.gguf",
+        )?;
+        println!("    Model: {}", gemma_path);
+
+        let mut file = std::fs::File::open(&gemma_path)?;
+        let mut reader = BufReader::new(&mut file);
+        let ct = gguf_file::Content::read(&mut reader)?;
+        let weights = gemma::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+        println!("    Gemma 3 27B loaded (hidden_dim={})", weights.hidden_dim);
+
+        let tok_path = find_file(
+            "data/google/tokenizer.json",
+            "data/google/tokenizer_gemma.json",
+        )?;
+
+        (Model::Gemma(weights), gemma_path, tok_path)
+    } else {
+        println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
+        let llama_path = find_file(
+            "data/bartowski/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+            "data/llama3.1/Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        )?;
+        println!("    Model: {}", llama_path);
+
+        let mut file = std::fs::File::open(&llama_path)?;
+        let mut reader = BufReader::new(&mut file);
+        let ct = gguf_file::Content::read(&mut reader)?;
+        let weights = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+        println!("    Llama 3.1 loaded");
+
+        let tok_path = find_file(
+            "data/bartowski/tokenizer_official.json",
+            "data/bartowski/tokenizer_nous.json",
+        )?;
+
+        (Model::Llama(weights), llama_path, tok_path)
     };
 
-    // =========================================================
-    // Phase 1: Load real 4096d embeddings (Diderot field)
-    // =========================================================
-    println!("\n--- Phase 1: Loading Real Embeddings ---");
-    let field = ContinuousField::load_real("data/universe_domain.safetensors", &device)?;
-    let dim = field.dim;
-
-    // =========================================================
-    // Phase 2: Load Llama 3.1 GGUF + Tokenizer
-    // =========================================================
-    println!("\n--- Phase 2: Loading Llama 3.1 + Tokenizer ---");
-
-    // Find GGUF model
-    let llama_path = find_file(
-        "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-    )?;
-    println!("    Model: {}", llama_path);
-
-    let mut file = std::fs::File::open(&llama_path)?;
-    let mut reader = BufReader::new(&mut file);
-    let ct = gguf_file::Content::read(&mut reader)?;
-    let mut llama = ModelWeights::from_gguf(ct, &mut reader, &device)?;
-    println!("    ✓ Llama 3.1 loaded");
-
-    // Find tokenizer
-    let tokenizer_path = find_file(
-        "data/tokenizer.json",
-        "/Users/j/Desktop/models/tokenizer.json",
-    )?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
-    println!("    ✓ Tokenizer loaded ({})", tokenizer_path);
+    println!("    Tokenizer loaded ({})", tokenizer_path);
+
+    // =========================================================
+    // Phase 2: Build live Diderot field from model embeddings
+    // =========================================================
+    println!("\n--- Phase 2: Building Diderot Field ---");
+    let field = ContinuousField::from_embeddings(model.token_embeddings(), &device)?;
+    let dim = field.dim;
 
     // =========================================================
     // Phase 3: Niodoo Engine
@@ -106,8 +186,27 @@ fn main() -> Result<()> {
     println!("\n--- Phase 3: Niodoo Steering Engine ---");
     let memory = SplatMemory::new(device.clone());
     let backend = gpu::select_backend();
-    let mut engine = NiodooEngine::new(field, memory, backend);
-    println!("    Engine ready (backend: {})", engine.backend_name());
+    let mut engine = NiodooEngine::new(
+        field,
+        memory,
+        backend,
+        cfg.physics.dt,
+        cfg.physics.viscosity_scale,
+        cfg.physics.force_cap,
+    );
+    if cfg.physics.gradient_topk > 0 {
+        engine.set_gradient_topk(cfg.physics.gradient_topk);
+        println!(
+            "    Engine ready (backend: {}, gradient Top-K: {})",
+            engine.backend_name(),
+            cfg.physics.gradient_topk
+        );
+    } else {
+        println!(
+            "    Engine ready (backend: {}, exact gradient)",
+            engine.backend_name()
+        );
+    }
 
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");
@@ -124,38 +223,53 @@ fn main() -> Result<()> {
     // Chat TUI mode (--chat)
     // =========================================================
     if chat_mode {
-        return tui::run_chat(
-            &mut llama,
-            &tokenizer,
-            &mut engine,
-            &device,
-            dim,
-            max_tokens,
-        );
+        // TUI is stub — extract inner Llama for now
+        if let Model::Llama(ref mut llama) = model {
+            return tui::run_chat(
+                llama,
+                &tokenizer,
+                &mut engine,
+                &device,
+                dim,
+                max_tokens,
+                &cfg,
+            );
+        } else {
+            eprintln!("    [TUI] Chat mode not yet supported for Gemma — use --prompt instead");
+            return Ok(());
+        }
     }
 
     // Initialize telemetry logger
-    let model_variant = cli_model.as_deref().unwrap_or("unsloth");
+    let model_variant = model.variant_name();
     let prompt = cli_prompt
         .as_deref()
-        .unwrap_or("Explain the Physics of Friendship in one paragraph.");
-    let test_label = format!("{}_v3-forcecap80_T0.9_s150_a2_d100", model_variant);
+        .unwrap_or(cfg.generation.default_prompt.as_str());
+    let test_label = format!(
+        "{}_v3-forcecap{}_T{}_s{}_a{}_d{}",
+        model_variant,
+        cfg.physics.force_cap as i32,
+        cfg.generation.temperature,
+        cfg.physics.splat_sigma as i32,
+        cfg.physics.splat_alpha as i32,
+        cfg.physics.min_splat_dist as i32,
+    );
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
     logger.log_config(SessionConfig {
         prompt: prompt.to_string(),
-        dt: 0.08,
-        viscosity: 0.6,
-        kernel_sigma: 2.24,
+        dt: cfg.physics.dt,
+        viscosity: cfg.physics.viscosity_scale,
+        kernel_sigma: engine.field_kernel_sigma(),
         embedding_dim: dim,
-        field_points: 128256,
-        model: "Llama-3.1-8B-Instruct-Q5_K_M".to_string(),
+        field_points: engine.field_n_points(),
+        model: model_path.clone(),
         model_variant: model_variant.to_string(),
         backend: engine.backend_name().to_string(),
-        splat_sigma: 35.0,
-        splat_alpha: 2.0,
-        force_cap: 80.0,
-        temperature: 0.9,
-        min_splat_dist: 100.0,
+        splat_sigma: cfg.physics.splat_sigma,
+        splat_alpha: cfg.physics.splat_alpha,
+        force_cap: cfg.physics.force_cap,
+        temperature: cfg.generation.temperature as f32,
+        min_splat_dist: cfg.physics.min_splat_dist,
     })?;
 
     // =========================================================
@@ -171,26 +285,40 @@ fn main() -> Result<()> {
     let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
     println!("    Prompt tokens: {} IDs", prompt_ids.len());
 
-    // Feed prompt through Llama (prefill) to get context-aware goal attractor
+    // Feed prompt through Llama (prefill)
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), &device)?.unsqueeze(0)?;
     println!("    Prefilling {} prompt tokens...", prompt_ids.len());
-    let prefill_logits = llama.forward(&prompt_tensor, 0)?;
+
+    // Use forward_with_hidden when steer_hidden is enabled
+    let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
+        let (logits, hidden) = model.forward_with_hidden(&prompt_tensor, 0)?;
+        (logits, Some(hidden))
+    } else {
+        let logits = model.forward(&prompt_tensor, 0)?;
+        (logits, None)
+    };
     let mut index_pos = prompt_ids.len();
 
-    // Goal attractor: first D logits from the prefill pass.
-    // This is the model's context-aware response to the prompt (in logit space),
-    // so Niodoo will steer generation toward what the model "naturally" wants to say.
-    // Much more meaningful than raw vocab mean which cancels to ~zero.
-    let goal_pos = if prefill_logits.dim(1)? >= dim {
-        prefill_logits.narrow(1, 0, dim)?.squeeze(0)? // (dim,)
+    // Goal attractor: from hidden state (steer_hidden) or logit space (fallback)
+    let goal_pos = if let Some(ref hidden) = prefill_hidden {
+        // Hidden state is already (1, D) -- squeeze to (D,)
+        let h = hidden.squeeze(0)?;
+        println!(
+            "    Goal attractor: from hidden state (D={}, steer_hidden=true)",
+            h.dim(0)?
+        );
+        h
     } else {
-        prefill_logits.squeeze(0)?
+        let g = if prefill_logits.dim(1)? >= dim {
+            prefill_logits.narrow(1, 0, dim)?.squeeze(0)?
+        } else {
+            prefill_logits.squeeze(0)?
+        };
+        println!("    Goal attractor: from logit space (steer_hidden=false)");
+        g
     };
     let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-    println!(
-        "    Goal attractor norm: {:.4} (context-aware, from prefill logits)",
-        goal_norm
-    );
+    println!("    Goal attractor norm: {:.4}", goal_norm);
 
     // Visualization collector (only when --viz is passed)
     let mut viz_collector: Option<VizCollector> = if viz_enabled {
@@ -205,14 +333,24 @@ fn main() -> Result<()> {
         None
     };
 
-    // Now start generating from prefill logits
+    // Now start generating from prefill
     let mut raw_logits = prefill_logits;
+    let mut raw_hidden: Option<Tensor> = prefill_hidden;
 
     // Collect generated tokens
     let mut generated_tokens: Vec<u32> = Vec::new();
 
     // Track last steered position for splat creation
     let mut last_steered_pos: Option<Tensor> = None;
+
+    // Sliding window of recent hidden states for VR H1 reflex
+    let mut recent_hidden: Vec<Tensor> = Vec::new();
+    let mut last_reflex_step: usize = 0;
+
+    // Full generation trajectory (real hidden states for dream replay)
+    // trajectory_masses: per-token weight (1 - prob) — surprise = high mass
+    let mut generation_trajectory: Vec<Tensor> = Vec::new();
+    let mut trajectory_masses: Vec<f32> = Vec::new();
 
     println!(
         "\n    === Generation ({} tokens, physics-steered) ===\n",
@@ -231,25 +369,76 @@ fn main() -> Result<()> {
 
     #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
-        // Steer the logits with Niodoo physics
-        let logit_slice = if raw_logits.dim(1)? >= dim {
-            raw_logits.narrow(1, 0, dim)?
+        // Steer: hidden state (steer_hidden=true) or logit slice (fallback)
+        let (steer_input, is_hidden_steer) = if cfg.physics.steer_hidden {
+            if let Some(ref h) = raw_hidden {
+                (h.clone(), true) // already (1, D) from forward_with_hidden
+            } else {
+                // Fallback if hidden state unavailable
+                let s = if raw_logits.dim(1)? >= dim {
+                    raw_logits.narrow(1, 0, dim)?
+                } else {
+                    raw_logits.clone()
+                };
+                (s, false)
+            }
         } else {
-            raw_logits.clone()
+            let s = if raw_logits.dim(1)? >= dim {
+                raw_logits.narrow(1, 0, dim)?
+            } else {
+                raw_logits.clone()
+            };
+            (s, false)
         };
 
         let SteerResult {
-            steered: steered_slice,
+            steered: mut steered_slice,
             grad_mag,
             splat_mag,
             goal_mag,
-        } = engine.steer(&logit_slice, &goal_pos, step)?;
+        } = engine.steer(&steer_input, &goal_pos, step)?;
+
+        // Manifold safety: blend steered state back toward baseline each step
+        // Prevents cumulative drift off the Llama manifold
+        if cfg.physics.manifold_pullback > 0.0 {
+            let pb = cfg.physics.manifold_pullback as f64;
+            steered_slice =
+                (&steered_slice.affine(1.0 - pb, 0.0)? + &steer_input.affine(pb, 0.0)?)?;
+        }
+
+        // Bundle stress: collective force from nearby splats (emergent fluid structure)
+        if engine.memory().len() > 3 {
+            let pos = steered_slice.squeeze(0)?;
+            let bundle = engine.memory().query_bundle_force(&pos, 8)?;
+            let bundle_2d = bundle.unsqueeze(0)?;
+            steered_slice = (&steered_slice + &bundle_2d.affine(0.01, 0.0)?)?;
+        }
+
         last_steered_pos = Some(steered_slice.clone());
 
-        // Micro-dream consolidation: adaptive frequency based on token entropy
-        // Runs when entropy is high (uncertain generation) or on fixed schedule
-        let steered_slice = if step > 10 {
-            // Estimate entropy from raw logits (cheap: first 1000 logits only)
+        // VR H1 reflex: track recent hidden states, check for zero-persistence cycles
+        // On detection: blend steered slice 30% back toward baseline (collapse correction)
+        if let Some(ref h) = raw_hidden {
+            let h_flat = h.squeeze(0)?;
+            recent_hidden.push(h_flat);
+            if recent_hidden.len() > 12 {
+                recent_hidden.remove(0);
+            }
+            if step > 50 && step % 100 == 0 && (step - last_reflex_step) >= 100 {
+                if let Ok(true) = ridge::check_vr_h1_reflex(&recent_hidden, 2.0) {
+                    last_reflex_step = step;
+                    steered_slice =
+                        (&steered_slice.affine(0.7, 0.0)? + &steer_input.affine(0.3, 0.0)?)?;
+                    println!(
+                        "    [REFLEX] step {} | VR H1 collapse -> corrective blend applied",
+                        step
+                    );
+                }
+            }
+        }
+
+        // === Micro-dream: entropy-adaptive steering consolidation ===
+        let steered_slice = if step > 12 {
             let raw_probs_slice = candle_nn::ops::softmax(&raw_logits, 1)?;
             let raw_probs_flat: Vec<f32> = raw_probs_slice.squeeze(0)?.to_vec1()?;
             let sample_n = raw_probs_flat.len().min(1000);
@@ -259,57 +448,49 @@ fn main() -> Result<()> {
                 .map(|p| -p * p.ln())
                 .sum();
 
-            let should_dream = (step % 25 == 0) || (entropy > 3.0 && step % 8 == 0);
-            if should_dream {
-                // Adaptive depth: higher entropy -> deeper projection
-                let dream_steps = if entropy > 4.0 {
-                    4
-                } else if entropy > 3.0 {
-                    3
-                } else {
-                    2
-                };
-                let blend = if entropy > 3.0 { 0.15 } else { 0.10 };
-                let result =
-                    micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
-                if step <= 15 || step % 10 == 0 {
-                    println!(
-                        "    [MICRO-DREAM] step {} | correction: {:.2} | entropy: {:.2} | depth: {}{}",
-                        step,
-                        result.correction_norm,
-                        entropy,
-                        dream_steps,
-                        if result.reflection_triggered {
-                            " ** HYDRAULIC JUMP **"
-                        } else {
-                            ""
-                        }
-                    );
-                }
-                if result.reflection_triggered {
-                    println!(
-                        "    [TOPO-COT] step {} | *recalibrating latent path* (correction: {:.2})",
-                        step, result.correction_norm
-                    );
-                }
-                result.consolidated
+            let dream_steps = if entropy > 4.0 { 4 } else if entropy > 3.0 { 3 } else { 2 };
+            let blend = if entropy > 2.5 { 0.12 } else { 0.07 };
+
+            let result = micro_dream(&engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
+            result.consolidated
+        } else {
+            steered_slice
+        };
+
+        // Reconstruct full logits for sampling
+        let steered_logits = if is_hidden_steer {
+            // Project steered hidden state through lm_head to get full vocab logits
+            model.project_to_logits(&steered_slice)?
+        } else {
+            // Logit-space steering: cat steered slice with remaining logits
+            if raw_logits.dim(1)? > dim {
+                let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
+                Tensor::cat(&[&steered_slice, &rest], 1)?
             } else {
                 steered_slice
             }
-        } else {
-            steered_slice
         };
 
-        // Reconstruct full logits
-        let steered_logits = if raw_logits.dim(1)? > dim {
-            let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
-            Tensor::cat(&[&steered_slice, &rest], 1)?
-        } else {
-            steered_slice
+        // Repetition penalty: penalize tokens already generated
+        let rep_penalty = cfg.generation.rep_penalty;
+        let steered_logits = {
+            let mut logits_vec: Vec<f32> = steered_logits.squeeze(0)?.to_vec1()?;
+            for &tid in prompt_ids.iter().chain(generated_tokens.iter()) {
+                if (tid as usize) < logits_vec.len() {
+                    let l = &mut logits_vec[tid as usize];
+                    if *l > 0.0 {
+                        *l /= rep_penalty;
+                    } else {
+                        *l *= rep_penalty;
+                    }
+                }
+            }
+            Tensor::from_vec(logits_vec, steered_logits.dim(1)?, steered_logits.device())?
+                .unsqueeze(0)?
         };
 
         // Temperature sampling -- softmax over scaled logits, then sample
-        let temperature: f64 = 0.9;
+        let temperature: f64 = cfg.generation.temperature;
         let scaled_logits = (&steered_logits / temperature)?;
         let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
         let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
@@ -330,25 +511,21 @@ fn main() -> Result<()> {
         let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
         // Online splat update -- multi-scale creation based on steering strength
-        if step > 5 && delta_norm > 12.0 {
+        if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
-                let too_close = engine.memory().has_nearby(&current_pos, 100.0)?;
+                let too_close = engine
+                    .memory()
+                    .has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
-                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
-                    let splat_sigma = if delta_norm > 30.0 {
-                        70.0 // coarse-grain for big jumps
-                    } else if delta_norm > 20.0 {
-                        50.0
-                    } else {
-                        35.0 // fine-grain for small corrections
-                    };
                     // Alpha proportional to steering delta (advantage signal)
                     let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
-                    engine.memory_mut().add_splat(Splat::new(
+                    // Multi-scale: large deltas get coarse sigma, small deltas get fine sigma
+                    engine.memory_mut().add_splat(Splat::with_scale(
                         current_pos,
-                        splat_sigma,
+                        cfg.physics.splat_sigma,
                         splat_alpha,
+                        delta_norm,
                     ));
                 }
             }
@@ -428,15 +605,31 @@ fn main() -> Result<()> {
         })?;
 
         // Stop on EOS tokens
-        if next_token == 128009 || next_token == 128001 {
+        if cfg.generation.eos_token_ids.contains(&next_token) {
             println!("    → EOS at step {}", step);
             break;
         }
 
         // Feed next token
         let next_input = Tensor::new(&[next_token], &device)?.unsqueeze(0)?;
-        raw_logits = llama.forward(&next_input, index_pos)?;
+        if cfg.physics.steer_hidden {
+            let (logits, hidden) = model.forward_with_hidden(&next_input, index_pos)?;
+            raw_logits = logits;
+            raw_hidden = Some(hidden);
+        } else {
+            raw_logits = model.forward(&next_input, index_pos)?;
+            raw_hidden = None;
+        }
         index_pos += 1;
+
+        // Collect hidden state for dream replay — AFTER forward pass so
+        // trajectory[N] = state that produced token[N] (correct alignment)
+        // Token mass: weight by surprise (low prob = high mass = stronger splat)
+        if let Some(ref h) = raw_hidden {
+            let mass = 1.0_f32 - probs_vec[next_token as usize].min(1.0);
+            generation_trajectory.push(h.squeeze(0)?);
+            trajectory_masses.push(mass);
+        }
     }
 
     // =========================================================
@@ -453,63 +646,111 @@ fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 5: Splat Scar Tissue ---");
     if let Some(final_pos) = last_steered_pos {
-        let pos_1d = final_pos.squeeze(0)?; // (1, D) -> (D,)
-        if generated_tokens.len() > 15 {
+        let pos_1d = final_pos.squeeze(0)?;
+        if generated_tokens.len() > cfg.generation.min_success_tokens {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 35.0, // sigma
-                1.8,  // positive scar (pleasure)
+                pos_1d,
+                cfg.physics.splat_sigma,
+                cfg.generation.pleasure_alpha,
             ));
             println!(
-                "    ✓ Added PLEASURE splat (generation succeeded: {} tokens)",
+                "    + Added PLEASURE splat (generation succeeded: {} tokens)",
                 generated_tokens.len()
             );
         } else {
             engine.memory_mut().add_splat(Splat::new(
-                pos_1d, 35.0, // sigma
-                -0.9, // negative scar (pain)
+                pos_1d,
+                cfg.physics.splat_sigma,
+                cfg.generation.pain_alpha,
             ));
             println!(
-                "    ✗ Added PAIN splat (generation too short: {} tokens)",
+                "    x Added PAIN splat (generation too short: {} tokens)",
                 generated_tokens.len()
             );
         }
         println!("    Splats in memory: {}", engine.memory().len());
     }
 
-    // Consolidate and cap splat memory before saving
-    let _ = engine.memory_mut().consolidate(80.0); // merge splats within L2 dist 80
-    engine.memory_mut().prune_to_limit(500); // cap at 500 strongest
+    // Evaporation: time-based decay + cull dead splats
+    engine.memory_mut().decay_step(cfg.memory.decay_rate);
+    let culled = engine.memory_mut().cull(cfg.memory.prune_threshold);
+    if culled > 0 {
+        println!("    [EVAPORATE] Culled {} dead splats", culled);
+    }
 
-    // Save persistent splat memory to disk (before dream decay wipes them)
-    engine.memory().save(splat_file)?;
-    engine
-        .memory()
-        .save_metadata(splat_file, prompt, logger.session_id())?;
+    // Consolidate and cap splat memory before saving
+    let _ = engine
+        .memory_mut()
+        .consolidate(cfg.memory.consolidation_dist);
+    engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
+
+    // TODO: re-enable splat persistence + museum once steering is stable
+    println!(
+        "    Splats in memory: {} (persistence disabled)",
+        engine.memory().len()
+    );
 
     // =========================================================
-    // Phase 6: Dream Replay
+    // Phase 6: Dream Replay (REAL — replays actual generation trajectory)
     // =========================================================
     println!("\n--- Phase 6: Dream Replay ---");
-    let dream_memory = SplatMemory::new(device.clone());
-    let mut dream = DreamEngine::new(dream_memory);
-    let traj = Tensor::randn(0.0f32, 1.0, (20, dim), &device)?;
-    dream.run(vec![traj], 0.05)?;
+    let splat_count_before = engine.memory().len();
+    if !generation_trajectory.is_empty() {
+        let traj_refs: Vec<&Tensor> = generation_trajectory.iter().collect();
+        let traj_stack = Tensor::stack(&traj_refs, 0)?;
+        let noise = Tensor::randn(0.0f32, 0.05, traj_stack.dims(), &device)?;
+        let noisy_traj = (&traj_stack + &noise)?;
+        let replay_bonus = 1.25_f32;
+        let masses_ref = if trajectory_masses.is_empty() {
+            None
+        } else {
+            Some(trajectory_masses.as_slice())
+        };
+        let replay_count = engine.memory_mut().consolidate_trajectory(
+            &noisy_traj,
+            cfg.physics.splat_sigma,
+            replay_bonus,
+            cfg.physics.min_splat_dist,
+            masses_ref,
+        )?;
+        let avg_mass = if trajectory_masses.is_empty() {
+            1.0
+        } else {
+            trajectory_masses.iter().sum::<f32>() / trajectory_masses.len() as f32
+        };
+        println!(
+            "    Dream replay: {} points -> {} splats (avg mass {:.3}, bonus {:.2})",
+            generation_trajectory.len(),
+            replay_count,
+            avg_mass,
+            replay_bonus,
+        );
+    } else {
+        println!("    No hidden trajectory collected (steer_hidden disabled?)");
+    }
+    engine.memory_mut().decay_step(cfg.memory.decay_rate);
+    println!(
+        "    Applied decay ({:.3}). Splats remaining: {}",
+        cfg.memory.decay_rate,
+        engine.memory().len(),
+    );
 
     // =========================================================
     // Summary
     // =========================================================
-    let splat_type = if generated_tokens.len() > 15 {
+    let splat_type = if generated_tokens.len() > cfg.generation.min_success_tokens {
         "pleasure"
     } else {
         "pain"
     };
+    let splat_count_after = engine.memory().len();
     logger.log_summary(SessionSummary {
         prompt: prompt.to_string(),
         prompt_token_count: prompt_ids.len(),
         generated_token_count: generated_tokens.len(),
         goal_attractor_norm: goal_norm,
-        splat_count_before: engine.memory().len(), // includes online splats from generation
-        splat_count_after: engine.memory().len(),
+        splat_count_before,
+        splat_count_after,
         splat_type_added: splat_type.to_string(),
         decoded_output: full_text.clone(),
         delta_min: 0.0, // filled by log_summary
@@ -520,11 +761,12 @@ fn main() -> Result<()> {
     println!("\n========================================");
     println!("  SplatRAG v1.1 -- OPERATIONAL");
     println!("========================================");
-    println!("  Model:    Llama 3.1 8B Instruct (Q5_K_M)");
+    println!("  Model:    {}", model_path);
     println!("  Variant:  {}", model_variant);
     println!("  Prompt:   \"{}\"", prompt);
     println!("  Tokens:   {} generated", generated_tokens.len());
     println!("  Log:      {}", logger.path().display());
+    println!("  TACO:     {}", logger.taco_stats());
     println!("  Backend:  {} + Niodoo physics", engine.backend_name());
     println!("========================================");
 
@@ -540,53 +782,11 @@ fn main() -> Result<()> {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let secs_per_day: u64 = 86400;
-        let days = now / secs_per_day;
-        let day_secs = now % secs_per_day;
+        let days = now / 86400;
+        let day_secs = now % 86400;
         let hours = day_secs / 3600;
         let minutes = (day_secs % 3600) / 60;
-        // Approximate date from Unix days
-        let mut y = 1970i64;
-        let mut remaining = days as i64;
-        loop {
-            let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
-                366
-            } else {
-                365
-            };
-            if remaining < days_in_year {
-                break;
-            }
-            remaining -= days_in_year;
-            y += 1;
-        }
-        let month_days = [
-            31,
-            if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
-                29
-            } else {
-                28
-            },
-            31,
-            30,
-            31,
-            30,
-            31,
-            31,
-            30,
-            31,
-            30,
-            31,
-        ];
-        let mut m = 1;
-        for md in &month_days {
-            if remaining < *md as i64 {
-                break;
-            }
-            remaining -= *md as i64;
-            m += 1;
-        }
-        let d = remaining + 1;
+        let (y, m, d) = logger::days_to_date(days);
         writeln!(
             f,
             "=== Run: {}-{:02}-{:02} {:02}:{:02} UTC ===",
@@ -608,16 +808,15 @@ fn main() -> Result<()> {
     }
 
     // =========================================================
-    // Visualization export + Metal window
+    // Visualization export (JSON only — HTML viewer removed)
     // =========================================================
-    if let Some(collector) = viz_collector {
+    if let Some(mut collector) = viz_collector {
+        // Load real splat scar data from engine memory
+        collector.load_splats(engine.memory());
+
         // Export JSON snapshot data
         let viz_path = logger.path().with_extension("viz.json");
         let _ = collector.export_json(&viz_path);
-
-        // Launch Metal 3D window (does not return on macOS)
-        let render_data = collector.into_render_data();
-        viz_metal::launch(render_data);
     }
 
     Ok(())

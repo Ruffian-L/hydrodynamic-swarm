@@ -22,7 +22,13 @@ pub struct TokenNeighbor {
     pub token_text: String,
     /// Softmax probability from the model (used for sizing/labeling, not projection).
     pub probability: f32,
+    #[serde(skip_serializing_if = "is_zero_position")]
     pub position_3d: [f32; 3],
+}
+
+/// Returns true if a 3D position is all-zero (degenerate projection).
+fn is_zero_position(pos: &[f32; 3]) -> bool {
+    pos[0] == 0.0 && pos[1] == 0.0 && pos[2] == 0.0
 }
 
 /// Per-step visualization snapshot.
@@ -55,28 +61,6 @@ pub struct VizSession {
     pub goal_position_3d: [f32; 3],
 }
 
-/// Lightweight render data passed to the Metal window.
-pub struct VizRenderData {
-    pub field_points_3d: Vec<[f32; 3]>,
-    pub trajectory_3d: Vec<[f32; 3]>,
-    pub trajectory_deltas: Vec<f32>,
-    pub trajectory_tokens: Vec<String>,
-    pub splat_positions_3d: Vec<[f32; 3]>,
-    pub splat_alphas: Vec<f32>,
-    pub goal_position_3d: [f32; 3],
-    pub prompt: String,
-    /// Per-step neighbor data: Vec of (step_index, neighbors)
-    pub step_neighbors: Vec<Vec<StepNeighbor>>,
-    /// Ridge ghost trail (predicted path from ridge runner)
-    pub ridge_ghost: Vec<[f32; 3]>,
-}
-
-/// Neighbor data for a single step, ready for rendering.
-pub struct StepNeighbor {
-    pub token_text: String,
-    pub probability: f32,
-    pub position_3d: [f32; 3],
-}
 
 // ---------------------------------------------------------------
 // Collector
@@ -96,6 +80,8 @@ pub struct VizCollector {
     prompt: String,
     /// Ridge ghost trail points (projected to 3D)
     ridge_ghost: Vec<[f32; 3]>,
+    /// Cached splat scar data: (position_3d, alpha, sigma)
+    splat_scars_cache: Vec<([f32; 3], f32, f32)>,
 }
 
 impl VizCollector {
@@ -171,6 +157,7 @@ impl VizCollector {
             goal_3d,
             prompt: prompt.to_string(),
             ridge_ghost: Vec::new(),
+            splat_scars_cache: Vec::new(),
         })
     }
 
@@ -230,6 +217,18 @@ impl VizCollector {
             .collect();
     }
 
+    /// Load splat scar data from real memory, projecting positions to 3D.
+    pub fn load_splats(&mut self, memory: &crate::memory::SplatMemory) {
+        self.splat_scars_cache.clear();
+        for splat in memory.splats_ref() {
+            if let Ok(flat) = splat.mu.flatten_all().and_then(|t| t.to_vec1::<f32>()) {
+                let pos_3d = project_vec(&flat, &self.projection, self.dim);
+                self.splat_scars_cache
+                    .push((pos_3d, splat.alpha, splat.sigma));
+            }
+        }
+    }
+
     /// Export all collected data to a JSON file.
     /// Detects degenerate all-zero field_points_3d and omits them with a warning.
     pub fn export_json(&self, path: &Path) -> anyhow::Result<()> {
@@ -256,11 +255,19 @@ impl VizCollector {
             } else {
                 self.field_points_3d.clone()
             },
-            splat_scars: Vec::new(),
+            splat_scars: self
+                .splat_scars_cache
+                .iter()
+                .map(|&(pos, alpha, sigma)| VizSplat {
+                    position_3d: pos,
+                    alpha,
+                    sigma,
+                })
+                .collect(),
             goal_position_3d: self.goal_3d,
         };
 
-        let json = serde_json::to_string(&session)?;
+        let json = serde_json::to_string_pretty(&session)?;
         std::fs::write(path, json)?;
         println!(
             "    [VIZ] Exported {} snapshots to {}",
@@ -270,45 +277,6 @@ impl VizCollector {
         Ok(())
     }
 
-    /// Convert into render data for the Metal window.
-    pub fn into_render_data(self) -> VizRenderData {
-        let trajectory_3d: Vec<[f32; 3]> = self.snapshots.iter().map(|s| s.position_3d).collect();
-        let trajectory_deltas: Vec<f32> = self.snapshots.iter().map(|s| s.steering_delta).collect();
-        let trajectory_tokens: Vec<String> = self
-            .snapshots
-            .iter()
-            .map(|s| s.token_text.clone())
-            .collect();
-
-        // Collect per-step neighbor data for rendering
-        let step_neighbors: Vec<Vec<StepNeighbor>> = self
-            .snapshots
-            .iter()
-            .map(|s| {
-                s.neighbors
-                    .iter()
-                    .map(|n| StepNeighbor {
-                        token_text: n.token_text.clone(),
-                        probability: n.probability,
-                        position_3d: n.position_3d,
-                    })
-                    .collect()
-            })
-            .collect();
-
-        VizRenderData {
-            field_points_3d: self.field_points_3d,
-            trajectory_3d,
-            trajectory_deltas,
-            trajectory_tokens,
-            splat_positions_3d: Vec::new(),
-            splat_alphas: Vec::new(),
-            goal_position_3d: self.goal_3d,
-            prompt: self.prompt,
-            step_neighbors,
-            ridge_ghost: self.ridge_ghost,
-        }
-    }
 
     /// Number of snapshots collected so far.
     #[allow(dead_code)]
