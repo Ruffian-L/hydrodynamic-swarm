@@ -61,7 +61,6 @@ pub struct VizSession {
     pub goal_position_3d: [f32; 3],
 }
 
-
 // ---------------------------------------------------------------
 // Collector
 // ---------------------------------------------------------------
@@ -276,7 +275,6 @@ impl VizCollector {
         );
         Ok(())
     }
-
 
     /// Number of snapshots collected so far.
     #[allow(dead_code)]
