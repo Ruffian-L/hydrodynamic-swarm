@@ -262,15 +262,13 @@ impl ModelWeights {
                 .unwrap_or(default)
         };
 
-        let n_head =
-            get_u32("gemma3.attention.head_count", "llama.attention.head_count")? as usize;
+        let n_head = get_u32("gemma3.attention.head_count", "llama.attention.head_count")? as usize;
         let n_kv_head = get_u32(
             "gemma3.attention.head_count_kv",
             "llama.attention.head_count_kv",
         )? as usize;
         let block_count = get_u32("gemma3.block_count", "llama.block_count")? as usize;
-        let hidden_dim =
-            get_u32("gemma3.embedding_length", "llama.embedding_length")? as usize;
+        let hidden_dim = get_u32("gemma3.embedding_length", "llama.embedding_length")? as usize;
         let rms_eps = get_f32(
             "gemma3.attention.layer_norm_rms_epsilon",
             "llama.attention.layer_norm_rms_epsilon",
@@ -281,7 +279,8 @@ impl ModelWeights {
         // Gemma 3: head_dim is NOT hidden_dim/n_head (5376/32=168 is WRONG).
         // Read from GGUF metadata (attention.key_length) or infer from Q norm tensor.
         // Gemma 3 27B uses head_dim=128, Q output = n_head * 128 = 4096.
-        let head_dim = ct.metadata
+        let head_dim = ct
+            .metadata
             .get("gemma3.attention.key_length")
             .or_else(|| ct.metadata.get("llama.attention.key_length"))
             .and_then(|v| v.to_u32().ok())
@@ -306,10 +305,8 @@ impl ModelWeights {
         let tok_embd = tok_embd_q.dequantize(device)?;
 
         // ── Output norm ───────────────────────────────────────────────────────
-        let norm = RmsNorm::from_qtensor(
-            ct.tensor(reader, "output_norm.weight", device)?,
-            rms_eps,
-        )?;
+        let norm =
+            RmsNorm::from_qtensor(ct.tensor(reader, "output_norm.weight", device)?, rms_eps)?;
 
         // ── Output projection (may be tied to token embeddings) ───────────────
         let output = match ct.tensor(reader, "output.weight", device) {
@@ -333,26 +330,34 @@ impl ModelWeights {
                     ct.tensor(reader, &format!("{p}.attn_norm.weight"), device)?,
                     rms_eps,
                 )?,
-                attn_q: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.attn_q.weight"), device)?,
-                )?,
+                attn_q: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.attn_q.weight"),
+                    device,
+                )?)?,
                 attn_q_norm: RmsNorm::from_qtensor(
                     ct.tensor(reader, &format!("{p}.attn_q_norm.weight"), device)?,
                     rms_eps,
                 )?,
-                attn_k: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.attn_k.weight"), device)?,
-                )?,
+                attn_k: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.attn_k.weight"),
+                    device,
+                )?)?,
                 attn_k_norm: RmsNorm::from_qtensor(
                     ct.tensor(reader, &format!("{p}.attn_k_norm.weight"), device)?,
                     rms_eps,
                 )?,
-                attn_v: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.attn_v.weight"), device)?,
-                )?,
-                attn_out: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.attn_output.weight"), device)?,
-                )?,
+                attn_v: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.attn_v.weight"),
+                    device,
+                )?)?,
+                attn_out: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.attn_output.weight"),
+                    device,
+                )?)?,
                 post_attn_norm: RmsNorm::from_qtensor(
                     ct.tensor(reader, &format!("{p}.post_attention_norm.weight"), device)?,
                     rms_eps,
@@ -361,15 +366,21 @@ impl ModelWeights {
                     ct.tensor(reader, &format!("{p}.ffn_norm.weight"), device)?,
                     rms_eps,
                 )?,
-                ffn_gate: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.ffn_gate.weight"), device)?,
-                )?,
-                ffn_up: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.ffn_up.weight"), device)?,
-                )?,
-                ffn_down: QMatMul::from_qtensor(
-                    ct.tensor(reader, &format!("{p}.ffn_down.weight"), device)?,
-                )?,
+                ffn_gate: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.ffn_gate.weight"),
+                    device,
+                )?)?,
+                ffn_up: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.ffn_up.weight"),
+                    device,
+                )?)?,
+                ffn_down: QMatMul::from_qtensor(ct.tensor(
+                    reader,
+                    &format!("{p}.ffn_down.weight"),
+                    device,
+                )?)?,
                 post_ffn_norm: RmsNorm::from_qtensor(
                     ct.tensor(reader, &format!("{p}.post_ffw_norm.weight"), device)?,
                     rms_eps,
