@@ -7,11 +7,11 @@
 
 use std::collections::HashMap;
 
-use candle_transformers::quantized_nn::RmsNorm;
 use candle_core::quantized::QTensor;
 use candle_core::quantized::{ggml_file, gguf_file};
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Module};
+use candle_transformers::quantized_nn::RmsNorm;
 
 pub const MAX_SEQ_LEN: usize = 4096;
 
@@ -80,15 +80,23 @@ impl Module for MlpOrMoe {
                 let mut selected_rws = vec![vec![]; experts.len()];
                 for (row_idx, rw) in routing_weights.iter().enumerate() {
                     let mut dst = (0..rw.len() as u32).collect::<Vec<u32>>();
-                    dst.sort_by(|&i, &j| rw[j as usize].total_cmp(&rw[i as usize]));
+                    let take = (*n_expert_used).min(dst.len());
+                    if take > 0 {
+                        dst.select_nth_unstable_by(take - 1, |&i, &j| rw[j as usize].total_cmp(&rw[i as usize]));
+                        dst.truncate(take);
+                        // The order of selected experts does not affect correctness here
+                    } else {
+                        dst.truncate(0);
+                    }
+
                     let mut sum_routing_weights = 0f32;
-                    for &expert_idx in dst.iter().take(*n_expert_used) {
+                    for &expert_idx in dst.iter() {
                         let expert_idx = expert_idx as usize;
                         let routing_weight = rw[expert_idx];
                         sum_routing_weights += routing_weight;
                         top_x[expert_idx].push(row_idx as u32);
                     }
-                    for &expert_idx in dst.iter().take(*n_expert_used) {
+                    for &expert_idx in dst.iter() {
                         let expert_idx = expert_idx as usize;
                         let routing_weight = rw[expert_idx];
                         selected_rws[expert_idx].push(routing_weight / sum_routing_weights)
@@ -205,23 +213,19 @@ impl LayerWeights {
         };
         self.kv_cache = Some((k.clone(), v.clone()));
 
-        let y = if q.device().is_metal() && seq_len == 1 {
-            candle_nn::ops::sdpa(&q, &k, &v, 1. / (self.head_dim as f32).sqrt(), 1.)?
-        } else {
-            let k = repeat_kv(k, self.n_head / self.n_kv_head)?;
-            let v = repeat_kv(v, self.n_head / self.n_kv_head)?;
+        let k = repeat_kv(k, self.n_head / self.n_kv_head)?;
+        let v = repeat_kv(v, self.n_head / self.n_kv_head)?;
 
-            let att = (q.matmul(&k.t()?)? / (self.head_dim as f64).sqrt())?;
-            let att = match mask {
-                None => att,
-                Some(mask) => {
-                    let mask = mask.broadcast_as(att.shape())?;
-                    masked_fill(&att, &mask, &self.neg_inf)?
-                }
-            };
-            let att = candle_nn::ops::softmax_last_dim(&att)?;
-            att.matmul(&v.contiguous()?)?
+        let att = (q.matmul(&k.t()?)? / (self.head_dim as f64).sqrt())?;
+        let att = match mask {
+            None => att,
+            Some(mask) => {
+                let mask = mask.broadcast_as(att.shape())?;
+                masked_fill(&att, &mask, &self.neg_inf)?
+            }
         };
+        let att = candle_nn::ops::softmax_last_dim(&att)?;
+        let y = att.matmul(&v.contiguous()?)?;
 
         let y = y.transpose(1, 2)?.reshape(&[b_sz, seq_len, n_embd])?;
         let y = self.attention_wo.forward(&y)?;

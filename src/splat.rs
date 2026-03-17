@@ -62,6 +62,12 @@ pub struct Splat {
     pub scale: SplatScale,
     /// Anchor splat: core fact, lambda forced to 0.
     pub is_anchor: bool,
+    /// Flux: positive energy from resonance (LivingCell port)
+    pub flux: f32,
+    /// Friction: dimensional erosion factor from MRL
+    pub friction: f32,
+    /// Current active dimension after MRL truncation
+    pub current_dim: usize,
 }
 
 impl Splat {
@@ -75,6 +81,9 @@ impl Splat {
             created_at: now_secs(),
             scale: SplatScale::Fine,
             is_anchor: false,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 
@@ -95,6 +104,9 @@ impl Splat {
             created_at: now_secs(),
             scale,
             is_anchor: false,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 
@@ -108,6 +120,9 @@ impl Splat {
             created_at: now_secs(),
             scale: SplatScale::Coarse,
             is_anchor: true,
+            flux: 0.5,
+            friction: 0.0,
+            current_dim: 4096,
         }
     }
 }
@@ -118,4 +133,72 @@ fn now_secs() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::{Device, Tensor};
+
+    #[test]
+    fn test_splat_scale_from_u8() {
+        assert_eq!(SplatScale::from_u8(0), SplatScale::Fine);
+        assert_eq!(SplatScale::from_u8(1), SplatScale::Medium);
+        assert_eq!(SplatScale::from_u8(2), SplatScale::Coarse);
+        assert_eq!(SplatScale::from_u8(100), SplatScale::Coarse);
+    }
+
+    #[test]
+    fn test_splat_scale_sigma_multiplier() {
+        assert_eq!(SplatScale::Fine.sigma_multiplier(), 1.0);
+        assert_eq!(SplatScale::Medium.sigma_multiplier(), 2.0);
+        assert_eq!(SplatScale::Coarse.sigma_multiplier(), 4.0);
+    }
+
+    #[test]
+    fn test_splat_new() {
+        let device = Device::Cpu;
+        let mu = Tensor::zeros(&[4], candle_core::DType::F32, &device).unwrap();
+        let splat = Splat::new(mu, 1.0, 0.5);
+
+        assert_eq!(splat.sigma, 1.0);
+        assert_eq!(splat.alpha, 0.5);
+        assert_eq!(splat.lambda, 0.02);
+        assert_eq!(splat.scale, SplatScale::Fine);
+        assert!(!splat.is_anchor);
+    }
+
+    #[test]
+    fn test_splat_anchor() {
+        let device = Device::Cpu;
+        let mu = Tensor::zeros(&[4], candle_core::DType::F32, &device).unwrap();
+        let splat = Splat::anchor(mu, 1.0, 0.5);
+
+        assert_eq!(splat.sigma, 1.0);
+        assert_eq!(splat.alpha, 0.5);
+        assert_eq!(splat.lambda, 0.0);
+        assert_eq!(splat.scale, SplatScale::Coarse);
+        assert!(splat.is_anchor);
+    }
+
+    #[test]
+    fn test_splat_with_scale() {
+        let device = Device::Cpu;
+        let mu = Tensor::zeros(&[4], candle_core::DType::F32, &device).unwrap();
+
+        // Fine: delta_norm <= 20.0
+        let splat_fine = Splat::with_scale(mu.clone(), 1.0, 0.5, 10.0);
+        assert_eq!(splat_fine.scale, SplatScale::Fine);
+        assert_eq!(splat_fine.sigma, 1.0);
+
+        // Medium: 20.0 < delta_norm <= 30.0
+        let splat_medium = Splat::with_scale(mu.clone(), 1.0, 0.5, 25.0);
+        assert_eq!(splat_medium.scale, SplatScale::Medium);
+        assert_eq!(splat_medium.sigma, 2.0);
+
+        // Coarse: delta_norm > 30.0
+        let splat_coarse = Splat::with_scale(mu, 1.0, 0.5, 35.0);
+        assert_eq!(splat_coarse.scale, SplatScale::Coarse);
+        assert_eq!(splat_coarse.sigma, 4.0);
+    }
 }

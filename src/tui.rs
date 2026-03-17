@@ -4,9 +4,9 @@
 //! Shows a styled prompt, takes user input, runs physics-steered generation
 //! with live token streaming, then exits.
 
+use crate::llama::ModelWeights;
 use anyhow::Result;
 use candle_core::Tensor;
-use crate::llama::ModelWeights;
 use std::io::{self, Write};
 use tokenizers::Tokenizer;
 
@@ -74,12 +74,20 @@ pub fn run_chat(
 
     println!("  {DIM}{GRAY}{} tokens{RESET}", prompt_ids.len());
 
-    // Prefill
+    // Prefill (respects steer_hidden config like main.rs)
     let prompt_tensor = Tensor::new(prompt_ids.as_slice(), device)?.unsqueeze(0)?;
-    let prefill_logits = llama.forward(&prompt_tensor, 0)?;
+    let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
+        let (logits, hidden) = llama.forward_with_hidden(&prompt_tensor, 0)?;
+        (logits, Some(hidden))
+    } else {
+        let logits = llama.forward(&prompt_tensor, 0)?;
+        (logits, None)
+    };
 
     // Goal attractor from prefill
-    let goal_pos = if prefill_logits.dim(1)? >= dim {
+    let goal_pos = if let Some(ref hidden) = prefill_hidden {
+        hidden.squeeze(0)?
+    } else if prefill_logits.dim(1)? >= dim {
         prefill_logits.narrow(1, 0, dim)?.squeeze(0)?
     } else {
         prefill_logits.squeeze(0)?
@@ -99,7 +107,6 @@ pub fn run_chat(
     let mut last_steered_pos: Option<Tensor> = None;
     #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
-
         // Physics steering
         let raw_slice = raw_logits.narrow(1, 0, dim)?;
         let steer_result = engine.steer(&raw_slice, &goal_pos, step)?;
@@ -118,7 +125,8 @@ pub fn run_chat(
                 .sum();
 
             let should_dream = (step % cfg.micro_dream.fixed_interval == 0)
-                || (entropy > cfg.micro_dream.entropy_threshold && step % cfg.micro_dream.adaptive_interval == 0);
+                || (entropy > cfg.micro_dream.entropy_threshold
+                    && step % cfg.micro_dream.adaptive_interval == 0);
             if should_dream {
                 let dream_steps = if entropy > 4.0 {
                     4
@@ -176,7 +184,9 @@ pub fn run_chat(
         if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
             if let Some(ref pos) = last_steered_pos {
                 let current_pos = pos.squeeze(0)?;
-                let too_close = engine.memory().has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
+                let too_close = engine
+                    .memory()
+                    .has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
                 if !too_close {
                     let splat_sigma = if delta_norm > 30.0 {
                         70.0

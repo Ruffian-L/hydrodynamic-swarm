@@ -15,7 +15,10 @@
 | 2026-03-01 | 6e2a2fb54469c91a48d5d71bfc62dfe752cf4285 | feat: splat force telemetry + Crucible eval suite + TopoCoT dream correction |
 | 2026-03-02 | 036047f206d588063d91bde9d4c3f2e1d446a4f7 | fix: mark JSONL as binary to prevent prompt overflow in jules-action |
 | 2026-03-02 | e9da63232d9513d4f4eb0cfc1ad4cca97ac4fc1b | fix: defensive hardening across 6 modules |
+| 2026-03-02 | 06a9c1386e7d76049e63d8e7e779d9e5ba259d5d | docs(roadmap): add Architect's Bridge embedding steering concept to Phase 2.3 |
 | 2026-03-02 | dba5d58bf38b7c13f046d9f01edab1ebf6ebe0a1 | feat: splatlens viz polish, settings panel, chat TUI, perf fixes |
+| 2026-03-03 | f2f0723dc0778dbef62caa90f71c34b0187413c5 | feat: add gradient Top-K approximation for field probing |
+| 2026-03-03 | b5770e0ac5159435a6249a710c75f49c9fd0ef6b | feat: wire up config.rs, add Memory Museum CLI, replace all hardcoded constants |
 | 2026-03-03 | bd6d213efc104eca649e427caf6cfcd996bb1429 | fix: correct force cap mismatch (80->35) and TUI generation loop off-by-one |
 | 2026-03-03 | d7f194e32a4373723a15f1353158c89421afe0f9 | feat: vendor quantized_llama, add hidden-state steering (Phase 2.1) |
 | 2026-03-03 | ab40b6c1fdefd6b72843d8e396b872a85f4c9479 | fix: resolve 3D hidden-state shape bug, rewrite crucible runner |
