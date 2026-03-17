@@ -296,13 +296,11 @@ impl ContinuousField {
             a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // Gather only the K nearest positions
-        let topk_indices: Vec<usize> = indexed[..k].iter().map(|&(i, _)| i).collect();
-        let topk_rows: Vec<Tensor> = topk_indices
-            .iter()
-            .map(|&i| self.positions.get(i).and_then(|r| r.unsqueeze(0)))
-            .collect::<Result<Vec<_>>>()?;
-        let topk_positions = Tensor::cat(&topk_rows, 0)?;
+        // ⚡ Bolt: gather only the K nearest positions efficiently using index_select
+        // to avoid intermediate allocations and host-device synchronization
+        let topk_indices: Vec<u32> = indexed[..k].iter().map(|&(i, _)| i as u32).collect();
+        let indices_tensor = Tensor::from_vec(topk_indices, (k,), self.positions.device())?;
+        let topk_positions = self.positions.index_select(&indices_tensor, 0)?;
 
         // Standard gradient computation on just the K nearest
         let diff = topk_positions.broadcast_sub(&pos_expanded)?;
