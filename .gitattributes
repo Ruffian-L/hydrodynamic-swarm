@@ -1,3 +1,14 @@
 # Treat JSONL log files as binary so git show/diff doesn't dump their full content.
 # Jules can still read these files from the repo -- they just won't bloat the diff.
 *.jsonl binary
+
+# Git LFS for experiment logs and visualization data (prevent repo bloat)
+logs/*.jsonl filter=lfs diff=lfs merge=lfs -text
+logs/*.viz.json filter=lfs diff=lfs merge=lfs -text
+logs/*.txt filter=lfs diff=lfs merge=lfs -text
+logs/crucible_*.txt filter=lfs diff=lfs merge=lfs -text
+
+# Git LFS for model files and weights
+*.gguf filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
+*.safetensors filter=lfs diff=lfs merge=lfs -text
