@@ -313,9 +313,9 @@ impl TacoDb {
     /// Log a step entry to TACO DB
     pub fn log_step(&self, session_id: &str, step: &StepEntry) -> SqlResult<usize> {
         self.conn.execute(
-            "INSERT INTO taco_entries (session_id, entry_type, token_id, token_text, steering_delta, residual_norm, data) 
+            "INSERT INTO taco_entries (session_id, entry_type, token_id, token_text, steering_delta, residual_norm, data)
              VALUES (?1, 'step', ?2, ?3, ?4, ?5, ?6)",
-            params![session_id, step.token_id, step.token_text, step.steering_delta, step.residual_norm, 
+            params![session_id, step.token_id, step.token_text, step.steering_delta, step.residual_norm,
                    format!("grad_force:{} splat_force:{}", step.grad_force_mag, step.splat_force_mag)],
         )
     }
@@ -327,7 +327,7 @@ impl TacoDb {
         limit: usize,
     ) -> SqlResult<Vec<(usize, String, f32)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT token_id, token_text, steering_delta FROM taco_entries 
+            "SELECT token_id, token_text, steering_delta FROM taco_entries
              WHERE session_id = ?1 AND entry_type = 'step' ORDER BY id DESC LIMIT ?2",
         )?;
         let rows = stmt.query_map(params![session_id, limit], |row| {
