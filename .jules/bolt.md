@@ -1,3 +1,3 @@
-## 2026-03-15 - Redundant heap allocations during LRU promotion in TTL Caching
-**Learning:** Found an anti-pattern in the caching layer (`src/concourse/cache.rs`) where TTL entries promoted to LRU cache were unnecessarily re-serializing data via `bincode::serialize` that was already serialized in `entry.value`.
-**Action:** Always reuse the existing serialized byte vectors (`entry.value.clone()`) and transfer ownership of strings (`cache_key`) directly when performing caching promotions across layers to avoid triggering new heap allocations.
+## 2026-03-17 - Fast Top-K Gathering via Tensor::index_select
+**Learning:** In `src/field.rs`'s `probe_gradient_topk`, iterating over `topk_indices`, extracting `self.positions.get(i).unsqueeze(0)`, and concatenating via `Tensor::cat` requires looping and N host-device synchronization operations. `index_select` minimizes this to a single tensor operation.
+**Action:** Always prefer `Tensor::index_select` with a 1D index tensor over loop concatenation for batch row retrieval. Create the 1D index tensor by converting the indices vec to a `u32` vector, and `Tensor::from_vec(indices, (len,), &device)`.
