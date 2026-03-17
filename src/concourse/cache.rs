@@ -299,7 +299,7 @@ impl CacheManager {
         );
 
         self.ttl_cache.write().unwrap().put(
-            cache_key,
+            cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             serialized,
             Some(3600), // 1 hour TTL for TTL cache
         );
