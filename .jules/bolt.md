@@ -5,3 +5,7 @@
 ## 2026-03-24 - Tensor Batch Retrieval Optimization
 **Learning:** In `candle_core`, looping with `Tensor::get().unsqueeze()` and `Tensor::cat()` for batch row retrieval causes significant performance degradation due to intermediate allocations and host-device syncs.
 **Action:** Always prefer `Tensor::index_select` with a 1D index tensor (converted to `u32` via `Tensor::from_vec(indices, (len,), device)`) for optimal batch row retrieval.
+
+## 2024-05-24 - Top-K Pruning Optimization
+**Learning:** When keeping only the top K elements (like in `prune_to_limit` for splats), using a full `sort_by` incurs O(N log N) complexity.
+**Action:** Always use the partial sort `select_nth_unstable_by(k - 1, ...)` (O(N)) followed by `.truncate(k)` when extracting Top-K elements from vectors where strict ordering of the kept elements is not required. Ensure `k > 0` before calling to avoid underflow panics.
