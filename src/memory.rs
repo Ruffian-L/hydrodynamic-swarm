@@ -386,9 +386,15 @@ impl SplatMemory {
         if self.splats.len() <= max_count {
             return;
         }
-        self.splats
-            .sort_by(|a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
+
+        // ⚡ Bolt Optimization: Use select_nth_unstable_by for O(N) Top-K partial sorting
+        // instead of O(N log N) full sorting, since we only need to keep the strongest N.
+        if max_count > 0 {
+            self.splats
+                .select_nth_unstable_by(max_count - 1, |a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
+        }
         self.splats.truncate(max_count);
+
         println!("    [PRUNE] Capped to {} strongest splats", max_count);
     }
 
