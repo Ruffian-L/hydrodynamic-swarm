@@ -227,12 +227,17 @@
       padding: 16px 20px;
       backdrop-filter: blur(14px);
       z-index: 11;
-      display: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: all 0.2s ease-out;
       min-width: 220px;
     }
 
     #settings-panel.open {
-      display: block
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
     }
 
     #settings-panel h3 {
@@ -396,7 +401,7 @@
     <button id="btn-splats" class="active">Splats</button>
     <button id="btn-tokens" class="active">Tokens</button>
   </div>
-  <button id="settings-btn" aria-label="Settings" title="Settings">&#9881;</button>
+  <button id="settings-btn" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="settings-panel">&#9881;</button>
   <div id="settings-panel">
     <h3>SETTINGS</h3>
     <div class="setting-row">
@@ -543,7 +548,17 @@
     // Settings panel
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
-    settingsBtn.addEventListener('click', () => settingsPanel.classList.toggle('open'));
+    settingsBtn.addEventListener('click', () => {
+      const isOpen = settingsPanel.classList.toggle('open');
+      settingsBtn.setAttribute('aria-expanded', isOpen.toString());
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
+        settingsPanel.classList.remove('open');
+        settingsBtn.setAttribute('aria-expanded', 'false');
+        settingsBtn.focus();
+      }
+    });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
       document.body.style.background = darkBg; document.getElementById('hud').style.background = 'rgba(15,17,26,0.88)'; document.getElementById('gen-text').style.background = 'rgba(15,17,26,0.88)';
