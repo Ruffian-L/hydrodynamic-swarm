@@ -307,6 +307,11 @@ impl TacoDb {
             )",
             [],
         )?;
+        // ⚡ Bolt: Add index to speed up TacoDb::query_steps lookups
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_taco_session_type ON taco_entries(session_id, entry_type);",
+            [],
+        )?;
         Ok(())
     }
 
