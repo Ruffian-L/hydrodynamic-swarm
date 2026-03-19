@@ -55,7 +55,8 @@ fn main() {
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
-        let status = Command::new("cargo")
+        let cargo_cmd = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+        let status = Command::new(cargo_cmd)
             .args(["build", "--release", "--bin", "hydrodynamic-swarm"])
             .status()
             .expect("Failed to build");
