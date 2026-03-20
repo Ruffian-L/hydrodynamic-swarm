@@ -77,13 +77,23 @@ impl PhysicsBackend for CpuBackend {
             let d = positions.dim(1)?;
             return Tensor::zeros(&[0, d], candle_core::DType::F32, &field.device);
         }
-        let mut grads = Vec::with_capacity(m);
-        for i in 0..m {
-            let pos_i = positions.get(i)?;
-            let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
-            grads.push(grad_i);
+        let pos_expanded = positions.unsqueeze(1)?;
+        let diff = field.positions.broadcast_sub(&pos_expanded)?;
+        let dist_sq = diff.sqr()?.sum(2)?;
+        let sigma_sq = field.kernel_sigma * field.kernel_sigma;
+        let kernel = (dist_sq.neg()? / sigma_sq as f64)?.exp()?;
+
+        // Safety: if all kernels underflow, return zero gradients
+        let kernel_sum: f32 = kernel.sum_all()?.to_scalar()?;
+        if kernel_sum.abs() < 1e-30 || kernel_sum.is_nan() {
+            let d = positions.dim(1)?;
+            return Tensor::zeros(&[m, d], candle_core::DType::F32, &field.device);
         }
-        Tensor::cat(&grads, 0)
+
+        let kernel_expanded = kernel.unsqueeze(2)?;
+        let weighted = diff.broadcast_mul(&kernel_expanded)?;
+        let scale = 2.0 / sigma_sq as f64;
+        weighted.sum(1)?.affine(scale, 0.0)
     }
 
     fn name(&self) -> &'static str {
