@@ -1,3 +1,3 @@
-## 2024-03-17 - Improve Accessible Label Connections
-**Learning:** When modifying frontend HTML like `tools/splatlens_viewer.html`, disconnected `<label>` elements create warnings for screen readers. Using `for` attributes explicitly links them to inputs. For non-input elements, standard text elements like `<span class="setting-label">` should be used instead of `<label>`.
-**Action:** Ensure all `<label>` tags use the `for` attribute or are styled spans for text groupings.
+## 2024-03-17 - Improve Settings Panel Toggles and Triggers
+**Learning:** When building custom widget dialogs or setting panels like the one in `tools/splatlens_viewer.html`, `display: none` creates abrupt UX and negatively impacts accessibility transitions.
+**Action:** Replace `display: none` / `display: block` with smooth opacity/transform CSS transitions, and ensure standard accessibility patterns (updating `aria-expanded` and an Escape key hook for dismissing) are added.
