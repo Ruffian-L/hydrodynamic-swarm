@@ -95,7 +95,7 @@ impl SessionLogger {
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
 
         // Manual UTC date/time formatting (no chrono dependency)
@@ -232,7 +232,7 @@ impl SessionLogger {
     fn now_str(&self) -> String {
         let secs = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
         format!("{}", secs)
     }
