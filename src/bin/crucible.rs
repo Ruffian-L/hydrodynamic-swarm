@@ -55,7 +55,19 @@ fn main() {
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
-        let status = Command::new("cargo")
+        // Use runtime environment variable to securely resolve `cargo` and mitigate path hijacking
+        let cargo_cmd = std::env::var("CARGO").unwrap_or_else(|_| {
+            eprintln!("[crucible] Error: CARGO environment variable is not set.");
+            std::process::exit(1);
+        });
+
+        // Validate that the CARGO path is absolute to prevent PATH hijacking
+        if !std::path::Path::new(&cargo_cmd).is_absolute() {
+            eprintln!("[crucible] Error: CARGO environment variable must be an absolute path, got: {}", cargo_cmd);
+            std::process::exit(1);
+        }
+
+        let status = Command::new(cargo_cmd)
             .args(["build", "--release", "--bin", "hydrodynamic-swarm"])
             .status()
             .expect("Failed to build");
