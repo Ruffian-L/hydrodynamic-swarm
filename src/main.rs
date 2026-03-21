@@ -762,7 +762,7 @@ async fn main() -> Result<()> {
             .open(readable_path)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
         let days = now / 86400;
         let day_secs = now % 86400;
