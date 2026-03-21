@@ -227,16 +227,16 @@
       padding: 16px 20px;
       backdrop-filter: blur(14px);
       z-index: 11;
-      opacity: 0;
       visibility: hidden;
+      opacity: 0;
       transform: translateY(10px);
-      transition: all 0.2s ease-out;
+      transition: visibility 0.2s, opacity 0.2s, transform 0.2s;
       min-width: 220px;
     }
 
     #settings-panel.open {
-      opacity: 1;
       visibility: visible;
+      opacity: 1;
       transform: translateY(0);
     }
 
@@ -550,9 +550,9 @@
     const settingsPanel = document.getElementById('settings-panel');
     settingsBtn.addEventListener('click', () => {
       const isOpen = settingsPanel.classList.toggle('open');
-      settingsBtn.setAttribute('aria-expanded', isOpen.toString());
+      settingsBtn.setAttribute('aria-expanded', isOpen);
     });
-    document.addEventListener('keydown', e => {
+    document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
