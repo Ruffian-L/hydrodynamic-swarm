@@ -321,7 +321,7 @@ impl CacheManager {
             let val = entry.value.clone();
             self.lru_cache.write().unwrap().put(
                 cache_key,
-                entry.value.clone(),
+                val.clone(),
                 entry.ttl_seconds,
             );
             return Ok(Some(val));
