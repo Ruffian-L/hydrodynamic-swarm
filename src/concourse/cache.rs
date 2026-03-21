@@ -59,25 +59,25 @@ impl LruCache {
         }
     }
 
-    /// Get value from cache (returns cloned entry)
-    pub fn get(&mut self, key: &str) -> Option<CacheEntry> {
-        let entry_clone = self.entries.get(key).cloned();
-        match entry_clone {
-            Some(entry) if !entry.is_expired() => {
-                // valid entry, update access order
-                let pos = self.access_order.iter().position(|k| k == key);
-                if let Some(pos) = pos {
-                    self.access_order.remove(pos);
-                }
-                self.access_order.push_back(key.to_string());
-                Some(entry)
-            }
-            _ => {
-                // either missing or expired
+    /// Get value from cache
+    pub fn get(&mut self, key: &str) -> Option<&CacheEntry> {
+        if let Some(entry) = self.entries.get(key) {
+            if entry.is_expired() {
                 self.remove(key);
-                None
+                return None;
             }
+        } else {
+            return None;
         }
+
+        // valid entry, update access order
+        let pos = self.access_order.iter().position(|k| k == key);
+        if let Some(pos) = pos {
+            self.access_order.remove(pos);
+        }
+        self.access_order.push_back(key.to_string());
+
+        self.entries.get(key)
     }
 
     /// Put value in cache
