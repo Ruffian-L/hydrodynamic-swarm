@@ -230,7 +230,6 @@ impl ContinuousField {
         let pos_flat: Vec<f32> = pos.to_vec1()?;
         let pos_norm: f32 = pos_flat.iter().map(|x| x * x).sum::<f32>().sqrt();
 
-        let positions_flat: Vec<f32> = self.positions.flatten_all()?.to_vec1()?;
         let n = dist_sq.len();
         let dim = self.dim;
 
@@ -247,11 +246,19 @@ impl ContinuousField {
         });
         indices.truncate(k);
 
+        // ⚡ Bolt: gather only the K nearest positions efficiently using index_select
+        // to avoid downloading the entire (N, D) tensor to the host for similarity calculations.
+        let topk_indices: Vec<u32> = indices.iter().map(|&(i, _)| i as u32).collect();
+        let indices_tensor = Tensor::from_vec(topk_indices, (k,), self.positions.device())?;
+        let topk_positions = self.positions.index_select(&indices_tensor, 0)?;
+        let topk_flat: Vec<f32> = topk_positions.flatten_all()?.to_vec1()?;
+
         // Compute cosine similarity for the K nearest
         let mut results: Vec<(u32, f32)> = indices
             .iter()
-            .map(|&(idx, _)| {
-                let row = &positions_flat[idx * dim..(idx + 1) * dim];
+            .enumerate()
+            .map(|(i, &(idx, _))| {
+                let row = &topk_flat[i * dim..(i + 1) * dim];
                 let dot: f32 = row.iter().zip(pos_flat.iter()).map(|(a, b)| a * b).sum();
                 let row_norm: f32 = row.iter().map(|x| x * x).sum::<f32>().sqrt();
                 let cos_sim = if pos_norm > 1e-12 && row_norm > 1e-12 {
