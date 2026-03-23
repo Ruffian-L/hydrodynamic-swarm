@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Vectorized Batch Gradients (Crucible)
+**Learning:** Attempted to delegate the `batch_field_gradient` fallback inside `src/gpu.rs` for `CpuBackend` using `CpuBackend::new().batch_field_gradient(field, positions)`. However, `CpuBackend` is implemented right above it in the same file but doesn't exist as a type inside the module `metal_backend` without `super::CpuBackend` import, or it might just be cleaner to use the inner method. I got hit by compilation errors due to scope hallucination.
+**Action:** When delegating to `CpuBackend` from within the `metal_backend` module in `src/gpu.rs`, import it using `super::CpuBackend` or use the fully qualified path.

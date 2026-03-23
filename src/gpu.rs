@@ -677,18 +677,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
             let dim = field.dim;
 
             if !Self::ensure_vec4_aligned(dim) {
-                // Fall back to serial CPU
-                let m = positions.dim(0)?;
-                if m == 0 {
-                    return Tensor::zeros(&[0, dim], candle_core::DType::F32, &field.device);
-                }
-                let mut grads = Vec::with_capacity(m);
-                for i in 0..m {
-                    let pos_i = positions.get(i)?;
-                    let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
-                    grads.push(grad_i);
-                }
-                return Tensor::cat(&grads, 0);
+                // ⚡ Bolt: delegate to CpuBackend which uses vectorized broadcast math
+                // instead of looping with get(), unsqueeze(), and cat() which causes
+                // severe CPU bottlenecks due to N individual allocations and synchronizations.
+                let cpu_backend = CpuBackend::new();
+                return cpu_backend.batch_field_gradient(field, positions);
             }
 
             let n_queries = positions.dim(0)? as u32;
