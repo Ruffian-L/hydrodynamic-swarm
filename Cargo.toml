@@ -40,6 +40,7 @@ candle-nn = { version = "0.9", optional = true }
 candle-transformers = { version = "0.9", optional = true }
 hf-hub = { version = "0.3", optional = true }
 cudarc = { version = "0.19", features = ["f16", "cuda-12000"] }
+wgpu = "29.0.0"
 
 [build-dependencies]
 cc = "1.0"
