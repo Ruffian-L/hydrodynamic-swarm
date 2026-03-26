@@ -49,10 +49,12 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
-        // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
+        // ⚡ Bolt: Update node tracking using references to avoid cloning the strings
+        // actual implementation would add nodes from Embed Gemmas
         if !self.nodes.contains_key(&tuple.source) {
             // Placeholder node creation
             let node = Node::new(
@@ -71,6 +73,10 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Push the owned tuple at the end to avoid redundant heap allocations
+        // from cloning the strings it contains.
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -158,14 +164,23 @@ impl PrimeGovernor {
 
     /// Process incoming edge and update cell state
     async fn process_edge(&mut self, tuple: FluxTuple) -> SwarmResult<()> {
-        let mut cell = self.active_cell.write().await;
-        cell.add_edge(tuple.clone());
-
-        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
-        if matches!(
+        // ⚡ Bolt: Evaluate friction and log before consuming `tuple` by value
+        // to avoid cloning `tuple.edge` and `tuple.source`/`target` strings.
+        let is_friction = matches!(
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
-        ) {
+        );
+
+        info!(
+            "Governor processed edge: {} {:?} {}",
+            tuple.source, tuple.edge, tuple.target
+        );
+
+        let mut cell = self.active_cell.write().await;
+        cell.add_edge(tuple);
+
+        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
+        if is_friction {
             let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
                 + cell.edge_counts[&RelationalEdge::Catalyzes];
 
@@ -174,11 +189,6 @@ impl PrimeGovernor {
             }
             cell.friction_history.push_back(current_friction);
         }
-
-        info!(
-            "Governor processed edge: {} {:?} {}",
-            tuple.source, tuple.edge, tuple.target
-        );
 
         Ok(())
     }

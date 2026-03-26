@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Redundant allocations in high-frequency event loop
+**Learning:** In the high-frequency processing loop `src/concourse/governor.rs`, passing `FluxTuple` objects to `ActiveCell::add_edge` by `.clone()` causes redundant heap allocations for their contained `String` fields (`source`, `target`), while using `unwrap()` on map lookups presents a panic risk.
+**Action:** Always transfer ownership of `FluxTuple` directly into processing functions (pushing it to state vectors at the end to allow field access) and use pattern matching like `if let Some(count) = map.get_mut(...)` to avoid both panics and map key clones.
