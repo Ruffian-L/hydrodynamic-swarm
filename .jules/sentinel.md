@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Missing HTTP Client Timeout
+**Vulnerability:** The `reqwest::Client` in `src/grok_oracle.rs` is initialized without a timeout. If the external X/Grok API becomes unresponsive, the client could hang indefinitely, leading to resource exhaustion and potential Denial of Service (DoS) for the application.
+**Learning:** External API dependencies should never be trusted to return promptly. Default HTTP clients often have no or very long default timeouts, leaving the application vulnerable to network unreliability or remote service degradation.
+**Prevention:** Always explicitly set a reasonable timeout (e.g., `.timeout(std::time::Duration::from_secs(30))`) when configuring network clients to enforce a hard limit on request duration.
