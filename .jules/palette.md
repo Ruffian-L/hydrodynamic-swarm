@@ -4,3 +4,6 @@
 ## 2024-03-21 - Smooth Accessible UI Panels
 **Learning:** When implementing interactive UI panels or disclosure widgets (e.g., settings panels), abrupt `display: none`/`block` toggles reduce the perceived quality of the interface. Replacing them with smooth CSS transitions (e.g., using `opacity`, `visibility`, `transform`) greatly enhances the experience. Furthermore, standard accessibility must always accompany these interactions: set `aria-expanded` and `aria-controls` on the toggle button, update the ARIA state dynamically in JavaScript, and add an `Escape` key listener that closes the panel and returns keyboard focus to the toggle button.
 **Action:** Always replace abrupt `display` toggles on interactive panels with CSS transitions, and implement ARIA state management alongside keyboard (Escape) closure.
+## 2024-05-18 - Accessible Toggle Groups
+**Learning:** Stateful toggle buttons lacking the \`aria-pressed\` attribute fail to announce their active state to screen readers. Furthermore, grouping such buttons without a designated \`role="group"\` and \`aria-labelledby\` causes loss of context for users relying on assistive technology.
+**Action:** Always apply dynamically updating \`aria-pressed\` attributes to stateful buttons, and wrap logical control clusters in elements using \`role="group"\` bound to a descriptive label via \`aria-labelledby\`.
