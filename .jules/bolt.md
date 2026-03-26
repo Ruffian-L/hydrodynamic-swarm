@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-26 - Vectorized Batch Gradients in MetalBackend
+**Learning:** In `src/gpu.rs` `MetalBackend::batch_field_gradient`, the CPU fallback path iterated over rows with `get()`, `unsqueeze(0)`, and `cat()`, causing severe CPU bottlenecking due to individual allocations and synchronizations.
+**Action:** Always delegate to `CpuBackend::batch_field_gradient` (using `super::CpuBackend` when inside the `metal_backend` module) or use vectorized broadcast math to avoid looping `unsqueeze` and `cat`.
