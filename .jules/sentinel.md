@@ -6,3 +6,8 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+
+## 2024-05-20 - [Panics in Critical Governor Daemon]
+**Vulnerability:** DoS risk due to panics on `unwrap()` calls on HashMap lookups and VecDeque in `src/concourse/governor.rs`.
+**Learning:** In highly concurrent architectures, dynamic state manipulation can lead to unhandled panics resulting in catastrophic daemon crashes.
+**Prevention:** Use safer alternatives like `entry().or_insert()` or `if let` to handle dynamic state gracefully and avoid hard panics.
