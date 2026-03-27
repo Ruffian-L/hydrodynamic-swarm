@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-06-03 - Unsafe Unwrap in Event-Driven Architecture
+**Vulnerability:** In highly concurrent event-driven architectures like the Hydrodynamic Swarm (e.g., `src/concourse/governor.rs`), using `unwrap()` on container lookups or state arrays poses a major Denial of Service (DoS) vulnerability via application crashes/panics.
+**Learning:** Never use `unwrap()` when accessing state that could be dynamically modified, especially when the access pattern depends on external events or tuples.
+**Prevention:** Use safer alternatives like `.entry().or_insert()` or pattern matching (e.g., `if let`) to access elements safely without panicking.
