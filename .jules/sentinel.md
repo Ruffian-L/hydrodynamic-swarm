@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Missing Timeout on External API Calls
+**Vulnerability:** The `GrokOracle` integration used `reqwest::Client::new()` without specifying a timeout. This allows the application to hang indefinitely if the external API (x.ai) becomes unresponsive, leading to resource exhaustion or a Denial of Service (DoS) condition.
+**Learning:** Always configure a timeout for network clients. External dependencies should never be allowed to dictate the availability or performance of your application.
+**Prevention:** Use `reqwest::Client::builder().timeout(...)` to explicitly set a reasonable timeout on all external requests.
