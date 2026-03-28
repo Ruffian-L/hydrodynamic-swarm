@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Delegating Unaligned GPU Batch Gradients to CPU Backend
+**Learning:** In `src/gpu.rs`, the fallback code in `MetalBackend::batch_field_gradient` previously iterated over elements using `get()`, `unsqueeze(0)`, and `Tensor::cat()`. This causes O(N) allocations and excessive host-device synchronizations, resulting in massive performance bottlenecks.
+**Action:** When delegating fallback tensor operations, use the existing vectorized math in `CpuBackend` (e.g., `super::CpuBackend::new().batch_field_gradient(field, positions)`). `CpuBackend` delegates to standard Candle tensor math operations that intrinsically execute on the device where the input tensors reside, bypassing N individual loop allocations and synchronizations.
