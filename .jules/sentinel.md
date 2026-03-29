@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## $(date +%Y-%m-%d) - Denial of Service (DoS) Vulnerability in ActiveCell
+**Vulnerability:** The `ActiveCell::add_edge`, `process_edge`, and `calculate_delta_c` methods in `src/concourse/governor.rs` use `.unwrap()` and indexing `[]` on map and queue lookups.
+**Learning:** In highly concurrent event-driven architectures, using `.unwrap()` on container lookups or state arrays poses a major Denial of Service (DoS) vulnerability via application crashes/panics. Safer alternatives like `.entry().or_insert()` or pattern matching (e.g., `if let`) should be used when accessing state that could be dynamically modified.
+**Prevention:** Always use safe accessors (like `entry().or_insert()`, `get_mut`, `if let`, or `match`) for dynamic data structures in concurrent code instead of `unwrap()`.
