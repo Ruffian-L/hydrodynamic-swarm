@@ -49,7 +49,6 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -71,6 +70,8 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -159,15 +160,18 @@ impl PrimeGovernor {
     /// Process incoming edge and update cell state
     async fn process_edge(&mut self, tuple: FluxTuple) -> SwarmResult<()> {
         let mut cell = self.active_cell.write().await;
-        cell.add_edge(tuple.clone());
 
+        // Note: the logging and history check happens before add_edge moves the tuple
         // Update friction history for [CONTRADICTS] and [CATALYZES] edges
         if matches!(
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
         ) {
-            let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
+            let mut current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
                 + cell.edge_counts[&RelationalEdge::Catalyzes];
+
+            // Account for the edge we are about to add
+            current_friction += 1;
 
             if cell.friction_history.len() == 3 {
                 cell.friction_history.pop_front();
@@ -179,6 +183,8 @@ impl PrimeGovernor {
             "Governor processed edge: {} {:?} {}",
             tuple.source, tuple.edge, tuple.target
         );
+
+        cell.add_edge(tuple);
 
         Ok(())
     }
