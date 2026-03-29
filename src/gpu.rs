@@ -677,18 +677,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
             let dim = field.dim;
 
             if !Self::ensure_vec4_aligned(dim) {
-                // Fall back to serial CPU
-                let m = positions.dim(0)?;
-                if m == 0 {
-                    return Tensor::zeros(&[0, dim], candle_core::DType::F32, &field.device);
-                }
-                let mut grads = Vec::with_capacity(m);
-                for i in 0..m {
-                    let pos_i = positions.get(i)?;
-                    let grad_i = field.probe_gradient(&pos_i)?.unsqueeze(0)?;
-                    grads.push(grad_i);
-                }
-                return Tensor::cat(&grads, 0);
+                // ⚡ Bolt: Use vectorized CPU backend instead of iterative row-by-row fallback
+                // to avoid severe CPU bottlenecking from O(N) allocations and synchronizations.
+                return super::CpuBackend::new().batch_field_gradient(field, positions);
             }
 
             let n_queries = positions.dim(0)? as u32;
