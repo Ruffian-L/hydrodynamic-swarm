@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-29 - Redundant heap allocations in high-frequency event loop
+**Learning:** In the highly concurrent event-driven architecture of the Hydrodynamic Swarm (`src/concourse/governor.rs`), calling `.clone()` on `FluxTuple` objects (which contain `String` fields) when adding them to `ActiveCell::add_edge` causes significant performance degradation due to redundant heap allocations.
+**Action:** `FluxTuple` objects must be transferred by ownership to `ActiveCell::add_edge` by deferring the `push` operation to the end of the method, avoiding unnecessary heap allocations.
