@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Unhandled Container Lookup Panic in Governor
+**Vulnerability:** The `add_edge` function in `src/concourse/governor.rs` uses `.get_mut(&tuple.edge).unwrap() += 1;` when adding a new edge. If an unknown or uninitialized edge type is processed, the `unwrap()` will panic, causing the entire Hydrodynamic Swarm governor daemon to crash. In a highly concurrent, event-driven architecture, this creates a significant Denial of Service (DoS) vulnerability.
+**Learning:** Hardcoding expected map keys in initialization and blindly calling `unwrap()` on lookups during event processing is a dangerous pattern in dynamic systems where new enum variants or uninitialized keys might appear.
+**Prevention:** Always use safe accessors like `.entry(key).or_insert(default)` or pattern matching to handle missing keys gracefully without panicking.
