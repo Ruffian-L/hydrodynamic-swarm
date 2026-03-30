@@ -9,3 +9,11 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Avoiding clone in cache operations
+**Learning:** Found an anti-pattern in the caching layer (`src/concourse/cache.rs`) where keys were unnecessarily cloned when passed into HashMap operations or during map cleaning. In `LruCache::put` the key is cloned into both `entries` map and `access_order`, but we can pass ownership to one and clone for the other. During `cleanup` we cloned keys just to remove them.
+**Action:** Minimize key cloning by reorganizing logic, for instance using `retain` for cleanups to avoid creating intermediate vecs of cloned keys.
+
+## 2026-03-24 - Avoiding clone in ActiveCell::add_edge
+**Learning:** In highly concurrent event-driven architectures like `src/concourse/governor.rs`, receiving elements over channels (`FluxTuple`s) and then calling `.clone()` multiple times (like inserting the `String` into `HashMap` nodes and the tuple into `Vec`) adds unnecessary heap allocations. By transferring ownership using `remove` or splitting tuples and only cloning what's necessary (or modifying `add_edge` to accept `FluxTuple` and destructuring it) we can avoid overhead.
+**Action:** Avoid `.clone()` in high-frequency event processing loops like `ActiveCell::add_edge` by transferring ownership where possible.
