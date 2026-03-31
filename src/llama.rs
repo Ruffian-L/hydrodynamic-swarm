@@ -82,7 +82,9 @@ impl Module for MlpOrMoe {
                     let mut dst = (0..rw.len() as u32).collect::<Vec<u32>>();
                     let take = (*n_expert_used).min(dst.len());
                     if take > 0 {
-                        dst.select_nth_unstable_by(take - 1, |&i, &j| rw[j as usize].total_cmp(&rw[i as usize]));
+                        dst.select_nth_unstable_by(take - 1, |&i, &j| {
+                            rw[j as usize].total_cmp(&rw[i as usize])
+                        });
                         dst.truncate(take);
                         // The order of selected experts does not affect correctness here
                     } else {
