@@ -49,7 +49,6 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -60,7 +59,8 @@ impl ActiveCell {
                 NodeClass::Observation,
                 "PLACEHOLDER".to_string(),
             );
-            self.nodes.insert(tuple.source.clone(), node);
+            // Re-use the already cloned string from the newly created Node
+            self.nodes.insert(node.id.clone(), node);
         }
 
         if !self.nodes.contains_key(&tuple.target) {
@@ -69,8 +69,11 @@ impl ActiveCell {
                 NodeClass::Observation,
                 "PLACEHOLDER".to_string(),
             );
-            self.nodes.insert(tuple.target.clone(), node);
+            // Re-use the already cloned string from the newly created Node
+            self.nodes.insert(node.id.clone(), node);
         }
+
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -159,11 +162,19 @@ impl PrimeGovernor {
     /// Process incoming edge and update cell state
     async fn process_edge(&mut self, tuple: FluxTuple) -> SwarmResult<()> {
         let mut cell = self.active_cell.write().await;
-        cell.add_edge(tuple.clone());
+
+        let edge_type = tuple.edge.clone();
+
+        info!(
+            "Governor processed edge: {} {:?} {}",
+            tuple.source, tuple.edge, tuple.target
+        );
+
+        cell.add_edge(tuple);
 
         // Update friction history for [CONTRADICTS] and [CATALYZES] edges
         if matches!(
-            tuple.edge,
+            edge_type,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
         ) {
             let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
@@ -174,11 +185,6 @@ impl PrimeGovernor {
             }
             cell.friction_history.push_back(current_friction);
         }
-
-        info!(
-            "Governor processed edge: {} {:?} {}",
-            tuple.source, tuple.edge, tuple.target
-        );
 
         Ok(())
     }
