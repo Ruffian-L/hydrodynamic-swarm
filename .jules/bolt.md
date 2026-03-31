@@ -9,3 +9,6 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+## 2026-03-24 - FluxTuple Direct Ownership Transfer
+**Learning:** In highly concurrent event-driven architectures like the Hydrodynamic Swarm (`src/concourse/governor.rs`), transferring `FluxTuple` objects directly by ownership into methods and pushing them to collections without `.clone()` significantly reduces redundant heap allocations on String fields.
+**Action:** Always extract any needed fields (like `tuple.edge`) prior to moving the tuple to avoid redundant heap allocations instead of cloning the entire struct upfront.
