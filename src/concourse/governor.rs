@@ -49,10 +49,12 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        // ⚡ Bolt: Use .entry().or_insert() to avoid DoS panic from unsafe unwrap.
+        // We only clone the lightweight enum, preserving the strings for later.
+        *self.edge_counts.entry(tuple.edge.clone()).or_insert(0) += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
+        // ⚡ Bolt: Query map using references to avoid allocating `String`s on the hot-path.
         if !self.nodes.contains_key(&tuple.source) {
             // Placeholder node creation
             let node = Node::new(
@@ -71,6 +73,12 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Transfer ownership of the entire `FluxTuple` directly into the `edges`
+        // collection at the end of the function. This prevents a full `.clone()` and completely
+        // avoids any heap allocations of the `source` and `target` strings on the hot-path
+        // when the nodes are already present in the map.
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
