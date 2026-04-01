@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Missing API Request Timeout
+**Vulnerability:** HTTP clients initialized without a specific timeout (e.g., `Client::new()`) can hang indefinitely if the remote server becomes unresponsive. This can lead to resource exhaustion and Denial of Service (DoS) as connections pile up.
+**Learning:** External API dependencies are a common source of infinite hangs if not properly constrained. LLM API clients in particular need explicit, but generous timeouts.
+**Prevention:** Always configure an explicit timeout using `.timeout()` when building a network client, balancing the expected response time with a hard cutoff to free resources.

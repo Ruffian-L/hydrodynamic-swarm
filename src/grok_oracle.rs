@@ -1,11 +1,11 @@
 //! Grok 4.20 Oracle Integration for Hydrodynamic Swarm
 //! Native tool calling for structured decisions in the hydro storm / Niodoo physics engine
 
+use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde_json::{json, Value};
-use anyhow::{anyhow, Result};
-use tracing::info;
 use std::env;
+use tracing::info;
 
 pub struct GrokOracle {
     client: Client,
@@ -16,9 +16,11 @@ impl GrokOracle {
     pub fn new() -> Result<Self> {
         let api_key = env::var("XAI_API_KEY")
             .map_err(|_| anyhow!("XAI_API_KEY env var missing. export XAI_API_KEY=..."))?;
-        
+
         Ok(Self {
-            client: Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(60))
+                .build()?,
             api_key,
         })
     }
@@ -54,7 +56,9 @@ impl GrokOracle {
 
         info!("Calling Grok 4.20 for structured decision...");
 
-        let res = self.client.post("https://api.x.ai/v1/chat/completions")
+        let res = self
+            .client
+            .post("https://api.x.ai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&payload)
@@ -69,11 +73,16 @@ impl GrokOracle {
                 if let Some(msg) = choice.get("message") {
                     if let Some(tool_calls) = msg.get("tool_calls").and_then(|t| t.as_array()) {
                         if let Some(tc) = tool_calls.first() {
-                            if let Some(args) = tc.get("function").and_then(|f| f.get("arguments")) {
+                            if let Some(args) = tc.get("function").and_then(|f| f.get("arguments"))
+                            {
                                 if let Some(args_str) = args.as_str() {
                                     if let Ok(parsed) = serde_json::from_str::<Value>(args_str) {
-                                        if let Some(dec) = parsed.get("decision").and_then(|d| d.as_str()) {
-                                            if let Some(just) = parsed.get("justification").and_then(|j| j.as_str()) {
+                                        if let Some(dec) =
+                                            parsed.get("decision").and_then(|d| d.as_str())
+                                        {
+                                            if let Some(just) =
+                                                parsed.get("justification").and_then(|j| j.as_str())
+                                            {
                                                 info!("GROK JUSTIFICATION: {}", just);
                                             }
                                             return Ok(dec.to_string());
