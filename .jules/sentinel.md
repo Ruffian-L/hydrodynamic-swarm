@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - ActiveCell::add_edge DoS Vulnerability
+**Vulnerability:** The `ActiveCell::add_edge` function uses `unwrap()` on a container lookup (`self.edge_counts.get_mut(&tuple.edge).unwrap()`). In a highly concurrent event-driven architecture like the Hydrodynamic Swarm, unexpected edge types could cause the lookup to fail, resulting in a panic that crashes the application (Denial of Service).
+**Learning:** Never assume all possible keys exist in a dynamically updated map, especially when processing external or asynchronous events. Using `unwrap()` on state lookups in critical daemon loops is a major stability risk.
+**Prevention:** Always use safer alternatives like `.entry().or_insert()` or pattern matching (`if let`) when accessing or modifying state arrays/containers to gracefully handle unknown keys and prevent application crashes.
