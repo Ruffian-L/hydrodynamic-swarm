@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2026-03-07 - Denial of Service via Panic in Governor State Tracking
+**Vulnerability:** Calling `.unwrap()` on map lookups or collection accesses (like `front()` and `back()`) in `src/concourse/governor.rs` allows an attacker to easily crash the application by sending malformed or out-of-bounds data, resulting in a Denial of Service (DoS).
+**Learning:** Event-driven components handling data streams must never panic on invalid data. Mitigations must also avoid creating new vulnerabilities, such as using `.entry().or_insert()` on maps which can lead to Out-Of-Memory (OOM) conditions if an attacker spams unique keys.
+**Prevention:** Use safe pattern matching (e.g., `if let Some()`) for collections and maps to silently ignore or securely handle invalid states without allocating memory or crashing.
