@@ -9,3 +9,6 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+## 2026-03-24 - Redundant allocations in ActiveCell::add_edge hot path
+**Learning:** In highly concurrent event-driven architectures like the Hydrodynamic Swarm, early ingestion of owned structs (e.g., `self.edges.push(tuple.clone())`) in hot paths forces unnecessary deep copies. Intermediate checks can instead use references to the original struct's fields if ingestion is deferred.
+**Action:** To optimize high-frequency loops, defer taking ownership (e.g., `push(tuple)`) to the end of the function so fields can be safely accessed by reference (e.g., `contains_key(&tuple.source)`) during intermediate operations, avoiding redundant heap allocations.
