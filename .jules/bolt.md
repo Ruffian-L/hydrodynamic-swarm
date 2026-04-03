@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2024-05-24 - Redundant Heap Allocations in High-Frequency Loops
+**Learning:** In high-frequency loops like `ActiveCell::add_edge`, premature `.clone()` on complex structs like `FluxTuple` before pushing them into collections forces redundant string heap allocations.
+**Action:** Defer pushing structs into collections until the end of the function so their fields can be accessed by reference during intermediate checks, transferring ownership directly into the collection without cloning.
