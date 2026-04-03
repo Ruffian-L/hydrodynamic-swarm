@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-25 - FluxTuple Allocation Bottleneck in Prime Governor
+**Learning:** In high-frequency event loops like `PrimeGovernor` (`ActiveCell::add_edge`), unconditionally cloning compound objects like `FluxTuple` at the start of the function causes severe performance degradation due to redundant string heap allocations on every event.
+**Action:** Always defer inserting owned structures into collections to the end of the function. This allows intermediate validation checks to safely access fields by reference, bypassing the need to clone the entire structure upfront.
