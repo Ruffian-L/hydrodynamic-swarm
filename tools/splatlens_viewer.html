@@ -405,14 +405,18 @@
   <div id="settings-panel">
     <h3>SETTINGS</h3>
     <div class="setting-row">
-      <span class="setting-label">Theme</span>
-      <button id="btn-dark" class="mode-btn active">Dark</button>
-      <button id="btn-light" class="mode-btn">Light</button>
+      <span class="setting-label" id="theme-label">Theme</span>
+      <div role="group" aria-labelledby="theme-label">
+        <button id="btn-dark" class="mode-btn active" aria-pressed="true">Dark</button>
+        <button id="btn-light" class="mode-btn" aria-pressed="false">Light</button>
+      </div>
     </div>
     <div class="setting-row">
-      <span class="setting-label">Rotate</span>
-      <button id="btn-rotate-on" class="mode-btn active">On</button>
-      <button id="btn-rotate-off" class="mode-btn">Off</button>
+      <span class="setting-label" id="rotate-label">Rotate</span>
+      <div role="group" aria-labelledby="rotate-label">
+        <button id="btn-rotate-on" class="mode-btn active" aria-pressed="true">On</button>
+        <button id="btn-rotate-off" class="mode-btn" aria-pressed="false">Off</button>
+      </div>
     </div>
     <div class="setting-row">
       <label for="ui-scale">UI Scale</label>
@@ -561,12 +565,14 @@
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
+      document.getElementById('btn-dark').setAttribute('aria-pressed', 'true'); document.getElementById('btn-light').setAttribute('aria-pressed', 'false');
       document.body.style.background = darkBg; document.getElementById('hud').style.background = 'rgba(15,17,26,0.88)'; document.getElementById('gen-text').style.background = 'rgba(15,17,26,0.88)';
       document.getElementById('hud').style.color = '#7B8CA8'; document.getElementById('gen-text').style.color = '#A0B4D0';
       settingsPanel.style.background = 'rgba(15,17,26,0.94)';
     });
     document.getElementById('btn-light').addEventListener('click', () => {
       isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active');
+      document.getElementById('btn-light').setAttribute('aria-pressed', 'true'); document.getElementById('btn-dark').setAttribute('aria-pressed', 'false');
       document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
       document.getElementById('hud').style.color = '#3A4A5A'; document.getElementById('gen-text').style.color = '#2A3A4A';
       settingsPanel.style.background = 'rgba(240,242,248,0.94)';
@@ -578,8 +584,8 @@
       document.getElementById('gen-text').style.transform = `scale(${uiScale})`; document.getElementById('gen-text').style.transformOrigin = 'top right';
     });
     document.getElementById('text-scale').addEventListener('input', e => { textScale = parseInt(e.target.value) / 100; document.getElementById('text-scale-val').textContent = e.target.value + '%' });
-    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active') });
-    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active') });
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'false'); });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'false'); });
     document.getElementById('particle-density').addEventListener('input', e => { particleCount = parseInt(e.target.value); document.getElementById('particle-val').textContent = e.target.value; initParticles(particleCount) });
 
     // Projection
