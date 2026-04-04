@@ -50,7 +50,9 @@ impl ActiveCell {
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
         self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
@@ -86,12 +88,15 @@ impl ActiveCell {
 
     pub fn calculate_delta_c(&self) -> f64 {
         if self.friction_history.len() >= 2 {
-            let first = *self.friction_history.front().unwrap() as f64;
-            let last = *self.friction_history.back().unwrap() as f64;
-            (last - first).max(0.0)
-        } else {
-            0.0
+            if let (Some(first), Some(last)) =
+                (self.friction_history.front(), self.friction_history.back())
+            {
+                let first = *first as f64;
+                let last = *last as f64;
+                return (last - first).max(0.0);
+            }
         }
+        0.0
     }
 }
 
