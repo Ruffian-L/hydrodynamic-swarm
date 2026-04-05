@@ -49,9 +49,10 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
+        // ⚡ Bolt: update count first
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
+        // ⚡ Bolt: borrow fields to avoid cloning strings in the hot path
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
             // Placeholder node creation
@@ -71,6 +72,9 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: push into the vector at the end, transferring ownership instead of cloning the entire struct
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -159,13 +163,21 @@ impl PrimeGovernor {
     /// Process incoming edge and update cell state
     async fn process_edge(&mut self, tuple: FluxTuple) -> SwarmResult<()> {
         let mut cell = self.active_cell.write().await;
-        cell.add_edge(tuple.clone());
 
-        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
-        if matches!(
+        // ⚡ Bolt: read fields for friction check and logging before transferring ownership
+        let is_friction_edge = matches!(
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
-        ) {
+        );
+        let source = tuple.source.clone();
+        let target = tuple.target.clone();
+        let edge_type = tuple.edge.clone();
+
+        // ⚡ Bolt: pass ownership instead of clone
+        cell.add_edge(tuple);
+
+        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
+        if is_friction_edge {
             let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
                 + cell.edge_counts[&RelationalEdge::Catalyzes];
 
@@ -177,7 +189,7 @@ impl PrimeGovernor {
 
         info!(
             "Governor processed edge: {} {:?} {}",
-            tuple.source, tuple.edge, tuple.target
+            source, edge_type, target
         );
 
         Ok(())
