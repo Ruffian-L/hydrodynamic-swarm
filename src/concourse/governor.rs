@@ -49,7 +49,6 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -71,6 +70,9 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Defer push to avoid cloning FluxTuple, transferring ownership directly
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -159,13 +161,22 @@ impl PrimeGovernor {
     /// Process incoming edge and update cell state
     async fn process_edge(&mut self, tuple: FluxTuple) -> SwarmResult<()> {
         let mut cell = self.active_cell.write().await;
-        cell.add_edge(tuple.clone());
 
-        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
-        if matches!(
+        // ⚡ Bolt: Check condition and log before moving tuple to avoid cloning
+        let is_friction_edge = matches!(
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
-        ) {
+        );
+
+        info!(
+            "Governor processed edge: {} {:?} {}",
+            tuple.source, tuple.edge, tuple.target
+        );
+
+        cell.add_edge(tuple);
+
+        // Update friction history for [CONTRADICTS] and [CATALYZES] edges
+        if is_friction_edge {
             let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
                 + cell.edge_counts[&RelationalEdge::Catalyzes];
 
@@ -174,11 +185,6 @@ impl PrimeGovernor {
             }
             cell.friction_history.push_back(current_friction);
         }
-
-        info!(
-            "Governor processed edge: {} {:?} {}",
-            tuple.source, tuple.edge, tuple.target
-        );
 
         Ok(())
     }
