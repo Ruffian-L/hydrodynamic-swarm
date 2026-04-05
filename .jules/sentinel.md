@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-25 - HashMap unwrap in Governor
+**Vulnerability:** `self.edge_counts.get_mut(&tuple.edge).unwrap()` in `src/concourse/governor.rs` can cause a panic and application crash (Denial of Service) if an unknown or unexpected edge type is processed.
+**Learning:** In highly concurrent event-driven architectures, using `unwrap()` on container lookups poses a major DoS vulnerability.
+**Prevention:** Prefer pattern matching (`if let Some()`) over `.entry().or_insert()` to prevent both panics and Out-Of-Memory (OOM) DoS vulnerabilities from unbounded map growth.

@@ -50,7 +50,11 @@ impl ActiveCell {
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
         self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        } else {
+            tracing::warn!("Ignored unknown edge type: {:?}", tuple.edge);
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
