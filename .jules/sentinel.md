@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Unsafe Map Lookup Panic DoS
+**Vulnerability:** In `ActiveCell::add_edge`, `self.edge_counts.get_mut(&tuple.edge).unwrap()` is used. If an unknown edge type is processed, it will panic and crash the application, leading to a Denial of Service.
+**Learning:** Using `unwrap()` on container lookups in event-driven systems is highly dangerous. While `.entry().or_insert()` prevents panics, it can introduce an Out-Of-Memory (OOM) DoS vulnerability by allowing unbounded map growth if an attacker spams unknown keys.
+**Prevention:** Use pattern matching like `if let Some(count) = map.get_mut(key)` to safely handle lookups and ignore unknown/malicious keys without panicking or allocating unbounded memory.
