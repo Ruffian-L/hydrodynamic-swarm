@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2024-04-06 - Deferred ownership transfer in high-frequency loops
+**Learning:** Found a performance bottleneck in `src/concourse/governor.rs` within the `ActiveCell::add_edge` function where `tuple.clone()` was creating unnecessary heap allocations in a hot path.
+**Action:** By deferring the `self.edges.push(tuple)` to the end of the function, we can safely access `tuple`'s fields by reference during intermediate updates without cloning it, transferring ownership natively to avoid redundant string allocations.
