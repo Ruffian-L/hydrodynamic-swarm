@@ -9,3 +9,6 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+## 2026-03-25 - Defer Struct Ownership in High-Frequency Loops
+**Learning:** In src/concourse/governor.rs, cloning FluxTuple at the start of ActiveCell::add_edge causes redundant heap allocations (strings). By deferring the push operation to the end of the method, we can borrow the fields for intermediate checks and transfer ownership directly, eliminating the need to clone the tuple.
+**Action:** Always defer container insertions that take ownership to the end of functions to maximize field borrowing and eliminate redundant .clone() calls on structs containing heap-allocated types.

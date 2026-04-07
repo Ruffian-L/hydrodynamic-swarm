@@ -49,10 +49,13 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        // ⚡ Bolt: Use pattern matching to safely update edge counts without panicking, preventing DoS
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
+        // ⚡ Bolt: Defer tuple move to avoid redundant string cloning during intermediate checks
         if !self.nodes.contains_key(&tuple.source) {
             // Placeholder node creation
             let node = Node::new(
@@ -71,6 +74,9 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Transfer ownership into the collection at the end, saving a full FluxTuple and String clone
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
