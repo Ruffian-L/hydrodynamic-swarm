@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2026-03-08 - DoS via Unbounded Map Growth and Panic
+**Vulnerability:** Using `unwrap()` on container lookups like `edge_counts.get_mut().unwrap()` in event-driven systems can cause application crashes (DoS) if unknown keys are passed.
+**Learning:** While preventing panics is crucial, replacing `unwrap()` with `.entry().or_insert()` introduces an Out-Of-Memory (OOM) DoS vulnerability by allowing an attacker to spam unknown keys and grow the map unboundedly.
+**Prevention:** Always prefer pattern matching like `if let Some()` for updating known states. This prevents both application crashes from missing keys and unbounded memory growth from unknown ones.
