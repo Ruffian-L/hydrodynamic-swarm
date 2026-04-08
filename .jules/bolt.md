@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-04-08 - Unnecessary clone on hot path
+**Learning:** Found a redundant clone operation in `ActiveCell::add_edge` where the ownership could just be transferred at the end of the method after all field references are read. This caused unnecessary heap allocations for string cloning.
+**Action:** Always prefer transferring ownership at the end of a block instead of cloning if the parameter is consumed into a structure and references to its properties are still needed in the logic.
