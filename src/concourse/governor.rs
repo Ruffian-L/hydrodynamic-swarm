@@ -50,7 +50,11 @@ impl ActiveCell {
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
         self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        // 🛡️ Sentinel: Use pattern matching instead of unwrap() to prevent DoS via panic.
+        // We intentionally avoid .entry().or_insert() to prevent unbounded map growth (OOM) from unknown keys.
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
