@@ -1,0 +1,7 @@
+<<<<<<< SEARCH
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active') });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active') });
+=======
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-off').classList.remove('active'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'false') });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-on').classList.remove('active'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'false') });
+>>>>>>> REPLACE

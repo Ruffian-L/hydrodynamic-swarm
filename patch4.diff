@@ -1,0 +1,5 @@
+<<<<<<< SEARCH
+    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); b.classList.toggle('active'); b.classList.toggle('off') }) }
+=======
+    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); b.classList.toggle('active'); b.classList.toggle('off'); b.setAttribute('aria-pressed', b.classList.contains('active')) }) }
+>>>>>>> REPLACE

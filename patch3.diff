@@ -1,0 +1,23 @@
+<<<<<<< SEARCH
+    <div class="setting-row">
+      <span class="setting-label">Theme</span>
+      <button id="btn-dark" class="mode-btn active">Dark</button>
+      <button id="btn-light" class="mode-btn">Light</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Rotate</span>
+      <button id="btn-rotate-on" class="mode-btn active">On</button>
+      <button id="btn-rotate-off" class="mode-btn">Off</button>
+    </div>
+=======
+    <div class="setting-row" role="group" aria-labelledby="theme-label">
+      <span class="setting-label" id="theme-label">Theme</span>
+      <button id="btn-dark" class="mode-btn active" aria-pressed="true">Dark</button>
+      <button id="btn-light" class="mode-btn" aria-pressed="false">Light</button>
+    </div>
+    <div class="setting-row" role="group" aria-labelledby="rotate-label">
+      <span class="setting-label" id="rotate-label">Rotate</span>
+      <button id="btn-rotate-on" class="mode-btn active" aria-pressed="true">On</button>
+      <button id="btn-rotate-off" class="mode-btn" aria-pressed="false">Off</button>
+    </div>
+>>>>>>> REPLACE

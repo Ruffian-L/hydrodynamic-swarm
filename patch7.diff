@@ -1,0 +1,10 @@
+<<<<<<< SEARCH
+    document.getElementById('btn-light').addEventListener('click', () => {
+      isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active');
+      document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
+=======
+    document.getElementById('btn-light').addEventListener('click', () => {
+      isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-light').setAttribute('aria-pressed', 'true');
+      document.getElementById('btn-dark').classList.remove('active'); document.getElementById('btn-dark').setAttribute('aria-pressed', 'false');
+      document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
+>>>>>>> REPLACE

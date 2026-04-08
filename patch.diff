@@ -1,0 +1,13 @@
+<<<<<<< SEARCH
+  <div id="controls">
+    <button id="btn-play" class="active">Play</button>
+    <button id="btn-pause">Pause</button>
+    <div class="slider-group">
+=======
+  <div id="controls">
+    <div role="group" aria-label="Playback controls" style="display:flex; gap:10px; align-items:center">
+      <button id="btn-play" class="active" aria-pressed="true">Play</button>
+      <button id="btn-pause" aria-pressed="false">Pause</button>
+    </div>
+    <div class="slider-group">
+>>>>>>> REPLACE

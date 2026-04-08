@@ -1,0 +1,17 @@
+<<<<<<< SEARCH
+    <span style="color:#1A1E2A;margin:0 2px">|</span>
+    <button id="btn-field" class="active">Field</button>
+    <button id="btn-trail" class="active">Trail</button>
+    <button id="btn-splats" class="active">Splats</button>
+    <button id="btn-tokens" class="active">Tokens</button>
+  </div>
+=======
+    <span style="color:#1A1E2A;margin:0 2px">|</span>
+    <div role="group" aria-label="Visibility layers" style="display:flex; gap:10px; align-items:center">
+      <button id="btn-field" class="active" aria-pressed="true">Field</button>
+      <button id="btn-trail" class="active" aria-pressed="true">Trail</button>
+      <button id="btn-splats" class="active" aria-pressed="true">Splats</button>
+      <button id="btn-tokens" class="active" aria-pressed="true">Tokens</button>
+    </div>
+  </div>
+>>>>>>> REPLACE
