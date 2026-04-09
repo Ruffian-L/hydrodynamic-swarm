@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-25 - ActiveCell HashMap Lookup DoS
+**Vulnerability:** In `src/concourse/governor.rs`, using `unwrap()` on a container lookup like `self.edge_counts.get_mut(&tuple.edge).unwrap()` poses a major Denial of Service (DoS) vulnerability. If an unhandled or maliciously crafted key is processed, the application will panic and crash.
+**Learning:** In highly concurrent event-driven architectures, we must never assume map lookups will succeed, even for predefined enum variants, to prevent application crashes.
+**Prevention:** Mitigate by preferring pattern matching (e.g., `if let Some()`) over `.unwrap()`. Avoid using `.entry().or_insert()` as an alternative, as it can introduce an Out-Of-Memory (OOM) DoS vulnerability by allowing unbounded map growth if an attacker spams unknown keys.
