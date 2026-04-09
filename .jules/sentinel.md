@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2026-05-24 - DoS via Unhandled Edge Types in Governor
+**Vulnerability:** The `ActiveCell::add_edge` function in `src/concourse/governor.rs` uses `.get_mut(&tuple.edge).unwrap()` to increment edge counts. If an unknown or uninitialized `RelationalEdge` variant is processed, the `unwrap()` will panic, causing a Denial of Service (DoS) and crashing the hydro-swarm governor.
+**Learning:** In highly concurrent, event-driven architectures, using panicking accessors on state maps creates a critical DoS risk. Using `.entry().or_insert()` to mitigate the panic introduces a secondary OOM vulnerability via unbounded map growth.
+**Prevention:** Always use pattern matching like `if let Some()` to safely handle missing map keys without allocating new entries, silently discarding invalid state updates rather than crashing or leaking memory.
