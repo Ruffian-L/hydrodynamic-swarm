@@ -49,7 +49,6 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -71,6 +70,9 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Defer push to avoid cloning tuple.
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
@@ -80,7 +82,8 @@ impl ActiveCell {
     pub fn get_edge_counts_vec(&self) -> Vec<(RelationalEdge, i32)> {
         self.edge_counts
             .iter()
-            .map(|(edge, count)| (edge.clone(), *count))
+            // ⚡ Bolt: Dereference edge instead of cloning it since RelationalEdge is Copy.
+            .map(|(edge, count)| (*edge, *count))
             .collect()
     }
 
