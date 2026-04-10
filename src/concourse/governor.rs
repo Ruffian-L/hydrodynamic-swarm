@@ -49,7 +49,8 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
+        // ⚡ Bolt: Prevent redundant heap allocations by accessing fields by reference
+        // during checks and transferring ownership into the edges vector at the end.
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -71,6 +72,8 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
