@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - Unwrap Panic DoS in ActiveCell Edge Updates
+**Vulnerability:** The method `ActiveCell::add_edge` uses `*self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;`. If an unknown or newly added edge enum variant is parsed and passed that was not initialized in `ActiveCell::new()`, the daemon panics, leading to a Denial of Service (DoS).
+**Learning:** In event-driven concurrent systems, container lookups should never blindly `unwrap()`. While `entry().or_insert()` prevents panics, it can introduce an OOM DoS via unbounded map growth.
+**Prevention:** Use safe pattern matching (e.g., `if let Some(count) = self.edge_counts.get_mut(&tuple.edge) { ... }`) to ignore unregistered variants gracefully, avoiding both panics and unbounded map growth.
