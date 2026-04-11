@@ -49,7 +49,6 @@ impl ActiveCell {
     }
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
-        self.edges.push(tuple.clone());
         *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
@@ -71,6 +70,9 @@ impl ActiveCell {
             );
             self.nodes.insert(tuple.target.clone(), node);
         }
+
+        // ⚡ Bolt: Defer push(tuple) to the end to avoid cloning FluxTuple, accessing fields by reference during intermediate checks.
+        self.edges.push(tuple);
     }
 
     pub fn node_count(&self) -> usize {
