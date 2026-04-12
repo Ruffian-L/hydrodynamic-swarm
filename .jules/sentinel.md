@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-25 - ActiveCell Event Processing Panic
+**Vulnerability:** The `add_edge` function in `src/concourse/governor.rs` used `unwrap()` when updating edge counts. This causes a Denial of Service (DoS) via application panic if an unknown edge type is processed.
+**Learning:** In highly concurrent event-driven architectures, using `unwrap()` on container lookups poses a major DoS vulnerability via crashes. Using `.entry().or_insert()` to fix it can instead introduce an Out-Of-Memory (OOM) DoS vector by allowing unbounded map growth.
+**Prevention:** Prefer pattern matching like `if let Some()` over `unwrap()` and avoid `.entry().or_insert()` when handling potentially unbounded keys from external events.
