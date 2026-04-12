@@ -6,3 +6,7 @@
 **Vulnerability:** SystemTime::now().duration_since(UNIX_EPOCH).unwrap() will panic and crash the application if the system clock drifts or is misconfigured to a time before January 1, 1970. This creates a reliability and potential Denial of Service (DoS) issue.
 **Learning:** Never assume the system clock is perfectly synced or monotonically increasing relative to the Unix Epoch when calculating timestamps, especially in logging or utility code that runs frequently.
 **Prevention:** Use `.duration_since(UNIX_EPOCH).unwrap_or_default()` instead of `.unwrap()` to gracefully handle `SystemTimeError` by returning a zero duration, preventing application crashes.
+## 2024-05-24 - DoS Vulnerability via Unknown Map Keys in Swarm Governor
+**Vulnerability:** The `add_edge` method in `PrimeGovernor` uses `unwrap()` when updating `edge_counts` with user-supplied (or external) `RelationalEdge` values. An unknown or malformed edge triggers a panic, crashing the application and causing a Denial of Service.
+**Learning:** In highly concurrent event-driven architectures, using `unwrap()` on container lookups poses a critical Denial of Service risk via application crashes. Using `.entry().or_insert()` as a fix introduces Out-Of-Memory (OOM) risks by allowing unbounded map growth if an attacker spams unknown keys.
+**Prevention:** Prefer safe pattern matching like `if let Some()` to safely increment known keys without allocating new ones or panicking.
