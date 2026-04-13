@@ -50,7 +50,10 @@ impl ActiveCell {
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
         self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        // 🛡️ Sentinel: Prevent panic DoS on unknown keys without growing map
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
@@ -86,9 +89,14 @@ impl ActiveCell {
 
     pub fn calculate_delta_c(&self) -> f64 {
         if self.friction_history.len() >= 2 {
-            let first = *self.friction_history.front().unwrap() as f64;
-            let last = *self.friction_history.back().unwrap() as f64;
-            (last - first).max(0.0)
+            // 🛡️ Sentinel: Safe access to prevent panic DoS in case of race condition
+            if let (Some(&first), Some(&last)) =
+                (self.friction_history.front(), self.friction_history.back())
+            {
+                (last as f64 - first as f64).max(0.0)
+            } else {
+                0.0
+            }
         } else {
             0.0
         }
@@ -166,8 +174,18 @@ impl PrimeGovernor {
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
         ) {
-            let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
-                + cell.edge_counts[&RelationalEdge::Catalyzes];
+            // 🛡️ Sentinel: Safe get to prevent panic DoS if edge types are uninitialized
+            let contradicts_count = cell
+                .edge_counts
+                .get(&RelationalEdge::Contradicts)
+                .copied()
+                .unwrap_or(0);
+            let catalyzes_count = cell
+                .edge_counts
+                .get(&RelationalEdge::Catalyzes)
+                .copied()
+                .unwrap_or(0);
+            let current_friction = contradicts_count + catalyzes_count;
 
             if cell.friction_history.len() == 3 {
                 cell.friction_history.pop_front();
