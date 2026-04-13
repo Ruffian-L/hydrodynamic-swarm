@@ -1,0 +1,57 @@
+<<<<<<< SEARCH
+  <div id="controls">
+    <button id="btn-play" class="active">Play</button>
+    <button id="btn-pause">Pause</button>
+    <div class="slider-group">
+=======
+  <div id="controls" role="group" aria-label="Playback and View Controls">
+    <div role="group" aria-label="Playback" style="display: flex; gap: 10px; align-items: center;">
+      <button id="btn-play" class="active" aria-pressed="true">Play</button>
+      <button id="btn-pause" aria-pressed="false">Pause</button>
+    </div>
+    <div class="slider-group">
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    <span style="color:#1A1E2A;margin:0 2px">|</span>
+    <button id="btn-field" class="active">Field</button>
+    <button id="btn-trail" class="active">Trail</button>
+    <button id="btn-splats" class="active">Splats</button>
+    <button id="btn-tokens" class="active">Tokens</button>
+  </div>
+=======
+    <span style="color:#1A1E2A;margin:0 2px">|</span>
+    <div role="group" aria-label="Visibility Layers" style="display: flex; gap: 10px; align-items: center;">
+      <button id="btn-field" class="active" aria-pressed="true">Field</button>
+      <button id="btn-trail" class="active" aria-pressed="true">Trail</button>
+      <button id="btn-splats" class="active" aria-pressed="true">Splats</button>
+      <button id="btn-tokens" class="active" aria-pressed="true">Tokens</button>
+    </div>
+  </div>
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    <div class="setting-row">
+      <span class="setting-label">Theme</span>
+      <button id="btn-dark" class="mode-btn active">Dark</button>
+      <button id="btn-light" class="mode-btn">Light</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Rotate</span>
+      <button id="btn-rotate-on" class="mode-btn active">On</button>
+      <button id="btn-rotate-off" class="mode-btn">Off</button>
+    </div>
+=======
+    <div class="setting-row">
+      <span class="setting-label" id="label-theme">Theme</span>
+      <div role="group" aria-labelledby="label-theme" style="display: flex; gap: 8px;">
+        <button id="btn-dark" class="mode-btn active" aria-pressed="true">Dark</button>
+        <button id="btn-light" class="mode-btn" aria-pressed="false">Light</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label" id="label-rotate">Rotate</span>
+      <div role="group" aria-labelledby="label-rotate" style="display: flex; gap: 8px;">
+        <button id="btn-rotate-on" class="mode-btn active" aria-pressed="true">On</button>
+        <button id="btn-rotate-off" class="mode-btn" aria-pressed="false">Off</button>
+      </div>
+    </div>
+>>>>>>> REPLACE

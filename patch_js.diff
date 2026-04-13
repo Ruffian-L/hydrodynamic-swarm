@@ -1,0 +1,53 @@
+<<<<<<< SEARCH
+    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); b.classList.toggle('active'); b.classList.toggle('off') }) }
+=======
+    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); const state = get(); b.classList.toggle('active', state); b.classList.toggle('off', !state); b.setAttribute('aria-pressed', state); }) }
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    function updateBtns() {
+      btnPlay.classList.toggle('active', playing); btnPause.classList.toggle('active', !playing);
+      stepLabel.textContent = visibleSteps + '/' + T.length; scrubber.value = Math.max(0, visibleSteps - 1);
+    }
+=======
+    function updateBtns() {
+      btnPlay.classList.toggle('active', playing); btnPause.classList.toggle('active', !playing);
+      btnPlay.setAttribute('aria-pressed', playing); btnPause.setAttribute('aria-pressed', !playing);
+      stepLabel.textContent = visibleSteps + '/' + T.length; scrubber.value = Math.max(0, visibleSteps - 1);
+    }
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    document.getElementById('btn-dark').addEventListener('click', () => {
+      isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
+      document.body.style.background = darkBg; document.getElementById('hud').style.background = 'rgba(15,17,26,0.88)'; document.getElementById('gen-text').style.background = 'rgba(15,17,26,0.88)';
+      document.getElementById('hud').style.color = '#7B8CA8'; document.getElementById('gen-text').style.color = '#A0B4D0';
+      settingsPanel.style.background = 'rgba(15,17,26,0.94)';
+    });
+    document.getElementById('btn-light').addEventListener('click', () => {
+      isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active');
+      document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
+      document.getElementById('hud').style.color = '#3A4A5A'; document.getElementById('gen-text').style.color = '#2A3A4A';
+      settingsPanel.style.background = 'rgba(240,242,248,0.94)';
+    });
+=======
+    document.getElementById('btn-dark').addEventListener('click', () => {
+      isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
+      document.getElementById('btn-dark').setAttribute('aria-pressed', 'true'); document.getElementById('btn-light').setAttribute('aria-pressed', 'false');
+      document.body.style.background = darkBg; document.getElementById('hud').style.background = 'rgba(15,17,26,0.88)'; document.getElementById('gen-text').style.background = 'rgba(15,17,26,0.88)';
+      document.getElementById('hud').style.color = '#7B8CA8'; document.getElementById('gen-text').style.color = '#A0B4D0';
+      settingsPanel.style.background = 'rgba(15,17,26,0.94)';
+    });
+    document.getElementById('btn-light').addEventListener('click', () => {
+      isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active');
+      document.getElementById('btn-light').setAttribute('aria-pressed', 'true'); document.getElementById('btn-dark').setAttribute('aria-pressed', 'false');
+      document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
+      document.getElementById('hud').style.color = '#3A4A5A'; document.getElementById('gen-text').style.color = '#2A3A4A';
+      settingsPanel.style.background = 'rgba(240,242,248,0.94)';
+    });
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active') });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active') });
+=======
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'false'); });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'false'); });
+>>>>>>> REPLACE
