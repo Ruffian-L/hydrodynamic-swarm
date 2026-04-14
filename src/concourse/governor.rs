@@ -50,7 +50,10 @@ impl ActiveCell {
 
     pub fn add_edge(&mut self, tuple: FluxTuple) {
         self.edges.push(tuple.clone());
-        *self.edge_counts.get_mut(&tuple.edge).unwrap() += 1;
+        // 🛡️ Sentinel: Safe lookup to prevent panic DoS vulnerability.
+        if let Some(count) = self.edge_counts.get_mut(&tuple.edge) {
+            *count += 1;
+        }
 
         // Update node tracking (simplified - actual implementation would add nodes from Embed Gemmas)
         if !self.nodes.contains_key(&tuple.source) {
@@ -86,9 +89,15 @@ impl ActiveCell {
 
     pub fn calculate_delta_c(&self) -> f64 {
         if self.friction_history.len() >= 2 {
-            let first = *self.friction_history.front().unwrap() as f64;
-            let last = *self.friction_history.back().unwrap() as f64;
-            (last - first).max(0.0)
+            // 🛡️ Sentinel: Safe queue access to prevent panic DoS vulnerability.
+            if let (Some(&first), Some(&last)) =
+                (self.friction_history.front(), self.friction_history.back())
+            {
+                let first = first as f64;
+                let last = last as f64;
+                return (last - first).max(0.0);
+            }
+            0.0
         } else {
             0.0
         }
@@ -166,8 +175,18 @@ impl PrimeGovernor {
             tuple.edge,
             RelationalEdge::Contradicts | RelationalEdge::Catalyzes
         ) {
-            let current_friction = cell.edge_counts[&RelationalEdge::Contradicts]
-                + cell.edge_counts[&RelationalEdge::Catalyzes];
+            // 🛡️ Sentinel: Safe lookup to prevent panic DoS vulnerability.
+            let contradicts = cell
+                .edge_counts
+                .get(&RelationalEdge::Contradicts)
+                .copied()
+                .unwrap_or(0);
+            let catalyzes = cell
+                .edge_counts
+                .get(&RelationalEdge::Catalyzes)
+                .copied()
+                .unwrap_or(0);
+            let current_friction = contradicts + catalyzes;
 
             if cell.friction_history.len() == 3 {
                 cell.friction_history.pop_front();
