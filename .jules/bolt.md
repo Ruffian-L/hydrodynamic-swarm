@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2024-04-15 - HashMap Entry API Memory Churn
+**Learning:** Using `self.entries.entry(key.to_string())` just to retrieve or check entries in a high-throughput caching layer (like `TtlCache::get`) unnecessarily allocates a new `String` on the heap for every lookup, including misses. This causes severe memory churn and CPU exhaustion.
+**Action:** Always use the zero-allocation `self.entries.get(key)` for lookups, and only clone/allocate the key when explicitly inserting. To safely handle borrow checker constraints when conditional removal is needed, check state without returning a reference, perform mutation if necessary, and execute a second `.get(key)` for the return value.
