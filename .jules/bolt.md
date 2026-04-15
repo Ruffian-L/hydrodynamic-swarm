@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-04-15 - Unnecessary Allocations in Cache Manager
+**Learning:** Found a potential performance bottleneck in the `CacheManager` methods where strings and slices are unnecessarily cloned or converted during lookup and insert operations (e.g., `self.entries.entry(key.to_string())` instead of `.get(key)`). This pattern needlessly allocates a new String on the heap for every lookup, including cache misses, leading to high memory churn and CPU overhead.
+**Action:** Always prefer `.get()` over `.entry().or_insert()` when only checking or accessing a value in high-throughput maps. Only clone or allocate when an insertion is genuinely required.
