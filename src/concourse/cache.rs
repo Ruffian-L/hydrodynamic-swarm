@@ -177,17 +177,21 @@ impl TtlCache {
 
     /// Get value from cache
     pub fn get(&mut self, key: &str) -> Option<&CacheEntry> {
-        use std::collections::hash_map::Entry;
-        match self.entries.entry(key.to_string()) {
-            Entry::Occupied(occupied) => {
-                if occupied.get().is_expired() {
-                    occupied.remove();
-                    None
-                } else {
-                    Some(&*occupied.into_mut())
-                }
-            }
-            Entry::Vacant(_) => None,
+        // ⚡ Bolt: avoid `self.entries.entry(key.to_string())` as it needlessly
+        // allocates a new String on the heap for every lookup (including misses).
+        // Instead, use zero-allocation `get()` and a double lookup to safely
+        // mutate and return references under NLL borrow checking.
+        let is_expired = if let Some(entry) = self.entries.get(key) {
+            entry.is_expired()
+        } else {
+            return None;
+        };
+
+        if is_expired {
+            self.entries.remove(key);
+            None
+        } else {
+            self.entries.get(key)
         }
     }
 
