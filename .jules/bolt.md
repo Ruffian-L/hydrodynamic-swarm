@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Zero-Allocation Cache Lookups with NLL
+**Learning:** Using `.entry(key.to_string())` for cache lookups causes unnecessary heap allocations for `String` on every miss. When moving to zero-allocation `.get(key)` in `HashMap`, the borrow checker (NLL) prevents conditionally removing the entry if a reference is returned from the same block.
+**Action:** Avoid returning the borrowed entry directly from the first `.get(key)`. Instead, evaluate the condition (e.g., `is_expired`), remove the entry if needed, and perform a second `.get(key)` in the `else` block to safely return the reference.
