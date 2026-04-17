@@ -73,9 +73,13 @@ impl LruCache {
         // valid entry, update access order
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
-            self.access_order.remove(pos);
+            let existing_key = self.access_order.remove(pos).unwrap();
+            self.access_order.push_back(existing_key);
+        } else {
+            if let Some((k, _)) = self.entries.get_key_value(key) {
+                self.access_order.push_back(k.clone());
+            }
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
@@ -177,17 +181,17 @@ impl TtlCache {
 
     /// Get value from cache
     pub fn get(&mut self, key: &str) -> Option<&CacheEntry> {
-        use std::collections::hash_map::Entry;
-        match self.entries.entry(key.to_string()) {
-            Entry::Occupied(occupied) => {
-                if occupied.get().is_expired() {
-                    occupied.remove();
-                    None
-                } else {
-                    Some(&*occupied.into_mut())
-                }
-            }
-            Entry::Vacant(_) => None,
+        let is_expired = if let Some(entry) = self.entries.get(key) {
+            entry.is_expired()
+        } else {
+            return None;
+        };
+
+        if is_expired {
+            self.entries.remove(key);
+            None
+        } else {
+            self.entries.get(key)
         }
     }
 
