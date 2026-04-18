@@ -383,8 +383,10 @@
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <div id="controls">
-    <button id="btn-play" class="active">Play</button>
-    <button id="btn-pause">Pause</button>
+    <div role="group" aria-label="Playback controls" style="display:contents">
+      <button id="btn-play" class="active" aria-pressed="true">Play</button>
+      <button id="btn-pause" aria-pressed="false">Pause</button>
+    </div>
     <div class="slider-group">
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
@@ -396,23 +398,25 @@
       <span id="speed-label" aria-live="polite">200ms</span>
     </div>
     <span style="color:#1A1E2A;margin:0 2px">|</span>
-    <button id="btn-field" class="active">Field</button>
-    <button id="btn-trail" class="active">Trail</button>
-    <button id="btn-splats" class="active">Splats</button>
-    <button id="btn-tokens" class="active">Tokens</button>
+    <div role="group" aria-label="Layer controls" style="display:contents">
+      <button id="btn-field" class="active" aria-pressed="true">Field</button>
+      <button id="btn-trail" class="active" aria-pressed="true">Trail</button>
+      <button id="btn-splats" class="active" aria-pressed="true">Splats</button>
+      <button id="btn-tokens" class="active" aria-pressed="true">Tokens</button>
+    </div>
   </div>
   <button id="settings-btn" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="settings-panel">&#9881;</button>
   <div id="settings-panel">
     <h3>SETTINGS</h3>
-    <div class="setting-row">
-      <span class="setting-label">Theme</span>
-      <button id="btn-dark" class="mode-btn active">Dark</button>
-      <button id="btn-light" class="mode-btn">Light</button>
+    <div class="setting-row" role="group" aria-labelledby="theme-label">
+      <span class="setting-label" id="theme-label">Theme</span>
+      <button id="btn-dark" class="mode-btn active" aria-pressed="true">Dark</button>
+      <button id="btn-light" class="mode-btn" aria-pressed="false">Light</button>
     </div>
-    <div class="setting-row">
-      <span class="setting-label">Rotate</span>
-      <button id="btn-rotate-on" class="mode-btn active">On</button>
-      <button id="btn-rotate-off" class="mode-btn">Off</button>
+    <div class="setting-row" role="group" aria-labelledby="rotate-label">
+      <span class="setting-label" id="rotate-label">Rotate</span>
+      <button id="btn-rotate-on" class="mode-btn active" aria-pressed="true">On</button>
+      <button id="btn-rotate-off" class="mode-btn" aria-pressed="false">Off</button>
     </div>
     <div class="setting-row">
       <label for="ui-scale">UI Scale</label>
@@ -524,13 +528,14 @@
     }
     replayBtn.addEventListener('click', triggerReplay);
     promptInput.addEventListener('keydown', e => { if (e.key === 'Enter') triggerReplay() });
-    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); b.classList.toggle('active'); b.classList.toggle('off') }) }
+    function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { const newVal = !get(); set(newVal); b.classList.toggle('active'); b.classList.toggle('off'); b.setAttribute('aria-pressed', newVal) }) }
     toggleLayer('btn-field', () => showField, v => showField = v);
     toggleLayer('btn-trail', () => showTrail, v => showTrail = v);
     toggleLayer('btn-splats', () => showSplats, v => showSplats = v);
     toggleLayer('btn-tokens', () => showTokens, v => showTokens = v);
     function updateBtns() {
       btnPlay.classList.toggle('active', playing); btnPause.classList.toggle('active', !playing);
+      btnPlay.setAttribute('aria-pressed', playing); btnPause.setAttribute('aria-pressed', !playing);
       stepLabel.textContent = visibleSteps + '/' + T.length; scrubber.value = Math.max(0, visibleSteps - 1);
     }
     function updateGenText() {
@@ -561,12 +566,14 @@
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
+      document.getElementById('btn-dark').setAttribute('aria-pressed', 'true'); document.getElementById('btn-light').setAttribute('aria-pressed', 'false');
       document.body.style.background = darkBg; document.getElementById('hud').style.background = 'rgba(15,17,26,0.88)'; document.getElementById('gen-text').style.background = 'rgba(15,17,26,0.88)';
       document.getElementById('hud').style.color = '#7B8CA8'; document.getElementById('gen-text').style.color = '#A0B4D0';
       settingsPanel.style.background = 'rgba(15,17,26,0.94)';
     });
     document.getElementById('btn-light').addEventListener('click', () => {
       isDark = false; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active');
+      document.getElementById('btn-light').setAttribute('aria-pressed', 'true'); document.getElementById('btn-dark').setAttribute('aria-pressed', 'false');
       document.body.style.background = lightBg; document.getElementById('hud').style.background = 'rgba(240,242,248,0.92)'; document.getElementById('gen-text').style.background = 'rgba(240,242,248,0.92)';
       document.getElementById('hud').style.color = '#3A4A5A'; document.getElementById('gen-text').style.color = '#2A3A4A';
       settingsPanel.style.background = 'rgba(240,242,248,0.94)';
@@ -578,8 +585,8 @@
       document.getElementById('gen-text').style.transform = `scale(${uiScale})`; document.getElementById('gen-text').style.transformOrigin = 'top right';
     });
     document.getElementById('text-scale').addEventListener('input', e => { textScale = parseInt(e.target.value) / 100; document.getElementById('text-scale-val').textContent = e.target.value + '%' });
-    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active') });
-    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active') });
+    document.getElementById('btn-rotate-on').addEventListener('click', () => { autoRotate = true; document.getElementById('btn-rotate-on').classList.add('active'); document.getElementById('btn-rotate-off').classList.remove('active'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'false') });
+    document.getElementById('btn-rotate-off').addEventListener('click', () => { autoRotate = false; document.getElementById('btn-rotate-off').classList.add('active'); document.getElementById('btn-rotate-on').classList.remove('active'); document.getElementById('btn-rotate-off').setAttribute('aria-pressed', 'true'); document.getElementById('btn-rotate-on').setAttribute('aria-pressed', 'false') });
     document.getElementById('particle-density').addEventListener('input', e => { particleCount = parseInt(e.target.value); document.getElementById('particle-val').textContent = e.target.value; initParticles(particleCount) });
 
     // Projection
