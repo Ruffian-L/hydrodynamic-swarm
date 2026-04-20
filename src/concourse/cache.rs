@@ -177,17 +177,19 @@ impl TtlCache {
 
     /// Get value from cache
     pub fn get(&mut self, key: &str) -> Option<&CacheEntry> {
-        use std::collections::hash_map::Entry;
-        match self.entries.entry(key.to_string()) {
-            Entry::Occupied(occupied) => {
-                if occupied.get().is_expired() {
-                    occupied.remove();
-                    None
-                } else {
-                    Some(&*occupied.into_mut())
-                }
+        // ⚡ Bolt: zero-allocation lookup using get() instead of entry() to prevent allocating Strings on cache misses
+        let mut expired = false;
+        if let Some(entry) = self.entries.get(key) {
+            if entry.is_expired() {
+                expired = true;
             }
-            Entry::Vacant(_) => None,
+        }
+
+        if expired {
+            self.entries.remove(key);
+            None
+        } else {
+            self.entries.get(key)
         }
     }
 
