@@ -9,3 +9,6 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+## 2026-03-24 - Avoiding Heap Allocations in High-Throughput Cache Lookups
+**Learning:** In the cache module (`src/concourse/cache.rs`), using `self.entries.entry(key.to_string())` for simple cache lookups in `TtlCache::get` allocates a new String on the heap on every lookup, including cache hits and misses, severely degrading performance under load. A similar issue occurs in `LruCache::get` where a new String is pushed to the `access_order` queue on cache hits instead of reusing the existing extracted String.
+**Action:** Replace `.entry()` with `.get()` paired with conditionally removing expired entries to eliminate the allocation during lookups. When re-inserting into access-order queues on cache hits, always remove the existing String from the queue and push it back directly (`let existing = queue.remove(pos).unwrap(); queue.push_back(existing);`) instead of re-allocating via `.to_string()`.
