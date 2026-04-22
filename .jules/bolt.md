@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Redundant String Allocations in LRU Access Updates
+**Learning:** When managing access-order queues (like LRU caches) with `VecDeque<String>`, blindly pushing `key.to_string()` on every cache hit creates redundant heap allocations.
+**Action:** Always extract the existing string from the queue using `remove()` and re-insert it (e.g., `let existing = queue.remove(pos).unwrap(); queue.push_back(existing);`) to reuse the allocation.
