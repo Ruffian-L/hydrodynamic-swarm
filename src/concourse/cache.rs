@@ -73,9 +73,12 @@ impl LruCache {
         // valid entry, update access order
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
-            self.access_order.remove(pos);
+            // ⚡ Bolt: Reuse existing String allocation instead of creating a new one on cache hit
+            let existing_key = self.access_order.remove(pos).unwrap();
+            self.access_order.push_back(existing_key);
+        } else {
+            self.access_order.push_back(key.to_string());
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
