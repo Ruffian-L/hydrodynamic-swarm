@@ -120,16 +120,10 @@ impl LruCache {
 
     /// Remove expired entries
     pub fn cleanup(&mut self) {
-        let mut expired_keys = Vec::new();
-        for (key, entry) in &self.entries {
-            if entry.is_expired() {
-                expired_keys.push(key.clone());
-            }
-        }
-
-        for key in expired_keys {
-            self.remove(&key);
-        }
+        // ⚡ Bolt: Use retain to avoid allocating expired_keys vector and repeatedly calling remove
+        self.entries.retain(|_, entry| !entry.is_expired());
+        let entries = &self.entries;
+        self.access_order.retain(|k| entries.contains_key(k));
     }
 
     /// Get cache statistics
@@ -200,16 +194,8 @@ impl TtlCache {
 
     /// Remove expired entries
     pub fn cleanup(&mut self) {
-        let mut expired_keys = Vec::new();
-        for (key, entry) in &self.entries {
-            if entry.is_expired() {
-                expired_keys.push(key.clone());
-            }
-        }
-
-        for key in expired_keys {
-            self.entries.remove(&key);
-        }
+        // ⚡ Bolt: Use retain to avoid allocating expired_keys vector
+        self.entries.retain(|_, entry| !entry.is_expired());
     }
 
     /// Get cache statistics
