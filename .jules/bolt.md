@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Avoiding String Allocations on VecDeque Access Orders
+**Learning:** In LRU caches or access-ordered collections like `VecDeque`, removing and re-inserting an item by string key often leads to a new `String` allocation on every cache hit if implemented as `queue.push_back(key.to_string())`.
+**Action:** When updating the order of an existing key in a queue, use `queue.remove(pos).unwrap()` to extract the existing allocated `String` and immediately pass it to `queue.push_back(existing)`, entirely avoiding the heap allocation on the hot path.
