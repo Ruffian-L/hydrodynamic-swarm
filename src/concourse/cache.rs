@@ -71,11 +71,12 @@ impl LruCache {
         }
 
         // valid entry, update access order
-        let pos = self.access_order.iter().position(|k| k == key);
-        if let Some(pos) = pos {
-            self.access_order.remove(pos);
-        }
-        self.access_order.push_back(key.to_string());
+        let existing = if let Some(pos) = self.access_order.iter().position(|k| k == key) {
+            self.access_order.remove(pos).unwrap()
+        } else {
+            key.to_string()
+        };
+        self.access_order.push_back(existing);
 
         self.entries.get(key)
     }
@@ -177,17 +178,16 @@ impl TtlCache {
 
     /// Get value from cache
     pub fn get(&mut self, key: &str) -> Option<&CacheEntry> {
-        use std::collections::hash_map::Entry;
-        match self.entries.entry(key.to_string()) {
-            Entry::Occupied(occupied) => {
-                if occupied.get().is_expired() {
-                    occupied.remove();
-                    None
-                } else {
-                    Some(&*occupied.into_mut())
-                }
+        // ⚡ Bolt: avoid unnecessary allocation in TtlCache::get
+        if let Some(entry) = self.entries.get(key) {
+            if entry.is_expired() {
+                self.entries.remove(key);
+                None
+            } else {
+                self.entries.get(key)
             }
-            Entry::Vacant(_) => None,
+        } else {
+            None
         }
     }
 
@@ -271,11 +271,10 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            self.lru_cache.write().unwrap().put(
-                cache_key,
-                entry.value.clone(),
-                entry.ttl_seconds,
-            );
+            self.lru_cache
+                .write()
+                .unwrap()
+                .put(cache_key, entry.value.clone(), entry.ttl_seconds);
 
             return Ok(Some(embedding));
         }
@@ -319,11 +318,10 @@ impl CacheManager {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
             let val = entry.value.clone();
-            self.lru_cache.write().unwrap().put(
-                cache_key,
-                val.clone(),
-                entry.ttl_seconds,
-            );
+            self.lru_cache
+                .write()
+                .unwrap()
+                .put(cache_key, val.clone(), entry.ttl_seconds);
             return Ok(Some(val));
         }
 
