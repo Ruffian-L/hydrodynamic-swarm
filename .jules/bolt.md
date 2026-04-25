@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-04-25 - Avoid String Allocation on Cache Lookup
+**Learning:** In Rust hash maps and queues, using `.entry(key.to_string())` or recreating strings like `queue.push_back(key.to_string())` forces heap allocations on every cache hit.
+**Action:** Avoid allocating strings on cache lookups. For lookups and conditional checks, use `get(key)` instead of `entry()`. For updating LRU queue positions, extract and re-insert the existing string (`remove(pos).unwrap()`) instead of cloning.
