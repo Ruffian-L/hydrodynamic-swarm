@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-25 - Redundant heap allocations during cache lookups
+**Learning:** Found an anti-pattern in the caching layer (`src/concourse/cache.rs`) where `TtlCache::get` was using `.entry(key.to_string())` for simple lookups and `LruCache::get` was re-allocating strings `key.to_string()` instead of reusing existing ones in `access_order`. This forces a heap allocation on every single cache hit.
+**Action:** Avoid unnecessary `.entry()` calls for read operations. Prefer allocation-free `.get(key)` lookups, handling mutations separately if required. For queues, extract the existing string and re-insert it rather than allocating a new string.
