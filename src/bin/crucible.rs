@@ -57,8 +57,15 @@ fn main() {
         eprintln!("[crucible] Building release...");
         let status = Command::new("cargo")
             .args(["build", "--release", "--bin", "hydrodynamic-swarm"])
-            .status()
-            .expect("Failed to build");
+            .status();
+
+        let status = match status {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[crucible] Error: Failed to execute cargo build: {}", e);
+                std::process::exit(1);
+            }
+        };
         if !status.success() {
             eprintln!("[crucible] Build failed!");
             std::process::exit(1);
@@ -68,7 +75,14 @@ fn main() {
     // Log file
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
-    let mut log_file = std::fs::File::create(&log_path).expect("Failed to create log file");
+
+    let mut log_file = match std::fs::File::create(&log_path) {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
+            std::process::exit(1);
+        }
+    };
 
     println!();
     println!("============================================================");
@@ -106,8 +120,15 @@ fn main() {
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
-            .status()
-            .expect("Failed to run binary");
+            .status();
+
+        let status = match status {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                std::process::exit(1);
+            }
+        };
 
         let elapsed = start.elapsed();
 
