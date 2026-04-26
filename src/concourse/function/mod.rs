@@ -67,10 +67,7 @@ impl ActiveGraph {
             distances.truncate(0);
         }
 
-        distances
-            .into_iter()
-            .map(|(_, node)| node)
-            .collect()
+        distances.into_iter().map(|(_, node)| node).collect()
     }
 }
 
