@@ -17,8 +17,13 @@ impl GrokOracle {
         let api_key = env::var("XAI_API_KEY")
             .map_err(|_| anyhow!("XAI_API_KEY env var missing. export XAI_API_KEY=..."))?;
         
+        let client = Client::builder()
+            // 🛡️ Sentinel: Add 60-second timeout to prevent resource exhaustion
+            .timeout(std::time::Duration::from_secs(60))
+            .build()?;
+
         Ok(Self {
-            client: Client::new(),
+            client,
             api_key,
         })
     }
