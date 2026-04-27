@@ -120,16 +120,10 @@ impl LruCache {
 
     /// Remove expired entries
     pub fn cleanup(&mut self) {
-        let mut expired_keys = Vec::new();
-        for (key, entry) in &self.entries {
-            if entry.is_expired() {
-                expired_keys.push(key.clone());
-            }
-        }
-
-        for key in expired_keys {
-            self.remove(&key);
-        }
+        // ⚡ Bolt: Use retain to avoid allocating a Vec for expired keys and separate O(N) removals
+        self.entries.retain(|_, entry| !entry.is_expired());
+        let entries = &self.entries;
+        self.access_order.retain(|k| entries.contains_key(k));
     }
 
     /// Get cache statistics
@@ -200,16 +194,8 @@ impl TtlCache {
 
     /// Remove expired entries
     pub fn cleanup(&mut self) {
-        let mut expired_keys = Vec::new();
-        for (key, entry) in &self.entries {
-            if entry.is_expired() {
-                expired_keys.push(key.clone());
-            }
-        }
-
-        for key in expired_keys {
-            self.entries.remove(&key);
-        }
+        // ⚡ Bolt: Use retain to avoid allocating a Vec for expired keys
+        self.entries.retain(|_, entry| !entry.is_expired());
     }
 
     /// Get cache statistics
@@ -271,11 +257,10 @@ impl CacheManager {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            self.lru_cache.write().unwrap().put(
-                cache_key,
-                entry.value.clone(),
-                entry.ttl_seconds,
-            );
+            self.lru_cache
+                .write()
+                .unwrap()
+                .put(cache_key, entry.value.clone(), entry.ttl_seconds);
 
             return Ok(Some(embedding));
         }
@@ -319,11 +304,10 @@ impl CacheManager {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
             let val = entry.value.clone();
-            self.lru_cache.write().unwrap().put(
-                cache_key,
-                val.clone(),
-                entry.ttl_seconds,
-            );
+            self.lru_cache
+                .write()
+                .unwrap()
+                .put(cache_key, val.clone(), entry.ttl_seconds);
             return Ok(Some(val));
         }
 
