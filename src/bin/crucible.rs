@@ -55,10 +55,17 @@ fn main() {
     let binary = "target/release/hydrodynamic-swarm";
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
-        let status = Command::new("cargo")
+        let status = match Command::new("cargo")
             .args(["build", "--release", "--bin", "hydrodynamic-swarm"])
             .status()
-            .expect("Failed to build");
+        {
+            Ok(s) => s,
+            Err(e) => {
+                // 🛡️ Sentinel: Fail securely without unwrap/expect panic
+                eprintln!("[crucible] Error: Failed to build: {}", e);
+                std::process::exit(1);
+            }
+        };
         if !status.success() {
             eprintln!("[crucible] Build failed!");
             std::process::exit(1);
@@ -68,7 +75,14 @@ fn main() {
     // Log file
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
-    let mut log_file = std::fs::File::create(&log_path).expect("Failed to create log file");
+    let mut log_file = match std::fs::File::create(&log_path) {
+        Ok(f) => f,
+        Err(e) => {
+            // 🛡️ Sentinel: Fail securely without unwrap/expect panic
+            eprintln!("[crucible] Error: Failed to create log file: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     println!();
     println!("============================================================");
@@ -94,7 +108,7 @@ fn main() {
         let start = Instant::now();
 
         // Inherit stdout/stderr so tokens stream live to terminal
-        let status = Command::new(binary)
+        let status = match Command::new(binary)
             .args([
                 "--clear-memory",
                 "--model",
@@ -107,7 +121,14 @@ fn main() {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()
-            .expect("Failed to run binary");
+        {
+            Ok(s) => s,
+            Err(e) => {
+                // 🛡️ Sentinel: Fail securely without unwrap/expect panic
+                eprintln!("[crucible] Error: Failed to run binary: {}", e);
+                std::process::exit(1);
+            }
+        };
 
         let elapsed = start.elapsed();
 
