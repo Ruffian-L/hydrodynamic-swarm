@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Redundant Heap Allocations via HashMap Entry API
+**Learning:** Found an anti-pattern in `src/concourse/cache.rs` where calling `HashMap::entry(key.to_string())` for simple existence checks or conditional access forces a completely unnecessary heap allocation (`String`) on every single cache lookup, severely degrading performance.
+**Action:** Always prefer a two-step `HashMap::get()` lookup followed by a conditional `remove()` to avoid unconditional heap allocations, especially in high-throughput caching layers where keys are frequently borrowed string slices (`&str`).
