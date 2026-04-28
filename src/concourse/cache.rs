@@ -71,11 +71,14 @@ impl LruCache {
         }
 
         // valid entry, update access order
+        // ⚡ Bolt: reuse existing string from queue to avoid allocation on cache hits
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
-            self.access_order.remove(pos);
+            let existing = self.access_order.remove(pos).unwrap();
+            self.access_order.push_back(existing);
+        } else {
+            self.access_order.push_back(key.to_string());
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
