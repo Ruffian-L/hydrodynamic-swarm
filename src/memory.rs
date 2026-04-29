@@ -169,6 +169,10 @@ impl SplatMemory {
             let sigma_sq = splat.sigma * splat.sigma;
             let kernel = (-dist_sq / sigma_sq).exp();
             let scale = (splat.alpha * kernel) as f64;
+            // ⚡ Bolt: skip expensive tensor allocations when force is negligible
+            if scale.abs() < 1e-7 {
+                continue;
+            }
             let signed_force = diff.affine(scale, 0.0)?;
             total_force = (&total_force + &signed_force)?;
         }
@@ -205,6 +209,10 @@ impl SplatMemory {
             // Bundle stress should saturate inside a small core radius instead of
             // producing million-scale inverse-distance weights for near-coincident splats.
             let weight = bundle_weight(splat.alpha, dist_sq);
+            // ⚡ Bolt: skip expensive tensor allocations when force is negligible
+            if weight.abs() < 1e-7 {
+                continue;
+            }
             let contribution = diff.affine(weight as f64, 0.0)?;
             force = (&force + &contribution)?;
         }
