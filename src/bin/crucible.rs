@@ -58,7 +58,11 @@ fn main() {
         let status = Command::new("cargo")
             .args(["build", "--release", "--bin", "hydrodynamic-swarm"])
             .status()
-            .expect("Failed to build");
+            .unwrap_or_else(|e| {
+                // 🛡️ Sentinel: Replacing .expect with unwrap_or_else for graceful error handling
+                eprintln!("[crucible] Error: Failed to execute cargo build: {}", e);
+                std::process::exit(1);
+            });
         if !status.success() {
             eprintln!("[crucible] Build failed!");
             std::process::exit(1);
@@ -68,7 +72,11 @@ fn main() {
     // Log file
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
-    let mut log_file = std::fs::File::create(&log_path).expect("Failed to create log file");
+    let mut log_file = std::fs::File::create(&log_path).unwrap_or_else(|e| {
+        // 🛡️ Sentinel: Avoiding panic when log file creation fails
+        eprintln!("[crucible] Error: Failed to create log file: {}", e);
+        std::process::exit(1);
+    });
 
     println!();
     println!("============================================================");
