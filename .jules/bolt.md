@@ -9,3 +9,7 @@
 ## 2026-03-24 - Vectorized Batch Gradients
 **Learning:** In `src/gpu.rs` `CpuBackend::batch_field_gradient`, mapping `probe_gradient` over positions via `get()`, `unsqueeze(0)`, and `Tensor::cat` causes severe CPU bottlenecking due to N individual allocations and synchronizations.
 **Action:** Always prefer vectorized broadcast math (e.g., `unsqueeze(1)` and `broadcast_sub/mul`) over looping `unsqueeze` and `cat` for O(1) device dispatches.
+
+## 2026-03-24 - Tensor Loop Overhead Optimization
+**Learning:** In `candle_core` implementations like `src/memory.rs`, calling `.to_scalar()` or performing tensor allocations (`.affine()`, `+`) inside per-item iteration loops causes severe CPU-GPU synchronization bottlenecks.
+**Action:** Always implement early-exit checks (e.g., `if scale.abs() < 1e-7 { continue; }`) to skip these expensive tensor operations when force or weight contributions are negligible.
