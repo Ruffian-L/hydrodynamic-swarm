@@ -169,6 +169,10 @@ impl SplatMemory {
             let sigma_sq = splat.sigma * splat.sigma;
             let kernel = (-dist_sq / sigma_sq).exp();
             let scale = (splat.alpha * kernel) as f64;
+            // ⚡ Bolt: Early exit to prevent expensive affine and add tensor operations when contribution is negligible
+            if scale.abs() < 1e-7 {
+                continue;
+            }
             let signed_force = diff.affine(scale, 0.0)?;
             total_force = (&total_force + &signed_force)?;
         }
