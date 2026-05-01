@@ -73,9 +73,12 @@ impl LruCache {
         // valid entry, update access order
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
-            self.access_order.remove(pos);
+            // ⚡ Bolt: Extract existing String from VecDeque to avoid new heap allocation
+            let existing = self.access_order.remove(pos).unwrap();
+            self.access_order.push_back(existing);
+        } else {
+            self.access_order.push_back(key.to_string());
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
