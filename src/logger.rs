@@ -224,7 +224,9 @@ impl SessionLogger {
     }
 
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
-        let json = serde_json::to_string(entry).unwrap();
+        // 🛡️ Sentinel: Replace unwrap() with graceful error handling to prevent DoS via panic
+        let json = serde_json::to_string(entry)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         writeln!(self.file, "{}", json)?;
         self.file.flush()
     }
