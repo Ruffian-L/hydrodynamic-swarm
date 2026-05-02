@@ -363,8 +363,8 @@
 <body>
   <div id="prompt-bar">
     <label for="prompt-input">PROMPT</label>
-    <input type="text" id="prompt-input" value="Explain the Physics of Friendship in one paragraph." spellcheck="false">
-    <button id="replay-btn">Replay</button>
+    <input type="text" id="prompt-input" value="Explain the Physics of Friendship in one paragraph." spellcheck="false" title="Press Enter to replay">
+    <button id="replay-btn" title="Shortcut: Enter" aria-keyshortcuts="Enter">Replay</button>
   </div>
   <div id="hud" style="top:72px">
     <h2>SPLATLENS</h2>
@@ -379,7 +379,7 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;opacity:0.7">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
@@ -396,7 +396,7 @@
       <input type="range" id="speed" class="ctrl-slider" min="30" max="800" value="200">
       <span id="speed-label" aria-live="polite">200ms</span>
     </div>
-    <span style="color:#1A1E2A;margin:0 2px">|</span>
+    <span aria-hidden="true" style="opacity:0.3;margin:0 6px">|</span>
     <button id="btn-field" class="active" aria-pressed="true">Field</button>
     <button id="btn-trail" class="active" aria-pressed="true">Trail</button>
     <button id="btn-splats" class="active" aria-pressed="true">Splats</button>
