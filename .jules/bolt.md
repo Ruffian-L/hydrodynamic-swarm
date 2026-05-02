@@ -1,3 +1,3 @@
-## 2026-03-15 - Redundant heap allocations during LRU promotion in TTL Caching
-**Learning:** Found an anti-pattern in the caching layer (`src/concourse/cache.rs`) where TTL entries promoted to LRU cache were unnecessarily re-serializing data via `bincode::serialize` that was already serialized in `entry.value`.
-**Action:** Always reuse the existing serialized byte vectors (`entry.value.clone()`) and transfer ownership of strings (`cache_key`) directly when performing caching promotions across layers to avoid triggering new heap allocations.
+## 2026-05-02 - Unnecessary allocation in HashMap lookup loop
+**Learning:** In Rust `HashMap`, using `map.entry(key.clone()).or_insert(0) += 1` inside a loop forces a `clone()` (heap allocation) on every iteration, regardless of whether the key exists. This is an anti-pattern when used for simple counting where the key might already exist, as it creates unnecessary overhead.
+**Action:** Replace `counts.entry(key.clone()).or_insert(0) += 1` with a pattern that first attempts an allocation-free lookup (`counts.get_mut(&key)`), falling back to cloning only when insertion is necessary (`counts.insert(key.clone(), 1)`).
