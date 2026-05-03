@@ -10,3 +10,8 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+
+## 2026-05-03 - Unhandled Serialization Panic in Logger
+**Vulnerability:** In `logger.rs`, `serde_json::to_string(entry).unwrap()` would crash the application if serialization failed. This creates a Denial of Service (DoS) vulnerability.
+**Learning:** Hard unwrap on serialization of complex structures in critical paths can be exploited to crash the system.
+**Prevention:** Map serialization errors to standard I/O errors (`std::io::Error::new(std::io::ErrorKind::InvalidData, e)`) to gracefully fail the operation without taking down the application.

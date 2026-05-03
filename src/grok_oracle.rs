@@ -54,12 +54,14 @@ impl GrokOracle {
 
         info!("Calling Grok 4.20 for structured decision...");
 
+        // 🛡️ Sentinel: Enforce HTTP success status to prevent parsing error bodies as successful payloads
         let res = self.client.post("https://api.x.ai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&payload)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         let body: Value = res.json().await?;
 
