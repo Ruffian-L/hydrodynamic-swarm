@@ -61,6 +61,9 @@ impl GrokOracle {
             .send()
             .await?;
 
+        // 🛡️ Sentinel: Treat non-2xx HTTP status codes as errors to prevent insecurely parsing error bodies
+        let res = res.error_for_status()?;
+
         let body: Value = res.json().await?;
 
         // Extract tool call arguments

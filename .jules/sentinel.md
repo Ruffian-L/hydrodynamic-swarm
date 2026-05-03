@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - Unchecked Non-2xx HTTP Status Codes
+**Vulnerability:** The HTTP request in `GrokOracle` did not check the HTTP status code before attempting to parse the response body as JSON. This can cause the application to insecurely parse error bodies as successful payloads, leading to unexpected behavior or crashes.
+**Learning:** Always explicitly handle non-2xx HTTP status codes as errors when using `reqwest` to ensure robust error handling and prevent parsing invalid data.
+**Prevention:** Append `.error_for_status()?` to the response chain when making HTTP requests with `reqwest`.
