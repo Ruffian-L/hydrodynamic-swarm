@@ -182,28 +182,11 @@ static INSTRUCT_MODEL: OnceLock<InstructGemmaModel> = OnceLock::new();
 /// Get or initialize the shared InstructGemma singleton.
 /// Returns None if the model file is not present (falls back to heuristics).
 pub fn instruct_model() -> Option<&'static InstructGemmaModel> {
-    INSTRUCT_MODEL.get_or_init(|| {
-        match InstructGemmaModel::load(DEFAULT_MODEL_PATH) {
-            Ok(m) => {
-                info!("InstructGemma singleton ready");
-                m
-            }
-            Err(e) => {
-                // Panic during OnceLock would poison it — instead we never set it.
-                // But OnceLock::get_or_init requires we always return a value.
-                // So we log and return a deliberately broken model that will
-                // fail gracefully at inference time, triggering heuristic fallback.
-                warn!("InstructGemma load failed (falling back to heuristics): {e}");
-                // Trigger a panic here to prevent poisoning OnceLock with a broken model;
-                // instead don't use OnceLock for fallback — use a separate Option.
-                panic!("InstructGemma load: {e}");
-            }
-        }
-    });
-    // If init panicked, OnceLock stays uninit — get() returns None.
-    // But panics in OnceLock callbacks are not recoverable.
-    // Better approach below using a wrapper.
-    INSTRUCT_MODEL.get()
+    if try_init_instruct_model() {
+        INSTRUCT_MODEL.get()
+    } else {
+        None
+    }
 }
 
 // ── Safe lazy init with fallback ──────────────────────────────────────────────

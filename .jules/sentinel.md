@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - Unrecoverable Panic inside OnceLock::get_or_init
+**Vulnerability:** In `src/concourse/function/instruct_gemma.rs`, `INSTRUCT_MODEL.get_or_init()` used a `panic!` to prevent poisoning the `OnceLock` with a broken model if loading failed. However, panics inside `OnceLock` callbacks are unrecoverable in Rust and lead to immediate application crashes instead of graceful degradation or heuristic fallback as intended. This is a Denial of Service (DoS) vulnerability.
+**Learning:** Using `panic!` inside synchronization primitives like `OnceLock` to control control flow or state is dangerous and bypasses standard error handling, causing uncatchable application termination.
+**Prevention:** Use a separate initialization function (e.g., returning a boolean or `Result`) that can fail safely, and only call `OnceLock::set()` upon success, avoiding `get_or_init()` with panicking fallbacks altogether.
