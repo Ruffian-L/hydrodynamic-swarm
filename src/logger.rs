@@ -223,8 +223,10 @@ impl SessionLogger {
             .unwrap_or_else(|e| format!("TACO DB error: {}", e))
     }
 
+    // 🛡️ Sentinel: Do not panic when json serialization fails, return io error instead
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
-        let json = serde_json::to_string(entry).unwrap();
+        let json = serde_json::to_string(entry)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         writeln!(self.file, "{}", json)?;
         self.file.flush()
     }
