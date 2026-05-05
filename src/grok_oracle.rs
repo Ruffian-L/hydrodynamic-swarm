@@ -59,7 +59,9 @@ impl GrokOracle {
             .header("Content-Type", "application/json")
             .json(&payload)
             .send()
-            .await?;
+            .await?
+            // 🛡️ Sentinel: Handle non-2xx HTTP status codes as errors to prevent insecure parsing of error bodies
+            .error_for_status()?;
 
         let body: Value = res.json().await?;
 
