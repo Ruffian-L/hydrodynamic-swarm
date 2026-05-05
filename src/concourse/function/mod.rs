@@ -288,7 +288,12 @@ impl FunctionManager {
         let mut counts = HashMap::new();
 
         for edge in &graph_read.edges {
-            *counts.entry(edge.edge.clone()).or_insert(0) += 1;
+            // ⚡ Bolt: avoid allocating/cloning the key on every cache hit by preferring get_mut over entry
+            if let Some(count) = counts.get_mut(&edge.edge) {
+                *count += 1;
+            } else {
+                counts.insert(edge.edge.clone(), 1);
+            }
         }
 
         counts
