@@ -287,8 +287,13 @@ impl FunctionManager {
         let graph_read = self.graph.read().await;
         let mut counts = HashMap::new();
 
+        // ⚡ Bolt: Avoid heap allocations via .entry() or_insert for hashmap increments
         for edge in &graph_read.edges {
-            *counts.entry(edge.edge.clone()).or_insert(0) += 1;
+            if let Some(count) = counts.get_mut(&edge.edge) {
+                *count += 1;
+            } else {
+                counts.insert(edge.edge.clone(), 1);
+            }
         }
 
         counts
