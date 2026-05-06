@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2026-03-08 - Prevent Denial of Service in Lazy Model Initialization
+**Vulnerability:** A `panic!` inside `OnceLock::get_or_init` causes an unrecoverable application crash and poisons the lock.
+**Learning:** Using `panic!` inside Rust synchronization primitives like `OnceLock::get_or_init` causes Denials of Service. Instead of relying on a panic to fail initialization, `try_init_instruct_model` safely handles the model load and uses a secondary `OnceLock` to only initialize if successful.
+**Prevention:** Avoid `panic!` in `OnceLock` blocks. Use a separate boolean or Result-returning initialization function that allows graceful degradation and fallback logic.
