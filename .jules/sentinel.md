@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - Insecure Parsing of Error Bodies
+**Vulnerability:** The `reqwest` client in `src/grok_oracle.rs` was not checking for non-2xx HTTP response status codes. This means if the API returns an error (like a 401 Unauthorized, 429 Too Many Requests, or 500 Server Error) accompanied by an unexpected JSON structure, the application would attempt to insecurely parse the error body as a successful response, potentially leading to incorrect behavior or crashes.
+**Learning:** Always explicitly validate the HTTP response status before attempting to deserialize the response body to ensure only successful payloads are processed.
+**Prevention:** Always append `.error_for_status()?` to the `reqwest` response chain to enforce that non-2xx responses are treated as errors.
