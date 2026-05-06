@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2025-05-06 - Replacing unwrap with graceful error handling in standard library impls
+**Vulnerability:** Use of `unwrap()` on `serde_json::to_string` inside `write_entry`, which could crash the application if serialization fails.
+**Learning:** In Rust file I/O operations, particularly those implementing `std::io::Write` traits or handling logging, unhandled serialization errors can lead to abrupt application crashes (Denial of Service).
+**Prevention:** Replace `.unwrap()` with graceful error handling. For standard `std::io::Write` trait methods or general IO errors, map the serialization error to a valid `std::io::Error` (e.g., `std::io::Error::new(std::io::ErrorKind::InvalidData, e)`) to propagate the failure securely without crashing.
