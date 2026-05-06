@@ -379,7 +379,7 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play/pause</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
@@ -559,6 +559,14 @@
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
+      }
+      if (e.key === ' ' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') {
+        e.preventDefault();
+        if (playing) {
+          btnPause.click();
+        } else {
+          btnPlay.click();
+        }
       }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
