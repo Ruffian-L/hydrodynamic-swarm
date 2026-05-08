@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - Missing HTTP Error Propagation
+**Vulnerability:** The HTTP client in `GrokOracle` was making an API call and parsing the response body without checking the HTTP status code. This means a 404, 500, or other error response could be silently parsed as a successful payload, leading to unexpected behavior, crashes, or processing of malformed data.
+**Learning:** `reqwest` only returns an `Err` for network-level failures. HTTP error status codes are considered successful requests by default.
+**Prevention:** Always append `.error_for_status()?` to the response chain when using `reqwest` to ensure non-2xx HTTP status codes are explicitly handled as errors.
