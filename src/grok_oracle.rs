@@ -59,7 +59,7 @@ impl GrokOracle {
             .header("Content-Type", "application/json")
             .json(&payload)
             .send()
-            .await?;
+            .await?.error_for_status()?;
 
         let body: Value = res.json().await?;
 
