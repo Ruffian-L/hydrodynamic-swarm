@@ -13,7 +13,6 @@ use std::time::SystemTime;
 /// Cache entry with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheEntry {
-    pub key: String,
     pub value: Vec<u8>,
     pub created_at: SystemTime,
     pub ttl_seconds: Option<u64>,
@@ -21,9 +20,8 @@ pub struct CacheEntry {
 
 impl CacheEntry {
     /// Create a new cache entry
-    pub fn new(key: String, value: Vec<u8>, ttl_seconds: Option<u64>) -> Self {
+    pub fn new(value: Vec<u8>, ttl_seconds: Option<u64>) -> Self {
         Self {
-            key,
             value,
             created_at: SystemTime::now(),
             ttl_seconds,
@@ -101,7 +99,7 @@ impl LruCache {
             }
         }
 
-        let entry = CacheEntry::new(key.clone(), value, ttl_seconds);
+        let entry = CacheEntry::new(value, ttl_seconds);
         self.entries.insert(key.clone(), entry);
         self.access_order.push_back(key);
     }
@@ -186,7 +184,7 @@ impl TtlCache {
     /// Put value in cache with TTL
     pub fn put(&mut self, key: String, value: Vec<u8>, ttl_seconds: Option<u64>) {
         let ttl = ttl_seconds.unwrap_or(self.default_ttl_seconds);
-        let entry = CacheEntry::new(key.clone(), value, Some(ttl));
+        let entry = CacheEntry::new(value, Some(ttl));
         self.entries.insert(key, entry);
     }
 
@@ -299,8 +297,7 @@ impl CacheManager {
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
-            // and move cache_key directly instead of cloning.
+            // ⚡ Bolt: Promote to LRU cache, caching val directly without duplicate clones
             let val = entry.value.clone();
             self.lru_cache
                 .write()
