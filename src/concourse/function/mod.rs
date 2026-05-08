@@ -288,7 +288,12 @@ impl FunctionManager {
         let mut counts = HashMap::new();
 
         for edge in &graph_read.edges {
-            *counts.entry(edge.edge.clone()).or_insert(0) += 1;
+            // ⚡ Bolt: Avoid .entry() and .clone() overhead in loop
+            if let Some(count) = counts.get_mut(&edge.edge) {
+                *count += 1;
+            } else {
+                counts.insert(edge.edge, 1);
+            }
         }
 
         counts

@@ -1,3 +1,6 @@
 ## 2026-03-15 - Redundant heap allocations during LRU promotion in TTL Caching
 **Learning:** Found an anti-pattern in the caching layer (`src/concourse/cache.rs`) where TTL entries promoted to LRU cache were unnecessarily re-serializing data via `bincode::serialize` that was already serialized in `entry.value`.
 **Action:** Always reuse the existing serialized byte vectors (`entry.value.clone()`) and transfer ownership of strings (`cache_key`) directly when performing caching promotions across layers to avoid triggering new heap allocations.
+## 2024-05-08 - Rust HashMap entry API causes allocation overhead in loops
+**Learning:** Found an anti-pattern in `src/concourse/function/mod.rs` where counting edge frequencies in a tight loop used `counts.entry(edge.edge.clone()).or_insert(0) += 1`. This forces heap allocation/cloning on every iteration even for existing keys. The enums `NodeClass` and `RelationalEdge` also lacked the `Copy` trait, forcing explicit `.clone()` calls.
+**Action:** Always derive `Copy` for lightweight, fieldless enums to allow allocation-free by-value passing. In hash map update loops, replace `.entry(key.clone()).or_insert(x)` with a direct check: `if let Some(val) = map.get_mut(&key) { *val += 1; } else { map.insert(key, 1); }` to avoid unnecessary allocations on cache hits.
