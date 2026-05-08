@@ -560,6 +560,20 @@
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
       }
+
+      // Global spacebar shortcut for play/pause
+      if (e.key === ' ' || e.code === 'Space') {
+        // Ignore input/textarea elements to avoid interfering with typing
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        // Prevent default page scroll on spacebar, except for buttons (they handle their own click events)
+        if (e.target.tagName !== 'BUTTON') {
+            e.preventDefault();
+            playing = !playing;
+            if (playing && visibleSteps >= T.length) visibleSteps = 1; // Restart if at end
+            updateBtns(); updateGenText();
+        }
+      }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
