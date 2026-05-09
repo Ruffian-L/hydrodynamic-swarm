@@ -384,8 +384,8 @@
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
   <div id="controls" role="group" aria-labelledby="controls-label">
-    <button id="btn-play" class="active" aria-pressed="true">Play</button>
-    <button id="btn-pause" aria-pressed="false">Pause</button>
+    <button id="btn-play" class="active" aria-pressed="true" title="Play (Space)">Play</button>
+    <button id="btn-pause" aria-pressed="false" title="Pause (Space)">Pause</button>
     <div class="slider-group">
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
@@ -559,6 +559,17 @@
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
+      }
+
+      // Toggle play/pause with Spacebar, ignore inputs and buttons
+      if (e.key === ' ' && !['INPUT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps >= T.length) {
+            visibleSteps = 1;
+        }
+        updateBtns();
+        updateGenText();
       }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {

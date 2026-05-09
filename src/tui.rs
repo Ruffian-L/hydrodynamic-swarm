@@ -48,6 +48,7 @@ pub fn run_chat(
         engine.memory().len()
     );
     println!("  {DIM}{GRAY}Max tokens: {}{RESET}", max_tokens);
+    println!("  {DIM}{GRAY}Type your prompt below. Press Enter to submit, or leave empty to exit.{RESET}");
     println!();
 
     // Prompt input
