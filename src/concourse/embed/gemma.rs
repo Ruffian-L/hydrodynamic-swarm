@@ -439,14 +439,14 @@ impl EmbedGemma for GemmaEmbedder {
 
         Ok(Node {
             id,
-            class: self.class.clone(),
+            class: self.class,
             semantic_hash,
             embedding: Some(embedding),
         })
     }
 
     fn specialization(&self) -> NodeClass {
-        self.class.clone()
+        self.class
     }
 
     fn embedding_dimension(&self) -> usize {
