@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2025-02-14 - Fix OnceLock Poisoning DoS
+**Vulnerability:** Panicking inside `OnceLock::get_or_init` causes unrecoverable application crashes (Denial of Service) and poisons the lock.
+**Learning:** `OnceLock::get_or_init` callbacks that panic prevent subsequent reads and cause fatal errors. The existing implementation panicked to signal a failed load, preventing the intended heuristic fallback.
+**Prevention:** Use a separate initialization function that returns a `Result` or boolean, and only call `OnceLock::set()` upon success, avoiding panics entirely in lock initialization callbacks.
