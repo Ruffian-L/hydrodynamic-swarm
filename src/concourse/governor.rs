@@ -80,7 +80,8 @@ impl ActiveCell {
     pub fn get_edge_counts_vec(&self) -> Vec<(RelationalEdge, i32)> {
         self.edge_counts
             .iter()
-            .map(|(edge, count)| (edge.clone(), *count))
+            // ⚡ Bolt: Removed unnecessary .clone() on Copy enum
+            .map(|(edge, count)| (*edge, *count))
             .collect()
     }
 
