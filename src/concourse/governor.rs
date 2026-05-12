@@ -77,10 +77,12 @@ impl ActiveCell {
         self.nodes.len()
     }
 
+    // ⚡ Bolt: Removed .clone() in iterator. By explicitly deriving the Copy trait for RelationalEdge,
+    // we avoid function call overhead during this map operation by just dereferencing the pointer.
     pub fn get_edge_counts_vec(&self) -> Vec<(RelationalEdge, i32)> {
         self.edge_counts
             .iter()
-            .map(|(edge, count)| (edge.clone(), *count))
+            .map(|(edge, count)| (*edge, *count))
             .collect()
     }
 
