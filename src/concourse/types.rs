@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+// ⚡ Bolt: Derive Copy for fieldless enum to prevent clone allocation overhead
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NodeClass {
     Axiom,
     Observation,
@@ -22,7 +23,8 @@ impl fmt::Display for NodeClass {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+// ⚡ Bolt: Derive Copy for fieldless enum to prevent clone allocation overhead
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RelationalEdge {
     Encapsulates,
     Scaffolds,

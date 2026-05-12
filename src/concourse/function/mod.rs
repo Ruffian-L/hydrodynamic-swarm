@@ -101,7 +101,8 @@ impl FunctionGemmaWorker {
             let edge = self.determine_relationship(&new_node, &neighbor);
 
             self.tx
-                .send(edge.clone().into())
+                // ⚡ Bolt: Copy lightweight enum by value instead of cloning
+                .send(edge.into())
                 .await
                 .map_err(|e| SwarmError::Concurrency(format!("Failed to send edge: {}", e)))?;
         }
@@ -288,7 +289,8 @@ impl FunctionManager {
         let mut counts = HashMap::new();
 
         for edge in &graph_read.edges {
-            *counts.entry(edge.edge.clone()).or_insert(0) += 1;
+            // ⚡ Bolt: Copy lightweight enum by value instead of cloning
+            *counts.entry(edge.edge).or_insert(0) += 1;
         }
 
         counts
