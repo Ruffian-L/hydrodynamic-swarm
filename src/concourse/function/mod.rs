@@ -288,7 +288,7 @@ impl FunctionManager {
         let mut counts = HashMap::new();
 
         for edge in &graph_read.edges {
-            *counts.entry(edge.edge.clone()).or_insert(0) += 1;
+            *counts.entry(edge.edge).or_insert(0) += 1; // ⚡ Bolt: Removed .clone() since RelationalEdge now implements Copy
         }
 
         counts
