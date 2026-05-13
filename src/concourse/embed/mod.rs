@@ -140,11 +140,11 @@ struct StubEmbedder(NodeClass);
 impl EmbedGemma for StubEmbedder {
     fn compress(&self, raw_text: &str) -> SwarmResult<Node> {
         let semantic_hash = generate_semantic_hash(raw_text, 10);
-        Ok(Node::new(generate_node_id(), self.0.clone(), semantic_hash))
+        Ok(Node::new(generate_node_id(), self.0, semantic_hash))
     }
 
     fn specialization(&self) -> NodeClass {
-        self.0.clone()
+        self.0
     }
 
     fn embedding_dimension(&self) -> usize {
