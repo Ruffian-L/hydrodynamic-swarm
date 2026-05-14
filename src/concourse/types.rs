@@ -22,7 +22,7 @@ impl fmt::Display for NodeClass {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Copy)]
 pub enum RelationalEdge {
     Encapsulates,
     Scaffolds,
