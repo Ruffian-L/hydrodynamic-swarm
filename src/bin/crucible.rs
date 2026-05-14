@@ -52,8 +52,11 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
-    if !std::path::Path::new(binary).exists() {
+    let binary = format!(
+        "{}/target/release/hydrodynamic-swarm",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    if !std::path::Path::new(&binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
         let status = Command::new(env!("CARGO"))
@@ -80,7 +83,10 @@ fn main() {
     let mut log_file = match std::fs::File::create(&log_path) {
         Ok(file) => file,
         Err(e) => {
-            eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
+            eprintln!(
+                "[crucible] Error: Failed to create log file at {}: {}",
+                log_path, e
+            );
             std::process::exit(1);
         }
     };
@@ -109,7 +115,7 @@ fn main() {
         let start = Instant::now();
 
         // Inherit stdout/stderr so tokens stream live to terminal
-        let status = Command::new(binary)
+        let status = Command::new(&binary)
             .args([
                 "--clear-memory",
                 "--model",
@@ -126,7 +132,10 @@ fn main() {
         let status = match status {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                eprintln!(
+                    "[crucible] Error: Failed to run binary at {}: {}",
+                    binary, e
+                );
                 std::process::exit(1);
             }
         };
