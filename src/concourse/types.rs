@@ -22,7 +22,8 @@ impl fmt::Display for NodeClass {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+// ⚡ Bolt: Derive Copy for RelationalEdge to avoid unnecessary heap allocations during map and entry clones.
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RelationalEdge {
     Encapsulates,
     Scaffolds,
