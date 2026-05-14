@@ -379,7 +379,7 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p id="shortcut-hints" style="margin-top:6px;opacity:0.7">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play | &larr;&rarr;=step</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
@@ -559,6 +559,30 @@
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
+        return;
+      }
+
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'BUTTON') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps >= T.length) visibleSteps = 1;
+        updateBtns();
+        updateGenText();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        playing = false;
+        visibleSteps = Math.max(1, visibleSteps - 1);
+        updateBtns();
+        updateGenText();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        playing = false;
+        visibleSteps = Math.min(T.length, visibleSteps + 1);
+        updateBtns();
+        updateGenText();
       }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
