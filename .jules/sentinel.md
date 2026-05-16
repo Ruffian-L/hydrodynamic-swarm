@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - Insecure Log File Permissions
+**Vulnerability:** Session logs (which may contain sensitive user prompts or AI model outputs) were created with default file permissions, making them potentially readable by other local users on a multi-user system.
+**Learning:** Automatically restricting file permissions for log files and sensitive artifacts upon creation minimizes the risk of local information disclosure.
+**Prevention:** Explicitly set strict permissions (e.g., `0o600` on Unix systems) when creating log files or any files storing sensitive operational data.

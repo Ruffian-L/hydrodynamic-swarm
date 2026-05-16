@@ -129,6 +129,15 @@ impl SessionLogger {
         let log_path = log_dir.join(&filename);
         let file = fs::File::create(&log_path)?;
 
+        // 🛡️ Sentinel: Ensure secure permissions on log file to prevent unauthorized access
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = file.metadata()?.permissions();
+            perms.set_mode(0o600);
+            file.set_permissions(perms)?;
+        }
+
         println!("    Logging to: {}", log_path.display());
 
         let taco = match TacoDb::new_persistent("logs/taco.db") {

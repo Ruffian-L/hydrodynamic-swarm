@@ -52,7 +52,9 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let binary_path = std::path::Path::new(manifest_dir).join("target/release/hydrodynamic-swarm");
+    let binary = binary_path.to_str().unwrap();
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
