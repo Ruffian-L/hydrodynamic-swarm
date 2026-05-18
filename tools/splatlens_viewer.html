@@ -560,6 +560,15 @@
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
       }
+
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(activeTag)) return;
+
+      if (e.key === ' ') {
+        e.preventDefault();
+        playing = !playing;
+        updateBtns();
+      }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
