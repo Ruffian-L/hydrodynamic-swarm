@@ -71,6 +71,11 @@ impl LruCache {
         }
 
         // valid entry, update access order
+        // ⚡ Bolt: Avoid O(N) scan for sequential accesses to the same key
+        if self.access_order.back().map(|k| k.as_str()) == Some(key) {
+            return self.entries.get(key);
+        }
+
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
             self.access_order.remove(pos);
