@@ -224,7 +224,7 @@ impl SessionLogger {
     }
 
     fn write_entry(&mut self, entry: &LogEntry) -> std::io::Result<()> {
-        let json = serde_json::to_string(entry).unwrap();
+        let json = serde_json::to_string(entry).unwrap_or_else(|_| "{}".to_string());
         writeln!(self.file, "{}", json)?;
         self.file.flush()
     }
