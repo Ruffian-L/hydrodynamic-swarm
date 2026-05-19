@@ -125,9 +125,34 @@ impl SessionLogger {
             .collect();
 
         let session_id = format!("{}_{}_{}", date_str, time_str, safe_label);
-        let filename = format!("{}_{}_{}.jsonl", date_str, time_str, safe_label);
-        let log_path = log_dir.join(&filename);
-        let file = fs::File::create(&log_path)?;
+        let mut file = None;
+        let mut final_log_path = None;
+        for i in 0..100 {
+            let filename = if i == 0 {
+                format!("{}_{}_{}.jsonl", date_str, time_str, safe_label)
+            } else {
+                format!("{}_{}_{}_{}.jsonl", date_str, time_str, safe_label, i)
+            };
+            let log_path = log_dir.join(&filename);
+
+            // 🛡️ Sentinel: Open with create_new to prevent overwriting existing files or following symlinks
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&log_path)
+            {
+                Ok(f) => {
+                    file = Some(f);
+                    final_log_path = Some(log_path);
+                    break;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(e),
+            }
+        }
+
+        let file = file.ok_or_else(|| std::io::Error::new(std::io::ErrorKind::AlreadyExists, "Could not create unique log file"))?;
+        let log_path = final_log_path.unwrap();
 
         println!("    Logging to: {}", log_path.display());
 
