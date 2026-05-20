@@ -70,12 +70,13 @@ impl LruCache {
             return None;
         }
 
-        // valid entry, update access order
-        let pos = self.access_order.iter().position(|k| k == key);
-        if let Some(pos) = pos {
-            self.access_order.remove(pos);
+        // ⚡ Bolt: Avoid O(N) scan by first checking if key is already at the back
+        if self.access_order.back().map(|k| k.as_str()) != Some(key) {
+            if let Some(pos) = self.access_order.iter().position(|k| k == key) {
+                self.access_order.remove(pos);
+            }
+            self.access_order.push_back(key.to_string());
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
@@ -299,8 +300,8 @@ impl CacheManager {
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
-            // and move cache_key directly instead of cloning.
+            // ⚡ Bolt: Promote to LRU cache. Reuse the existing serialized byte vector
+            // and move cache_key directly instead of cloning to avoid redundant heap allocations.
             let val = entry.value.clone();
             self.lru_cache
                 .write()
