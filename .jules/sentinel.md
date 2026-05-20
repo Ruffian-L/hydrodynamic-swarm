@@ -10,3 +10,12 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2025-02-23 - Prevent TOCTOU symlink overwrite vulnerabilities
+**Vulnerability:** Use of `std::fs::File::create` without proper checking allowed a Time-of-Check to Time-of-Use (TOCTOU) symlink overwrite vulnerability.
+**Learning:** In Rust, `std::fs::File::create` will follow symlinks and overwrite files they point to. If an attacker can replace a log file path with a symlink before creation, they can overwrite arbitrary files.
+**Prevention:** Use `std::fs::remove_file` to remove any existing file/symlink, then use `std::fs::OpenOptions::new().write(true).create_new(true).open(&path)` to safely create the file exclusively.
+
+## 2025-02-23 - Prevent execution path hijacking in development tools
+**Vulnerability:** Execution of the `hydrodynamic-swarm` binary in `crucible.rs` relied on a relative path (`target/release/hydrodynamic-swarm`).
+**Learning:** Using relative paths for command execution can allow an attacker to hijack the command by manipulating the working directory or placing a malicious binary in the relative path.
+**Prevention:** Use `env!("CARGO_MANIFEST_DIR")` to construct absolute paths to project-internal binaries at compile time.

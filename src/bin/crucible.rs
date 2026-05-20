@@ -52,7 +52,12 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    // 🛡️ Sentinel: Use absolute path via CARGO_MANIFEST_DIR to prevent command hijacking
+    let binary_path = format!(
+        "{}/target/release/hydrodynamic-swarm",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let binary = binary_path.as_str();
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
@@ -77,10 +82,19 @@ fn main() {
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
 
-    let mut log_file = match std::fs::File::create(&log_path) {
+    // 🛡️ Sentinel: Prevent TOCTOU symlink overwrite vulnerability
+    let _ = std::fs::remove_file(&log_path);
+    let mut log_file = match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&log_path)
+    {
         Ok(file) => file,
         Err(e) => {
-            eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
+            eprintln!(
+                "[crucible] Error: Failed to create log file at {}: {}",
+                log_path, e
+            );
             std::process::exit(1);
         }
     };
@@ -126,7 +140,10 @@ fn main() {
         let status = match status {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                eprintln!(
+                    "[crucible] Error: Failed to run binary at {}: {}",
+                    binary, e
+                );
                 std::process::exit(1);
             }
         };
