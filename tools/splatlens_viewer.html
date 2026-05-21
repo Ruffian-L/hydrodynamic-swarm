@@ -390,6 +390,7 @@
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
       <span id="step-label" aria-live="polite">50/50</span>
+      <span aria-hidden="true" title="Press Space to Play/Pause" style="font-size: 11px; color: inherit; opacity: 0.7; margin-left: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(128,128,128,0.15); cursor: help;">⌨️ Space</span>
     </div>
     <div class="slider-group">
       <label for="speed">Speed</label>
@@ -554,6 +555,25 @@
       const isOpen = settingsPanel.classList.toggle('open');
       settingsBtn.setAttribute('aria-expanded', isOpen);
     });
+    document.addEventListener('keydown', (e) => {
+      // Ignore if user is typing in an input or textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault(); // Prevent scrolling
+        if (playing) {
+          btnPause.click();
+        } else {
+          // If we are at the end, replay. Else play.
+          if (visibleSteps >= T.length) {
+            triggerReplay();
+          } else {
+            btnPlay.click();
+          }
+        }
+      }
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
         settingsPanel.classList.remove('open');
