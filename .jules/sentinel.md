@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2025-05-21 - Fix TOCTOU vulnerability when creating files
+**Vulnerability:** The code used `std::fs::File::create` to create log files, which can be vulnerable to Time-of-Check to Time-of-Use (TOCTOU) and symlink file overwrite attacks.
+**Learning:** `File::create` truncates an existing file if it exists, potentially allowing an attacker to overwrite an arbitrary file if they can replace the target with a symlink before creation.
+**Prevention:** Use `std::fs::OpenOptions::new().write(true).create_new(true).open(&path)` instead. If replacing an existing file, explicitly call `std::fs::remove_file(&path)` beforehand to safely remove any existing file or symlink and prevent `AlreadyExists` errors.
