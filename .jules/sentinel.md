@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-24 - TOCTOU Vulnerability in File Creation
+**Vulnerability:** File creation using \`File::create\` and \`OpenOptions::new().create(true).append(true).open()\` is vulnerable to Time-of-Check to Time-of-Use (TOCTOU) and symlink attacks.
+**Learning:** File creation in Rust must explicitly prevent race conditions where a file might be replaced by a symlink after existence check but before opening. Note that when appending to logs is required, simply replacing \`append(true)\` with \`remove_file\` and \`create_new(true)\` will break logging functionality. You should only use \`create_new(true)\` when truncating and creating new files is intended, such as in per-session discrete log files.
+**Prevention:** Always use \`std::fs::remove_file(&path)\` first to clear potential symlinks, then create files exclusively using \`std::fs::OpenOptions::new().write(true).create_new(true).open(&path)\` for newly generated files that do not require appending across sessions.
