@@ -364,7 +364,7 @@
   <div id="prompt-bar">
     <label for="prompt-input">PROMPT</label>
     <input type="text" id="prompt-input" value="Explain the Physics of Friendship in one paragraph." spellcheck="false">
-    <button id="replay-btn">Replay</button>
+    <button id="replay-btn" title="Replay from beginning (Enter when prompt focused)">Replay</button>
   </div>
   <div id="hud" style="top:72px">
     <h2>SPLATLENS</h2>
@@ -379,13 +379,13 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play/pause</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
   <div id="controls" role="group" aria-labelledby="controls-label">
-    <button id="btn-play" class="active" aria-pressed="true">Play</button>
-    <button id="btn-pause" aria-pressed="false">Pause</button>
+    <button id="btn-play" class="active" aria-pressed="true" title="Play animation (Space)">Play</button>
+    <button id="btn-pause" aria-pressed="false" title="Pause animation (Space)">Pause</button>
     <div class="slider-group">
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
@@ -513,6 +513,21 @@
     speedSlider.addEventListener('input', () => { replaySpeed = parseInt(speedSlider.value); speedLabel.textContent = replaySpeed + 'ms' });
     btnPlay.addEventListener('click', () => { playing = true; visibleSteps = 1; updateBtns(); updateGenText() });
     btnPause.addEventListener('click', () => { playing = false; visibleSteps = T.length; scrubber.value = T.length - 1; updateBtns(); updateGenText() });
+
+    // Keyboard accessibility: Spacebar to play/pause
+    document.addEventListener('keydown', (e) => {
+      // Ignore if focus is on inputs, textareas, or buttons (since Space activates buttons natively)
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps >= T.length) {
+          visibleSteps = 1;
+        }
+        updateBtns();
+        updateGenText();
+      }
+    });
     // Prompt bar -- Replay triggers Play replay
     const promptInput = document.getElementById('prompt-input');
     const replayBtn = document.getElementById('replay-btn');
