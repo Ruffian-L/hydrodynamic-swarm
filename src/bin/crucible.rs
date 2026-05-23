@@ -52,7 +52,10 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    // 🛡️ Sentinel: Prevent command hijacking by using absolute paths for project-internal binaries
+    let binary_path = format!("{}/target/release/hydrodynamic-swarm", env!("CARGO_MANIFEST_DIR"));
+    let binary = binary_path.as_str();
+
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
