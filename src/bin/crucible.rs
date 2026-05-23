@@ -52,7 +52,7 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    let binary = concat!(env!("CARGO_MANIFEST_DIR"), "/target/release/hydrodynamic-swarm");
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
