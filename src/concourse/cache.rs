@@ -71,11 +71,13 @@ impl LruCache {
         }
 
         // valid entry, update access order
-        let pos = self.access_order.iter().position(|k| k == key);
-        if let Some(pos) = pos {
-            self.access_order.remove(pos);
+        // ⚡ Bolt: Avoid O(N) scan for sequential accesses to the same key
+        if self.access_order.back().map_or(true, |k| k != key) {
+            if let Some(pos) = self.access_order.iter().position(|k| k == key) {
+                self.access_order.remove(pos);
+            }
+            self.access_order.push_back(key.to_string());
         }
-        self.access_order.push_back(key.to_string());
 
         self.entries.get(key)
     }
@@ -96,8 +98,14 @@ impl LruCache {
 
         // If updating, remove old position from access_order
         if is_update {
-            if let Some(pos) = self.access_order.iter().position(|k| k == &key) {
-                self.access_order.remove(pos);
+            // ⚡ Bolt: Avoid O(N) scan for sequential accesses to the same key
+            if self.access_order.back().map_or(true, |k| k != &key) {
+                if let Some(pos) = self.access_order.iter().position(|k| k == &key) {
+                    self.access_order.remove(pos);
+                }
+            } else {
+                // If the key is already at the back, we can just pop it and push it again
+                self.access_order.pop_back();
             }
         }
 
@@ -109,8 +117,13 @@ impl LruCache {
     /// Remove entry from cache
     pub fn remove(&mut self, key: &str) -> Option<CacheEntry> {
         if let Some(entry) = self.entries.remove(key) {
-            if let Some(pos) = self.access_order.iter().position(|k| k == key) {
-                self.access_order.remove(pos);
+            // ⚡ Bolt: Avoid O(N) scan for sequential accesses to the same key
+            if self.access_order.back().map_or(true, |k| k != key) {
+                if let Some(pos) = self.access_order.iter().position(|k| k == key) {
+                    self.access_order.remove(pos);
+                }
+            } else {
+                self.access_order.pop_back();
             }
             Some(entry)
         } else {
