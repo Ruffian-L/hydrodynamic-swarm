@@ -379,7 +379,7 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play/pause</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
@@ -555,10 +555,34 @@
       settingsBtn.setAttribute('aria-expanded', isOpen);
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
-        settingsPanel.classList.remove('open');
-        settingsBtn.setAttribute('aria-expanded', 'false');
-        settingsBtn.focus();
+      if (e.key === 'Escape') {
+        if (settingsPanel.classList.contains('open')) {
+          settingsPanel.classList.remove('open');
+          settingsBtn.setAttribute('aria-expanded', 'false');
+          settingsBtn.focus();
+        }
+        return;
+      }
+
+      // Spacebar to toggle Play/Pause
+      if (e.key === ' ' || e.code === 'Space') {
+        const activeElement = document.activeElement;
+        // Don't interfere if user is typing in an input or focusing a button
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'BUTTON')) {
+          return;
+        }
+        e.preventDefault(); // Prevent scrolling down the page
+
+        if (playing) {
+          playing = false;
+        } else {
+          playing = true;
+          if (visibleSteps >= T.length) {
+            visibleSteps = 1;
+          }
+        }
+        updateBtns();
+        updateGenText();
       }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
