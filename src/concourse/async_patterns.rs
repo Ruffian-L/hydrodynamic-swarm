@@ -271,10 +271,16 @@ impl WorkStealingScheduler {
 
     /// Get scheduler statistics
     pub async fn get_stats(&self) -> Result<SchedulerStats> {
-        let mut pool_stats = HashMap::new();
+        let mut futures = Vec::new();
         for (pool_name, pool) in &self.worker_pools {
-            pool_stats.insert(pool_name.clone(), pool.get_stats().await?);
+            let pool_name = pool_name.clone();
+            futures.push(async move {
+                let stats = pool.get_stats().await?;
+                Ok::<_, anyhow::Error>((pool_name, stats))
+            });
         }
+        let pool_stats_vec = futures::future::try_join_all(futures).await?;
+        let pool_stats: HashMap<String, PoolStats> = pool_stats_vec.into_iter().collect();
 
         let global_queue_stats = {
             let queue = self.global_queue.lock().await;
@@ -295,10 +301,12 @@ impl WorkStealingScheduler {
         info!("Shutting down work-stealing scheduler");
 
         // Shutdown all worker pools
+        let mut futures = Vec::new();
         for (pool_name, pool) in &self.worker_pools {
             info!("Shutting down worker pool: {}", pool_name);
-            pool.shutdown().await?;
+            futures.push(pool.shutdown());
         }
+        futures::future::try_join_all(futures).await?;
 
         info!("Work-stealing scheduler shutdown complete");
         Ok(())
