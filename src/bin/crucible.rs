@@ -52,8 +52,9 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
-    if !std::path::Path::new(binary).exists() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let binary = format!("{}/target/release/hydrodynamic-swarm", manifest_dir);
+    if !std::path::Path::new(&binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
         let status = Command::new(env!("CARGO"))
@@ -109,7 +110,7 @@ fn main() {
         let start = Instant::now();
 
         // Inherit stdout/stderr so tokens stream live to terminal
-        let status = Command::new(binary)
+        let status = Command::new(&binary)
             .args([
                 "--clear-memory",
                 "--model",
