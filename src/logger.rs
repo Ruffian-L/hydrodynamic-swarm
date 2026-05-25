@@ -127,7 +127,11 @@ impl SessionLogger {
         let session_id = format!("{}_{}_{}", date_str, time_str, safe_label);
         let filename = format!("{}_{}_{}.jsonl", date_str, time_str, safe_label);
         let log_path = log_dir.join(&filename);
-        let file = fs::File::create(&log_path)?;
+        let _ = std::fs::remove_file(&log_path);
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&log_path)?;
 
         println!("    Logging to: {}", log_path.display());
 
