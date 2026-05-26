@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2026-05-26 - Path Hijacking
+**Vulnerability:** The crucible.rs binary was using a relative path "target/release/hydrodynamic-swarm" which could be exploited through path hijacking by changing the current working directory.
+**Learning:** Using env!("CARGO_MANIFEST_DIR") to resolve the absolute path to binaries ensures that execution stays grounded to the project root, regardless of where the command is executed.
+**Prevention:** Always use compile-time environment variables like CARGO_MANIFEST_DIR to dynamically resolve absolute paths instead of relying on relative string paths.
