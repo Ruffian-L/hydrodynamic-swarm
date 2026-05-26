@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2026-05-26 - Fix TOCTOU file overwrite and relative path hijacking risks
+**Vulnerability:** Found Time-of-Check to Time-of-Use (TOCTOU) risks via `File::create` causing potential symlink file overwrite, and relative path hijacking vulnerability when specifying target binaries.
+**Learning:** In Rust environments, using standard file creation or loosely bound relative paths can expose local execution flow and configurations to exploitation if user environments define malicious paths.
+**Prevention:** Strictly enforce using `OpenOptions::new().write(true).create_new(true)` with explicit `remove_file` prior to creation for safety. Additionally, safely resolve internal target binaries absolutely using `env!("CARGO_MANIFEST_DIR")`.

@@ -52,7 +52,7 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    let binary = concat!(env!("CARGO_MANIFEST_DIR"), "/target/release/hydrodynamic-swarm");
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
@@ -77,7 +77,8 @@ fn main() {
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
 
-    let mut log_file = match std::fs::File::create(&log_path) {
+    let _ = std::fs::remove_file(&log_path);
+    let mut log_file = match std::fs::OpenOptions::new().write(true).create_new(true).open(&log_path) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
