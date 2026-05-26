@@ -52,8 +52,13 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
-    if !std::path::Path::new(binary).exists() {
+    // 🛡️ Sentinel: Construct absolute path to prevent command/path hijacking
+    let binary_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("release")
+        .join("hydrodynamic-swarm");
+
+    if !binary_path.exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
         let status = Command::new(env!("CARGO"))
@@ -109,7 +114,7 @@ fn main() {
         let start = Instant::now();
 
         // Inherit stdout/stderr so tokens stream live to terminal
-        let status = Command::new(binary)
+        let status = Command::new(&binary_path)
             .args([
                 "--clear-memory",
                 "--model",
@@ -126,7 +131,7 @@ fn main() {
         let status = match status {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary_path.display(), e);
                 std::process::exit(1);
             }
         };
