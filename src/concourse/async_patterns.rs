@@ -231,11 +231,19 @@ impl WorkStealingScheduler {
             ("governor_processing", num_workers_per_pool / 2),
         ];
 
-        for (pool_name, num_workers) in pools {
-            let worker_pool = Arc::new(
-                WorkerPool::new(pool_name.to_string(), num_workers, global_queue.clone()).await?,
-            );
-            worker_pools.insert(pool_name.to_string(), worker_pool);
+        // Optimize: create worker pools concurrently
+        let pool_names: Vec<_> = pools.iter().map(|(n, _)| n.to_string()).collect();
+        let pool_futures: Vec<_> = pools
+            .into_iter()
+            .map(|(pool_name, num_workers)| {
+                WorkerPool::new(pool_name.to_string(), num_workers, global_queue.clone())
+            })
+            .collect();
+
+        let created_pools = futures::future::try_join_all(pool_futures).await?;
+
+        for (i, pool) in created_pools.into_iter().enumerate() {
+            worker_pools.insert(pool_names[i].clone(), Arc::new(pool));
         }
 
         info!(
@@ -272,8 +280,20 @@ impl WorkStealingScheduler {
     /// Get scheduler statistics
     pub async fn get_stats(&self) -> Result<SchedulerStats> {
         let mut pool_stats = HashMap::new();
+
+        // Optimize: use try_join_all to fetch stats from all pools concurrently
+        let mut pool_names = Vec::new();
+        let mut stats_futures = Vec::new();
+
         for (pool_name, pool) in &self.worker_pools {
-            pool_stats.insert(pool_name.clone(), pool.get_stats().await?);
+            pool_names.push(pool_name.clone());
+            stats_futures.push(pool.get_stats());
+        }
+
+        let stats_results = futures::future::try_join_all(stats_futures).await?;
+
+        for (i, name) in pool_names.into_iter().enumerate() {
+            pool_stats.insert(name, stats_results[i].clone());
         }
 
         let global_queue_stats = {
@@ -294,11 +314,13 @@ impl WorkStealingScheduler {
     pub async fn shutdown(&self) -> Result<()> {
         info!("Shutting down work-stealing scheduler");
 
-        // Shutdown all worker pools
+        // Shutdown all worker pools concurrently
+        let mut shutdown_futures = Vec::new();
         for (pool_name, pool) in &self.worker_pools {
             info!("Shutting down worker pool: {}", pool_name);
-            pool.shutdown().await?;
+            shutdown_futures.push(pool.shutdown());
         }
+        futures::future::try_join_all(shutdown_futures).await?;
 
         info!("Work-stealing scheduler shutdown complete");
         Ok(())
