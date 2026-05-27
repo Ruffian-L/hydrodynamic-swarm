@@ -71,6 +71,11 @@ impl LruCache {
         }
 
         // valid entry, update access order
+        // ⚡ Bolt Optimization: fast path if it's already the most recently used
+        if self.access_order.back().map_or(false, |k| k == key) {
+            return self.entries.get(key);
+        }
+
         let pos = self.access_order.iter().position(|k| k == key);
         if let Some(pos) = pos {
             self.access_order.remove(pos);
