@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2025-02-28 - [Panic Prevention]
+**Vulnerability:** In `instruct_gemma.rs`, a `panic!` was intentionally triggered during a failure in `OnceLock::get_or_init` to prevent caching a broken state. In `governor.rs`, `unwrap()` was being used on map lookups and deque operations that could potentially be empty, leading to possible application crashes.
+**Learning:** `OnceLock` initialization closures that panic cannot be recovered and lead to application termination. `unwrap()` on runtime state structures like `HashMap` and `VecDeque` introduces brittle failure points.
+**Prevention:** Avoid intentional panics in static initialization contexts. Use `try_init` patterns with discrete `Option` or `OnceLock` states that allow graceful fallback. Use `entry(...).or_insert(...)` or `unwrap_or(...)` for runtime state lookups instead of naked `unwrap()`.
