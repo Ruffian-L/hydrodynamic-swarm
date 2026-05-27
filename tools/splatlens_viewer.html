@@ -382,10 +382,10 @@
     <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
-  <span id="controls-label" style="display:none">Visualization Controls</span>
+  <span id="controls-label" style="display:none">Visualization Controls (Space to play/pause, Left/Right arrows to step)</span>
   <div id="controls" role="group" aria-labelledby="controls-label">
-    <button id="btn-play" class="active" aria-pressed="true">Play</button>
-    <button id="btn-pause" aria-pressed="false">Pause</button>
+    <button id="btn-play" class="active" aria-pressed="true" title="Play (Space)">Play</button>
+    <button id="btn-pause" aria-pressed="false" title="Pause (Space)">Pause</button>
     <div class="slider-group">
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
@@ -397,10 +397,10 @@
       <span id="speed-label" aria-live="polite">200ms</span>
     </div>
     <span style="color:#1A1E2A;margin:0 2px">|</span>
-    <button id="btn-field" class="active" aria-pressed="true">Field</button>
-    <button id="btn-trail" class="active" aria-pressed="true">Trail</button>
-    <button id="btn-splats" class="active" aria-pressed="true">Splats</button>
-    <button id="btn-tokens" class="active" aria-pressed="true">Tokens</button>
+    <button id="btn-field" class="active" aria-pressed="true" title="Toggle Field layer">Field</button>
+    <button id="btn-trail" class="active" aria-pressed="true" title="Toggle Trail layer">Trail</button>
+    <button id="btn-splats" class="active" aria-pressed="true" title="Toggle Splats layer">Splats</button>
+    <button id="btn-tokens" class="active" aria-pressed="true" title="Toggle Tokens layer">Tokens</button>
   </div>
   <button id="settings-btn" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="settings-panel">&#9881;</button>
   <div id="settings-panel">
@@ -546,6 +546,35 @@
       genText.scrollTop = genText.scrollHeight;
     }
     updateGenText();
+
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Don't intercept if focus is on an input
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'BUTTON') {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps === T.length) visibleSteps = 1;
+        updateBtns();
+        updateGenText();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        playing = false;
+        visibleSteps = Math.min(T.length, visibleSteps + 1);
+        updateBtns();
+        updateGenText();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        playing = false;
+        visibleSteps = Math.max(1, visibleSteps - 1);
+        updateBtns();
+        updateGenText();
+      }
+    });
 
     // Settings panel
     const settingsBtn = document.getElementById('settings-btn');
