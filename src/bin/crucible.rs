@@ -52,7 +52,11 @@ fn main() {
     }
 
     // Build release if needed
-    let binary = "target/release/hydrodynamic-swarm";
+    let binary_path = format!(
+        "{}/target/release/hydrodynamic-swarm",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let binary = binary_path.as_str();
     if !std::path::Path::new(binary).exists() {
         eprintln!("[crucible] Building release...");
         // 🛡️ Sentinel: Use env!("CARGO") to prevent path hijacking
@@ -80,7 +84,10 @@ fn main() {
     let mut log_file = match std::fs::File::create(&log_path) {
         Ok(file) => file,
         Err(e) => {
-            eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
+            eprintln!(
+                "[crucible] Error: Failed to create log file at {}: {}",
+                log_path, e
+            );
             std::process::exit(1);
         }
     };
@@ -126,7 +133,10 @@ fn main() {
         let status = match status {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                eprintln!(
+                    "[crucible] Error: Failed to run binary at {}: {}",
+                    binary, e
+                );
                 std::process::exit(1);
             }
         };
