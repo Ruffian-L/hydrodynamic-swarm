@@ -10,3 +10,7 @@
 **Vulnerability:** The HTTP client in `GrokOracle` was initialized without a timeout, making it vulnerable to infinite hangs if the external API is unresponsive, leading to resource exhaustion (DoS).
 **Learning:** Always configure reasonable timeouts for network requests, especially to third-party APIs, to ensure the system remains responsive and does not leak resources or hang indefinitely.
 **Prevention:** Use `.timeout(std::time::Duration::from_secs(X))` when building `reqwest::Client` configurations.
+## 2024-05-27 - Intentional Panic in Static Initialization
+**Vulnerability:** The `instruct_model()` function in `src/concourse/function/instruct_gemma.rs` intentionally panics inside a `OnceLock::get_or_init` closure when the model fails to load, poisoning the lock and crashing the application, causing a Denial of Service (DoS) vulnerability.
+**Learning:** In Rust, an intentional panic inside a `std::sync::OnceLock::get_or_init` closure cannot be caught or recovered from; it will poison the lock and terminate the application.
+**Prevention:** Avoid panicking in static initialization contexts. Use patterns that allow for graceful error handling or fallback, such as returning an `Option` or using a separate initialization wrapper.
