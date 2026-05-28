@@ -51,6 +51,7 @@ pub fn run_chat(
     println!();
 
     // Prompt input
+    println!("  {DIM}{GRAY}Enter your prompt (press Enter to exit):{RESET}");
     print!("  {BOLD}{GREEN}>{RESET} ");
     io::stdout().flush()?;
 
