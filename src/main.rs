@@ -42,11 +42,15 @@ use viz::VizCollector;
 
 /// Unified model interface for the Niodoo physics engine.
 /// Both variants expose the same 4 methods used by the generation loop.
+/// `Gemma` is kept as scaffolding for the WIP Gemma 3 backend; only `Llama`
+/// is wired into `main()` today.
+#[allow(dead_code)]
 enum Model {
     Llama(llama::ModelWeights),
     Gemma(gemma::ModelWeights),
 }
 
+#[allow(dead_code)]
 impl Model {
     fn forward(&mut self, tokens: &Tensor, index_pos: usize) -> candle_core::Result<Tensor> {
         match self {
@@ -826,22 +830,6 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Find a file at primary path, fallback to secondary.
-fn find_file(primary: &str, fallback: &str) -> Result<String> {
-    if std::path::Path::new(primary).exists() {
-        Ok(primary.to_string())
-    } else if std::path::Path::new(fallback).exists() {
-        Ok(fallback.to_string())
-    } else {
-        Err(anyhow::anyhow!(
-            "Required file not found.\n  Tried: {}\n  Tried: {}\n  \
-             Please ensure the data files are in the data/ directory.",
-            primary,
-            fallback
-        ))
-    }
 }
 
 fn find_existing_file(paths: &[&str]) -> Option<String> {
