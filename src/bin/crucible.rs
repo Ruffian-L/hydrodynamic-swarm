@@ -3,7 +3,9 @@
 //! Usage: `cargo run --release --bin crucible [-- tokens]`
 //! Streams all output live -- you see tokens as they generate.
 
+use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
@@ -73,11 +75,33 @@ fn main() {
         }
     }
 
-    // Log file
+    // Log file. Open with O_CREAT|O_EXCL via create_new so a pre-existing
+    // symlink at the path can't be used to clobber an arbitrary file. If a
+    // regular file from a previous run exists at the same path we remove it
+    // first; symlinks and other unexpected file types make us bail out.
     let log_path = format!("logs/crucible_{}t.txt", tokens);
     std::fs::create_dir_all("logs").ok();
 
-    let mut log_file = match std::fs::File::create(&log_path) {
+    let log_path_p = Path::new(&log_path);
+    match log_path_p.symlink_metadata() {
+        Ok(meta) if meta.file_type().is_file() => {
+            std::fs::remove_file(log_path_p).ok();
+        }
+        Ok(_) => {
+            eprintln!(
+                "[crucible] Refusing to overwrite non-regular file at {} (symlink or other)",
+                log_path
+            );
+            std::process::exit(1);
+        }
+        Err(_) => {} // does not exist; create_new will handle it
+    }
+
+    let mut log_file = match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&log_path)
+    {
         Ok(file) => file,
         Err(e) => {
             eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);

@@ -10,7 +10,7 @@
 
 use rusqlite::{params, Connection, Result as SqlResult};
 use serde::Serialize;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -127,7 +127,13 @@ impl SessionLogger {
         let session_id = format!("{}_{}_{}", date_str, time_str, safe_label);
         let filename = format!("{}_{}_{}.jsonl", date_str, time_str, safe_label);
         let log_path = log_dir.join(&filename);
-        let file = fs::File::create(&log_path)?;
+        // O_CREAT|O_EXCL — refuses to follow a pre-existing symlink at the
+        // path; the timestamped filename means same-second collisions are
+        // genuinely unexpected and should error rather than overwrite.
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&log_path)?;
 
         println!("    Logging to: {}", log_path.display());
 

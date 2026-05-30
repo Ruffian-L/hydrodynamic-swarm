@@ -534,4 +534,11 @@ impl ModelWeights {
     pub fn token_embeddings(&self) -> &Tensor {
         self.tok_embeddings.embeddings()
     }
+
+    /// Clear per-layer attention cache before prefilling a fresh chat transcript.
+    pub fn clear_kv_cache(&mut self) {
+        for layer in self.layers.iter_mut() {
+            layer.kv_cache = None;
+        }
+    }
 }
