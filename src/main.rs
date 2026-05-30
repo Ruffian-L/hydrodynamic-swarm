@@ -32,7 +32,7 @@ use niodoo::{NiodooEngine, SteerResult};
 use rand::Rng;
 use splat::Splat;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokenizers::Tokenizer;
 use viz::VizCollector;
 
@@ -109,6 +109,10 @@ async fn main() -> Result<()> {
         .iter()
         .position(|a| a == "--model")
         .and_then(|i| args.get(i + 1).cloned());
+    let cli_tokenizer = args
+        .iter()
+        .position(|a| a == "--tokenizer")
+        .and_then(|i| args.get(i + 1).cloned());
     let max_tokens: usize = args
         .iter()
         .position(|a| a == "--tokens")
@@ -127,24 +131,43 @@ async fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 1: Loading Llama 3.1 + Tokenizer ---");
 
-    // Find GGUF model
-    let llama_path = find_file(
-        "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-        "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-    )?;
-    println!("    Model: {}", llama_path);
+    // Find GGUF model. Prefer --model, then the repo data directory, then the
+    // local Homernd model cache used by this workstation.
+    let model_path = cli_model
+        .filter(|path| Path::new(path).exists())
+        .or_else(|| find_existing_file(&[
+            "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+            "/home/ruff/projects/Homernd/team_build/niodoo/model/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+            "/Users/j/Desktop/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+        ]))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Required model file not found. Pass --model /path/to/model.gguf or put it in data/."
+            )
+        })?;
+    println!("    Model: {}", model_path);
 
-    let mut file = std::fs::File::open(&llama_path)?;
+    let mut file = std::fs::File::open(&model_path)?;
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
-    let mut llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
+    let llama = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
     println!("    Llama 3.1 loaded");
 
-    // Find tokenizer
-    let tokenizer_path = find_file(
-        "data/tokenizer.json",
-        "/Users/j/Desktop/models/tokenizer.json",
-    )?;
+    // Find tokenizer. Prefer --tokenizer, then tokenizer.json next to --model,
+    // then repo/local fallbacks.
+    let tokenizer_path = cli_tokenizer
+        .filter(|path| Path::new(path).exists())
+        .or_else(|| tokenizer_next_to_model(&model_path))
+        .or_else(|| find_existing_file(&[
+            "data/tokenizer.json",
+            "/home/ruff/projects/Homernd/team_build/niodoo/model/tokenizer.json",
+            "/Users/j/Desktop/models/tokenizer.json",
+        ]))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Required tokenizer file not found. Pass --tokenizer /path/to/tokenizer.json or put it next to the model."
+            )
+        })?;
     let tokenizer =
         Tokenizer::from_file(&tokenizer_path).map_err(|e| anyhow::anyhow!("tokenizer: {}", e))?;
     println!("    Tokenizer loaded ({})", tokenizer_path);
@@ -155,6 +178,7 @@ async fn main() -> Result<()> {
     println!("\n--- Phase 2: Building Diderot Field ---");
     let field = ContinuousField::from_embeddings(llama.token_embeddings(), &device)?;
     let dim = field.dim;
+    let mut model = Model::Llama(llama);
 
     // =========================================================
     // Phase 3: Niodoo Engine
@@ -476,8 +500,8 @@ async fn main() -> Result<()> {
         let scaled_logits = (&steered_logits / temperature)?;
         let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
         let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
-        let mut rng = rand::thread_rng();
-        let roll: f32 = rng.gen();
+        let mut rng = rand::rng();
+        let roll: f32 = rng.random();
         let mut cumsum = 0.0f32;
         let mut next_token: u32 = 0;
         for (i, p) in probs_vec.iter().enumerate() {
@@ -818,4 +842,18 @@ fn find_file(primary: &str, fallback: &str) -> Result<String> {
             fallback
         ))
     }
+}
+
+fn find_existing_file(paths: &[&str]) -> Option<String> {
+    paths
+        .iter()
+        .find(|path| Path::new(path).exists())
+        .map(|path| (*path).to_string())
+}
+
+fn tokenizer_next_to_model(model_path: &str) -> Option<String> {
+    let tokenizer_path: PathBuf = Path::new(model_path).parent()?.join("tokenizer.json");
+    tokenizer_path
+        .exists()
+        .then(|| tokenizer_path.display().to_string())
 }

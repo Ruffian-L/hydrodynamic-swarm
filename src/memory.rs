@@ -106,6 +106,33 @@ impl SplatMemory {
         self.splats.push(splat);
     }
 
+    /// Deposit a *teacher* anchor splat at `mu` — the residual-stream position
+    /// that an external teacher (human, stronger model, deterministic grader)
+    /// labels as the corrected target after a failed run.
+    ///
+    /// Teacher splats are anchors (lambda = 0, `is_anchor = true`), so they do
+    /// not decay across resets. They are the explicit "scar from being corrected
+    /// on a hard problem" — distinct from the per-token surprise-driven
+    /// pleasure/pain splats deposited automatically during generation.
+    ///
+    /// `sigma` defaults to a broad Coarse-scale radius so the anchor has reach;
+    /// `alpha` is signed (positive attracts toward `mu`, negative repels — pass
+    /// positive for "be more like this", negative for "be less like this").
+    ///
+    /// Returns the new splat's index in the memory (for caller-side tracking).
+    pub fn add_teacher_anchor(&mut self, mu: Tensor, alpha: f32, sigma: f32) -> usize {
+        let splat = Splat::anchor(mu, sigma, alpha);
+        let idx = self.splats.len();
+        self.splats.push(splat);
+        idx
+    }
+
+    /// Count of anchor splats (teacher-deposited or otherwise non-decaying).
+    /// Useful for telemetry — "how much accumulated correction is in this memory".
+    pub fn anchor_count(&self) -> usize {
+        self.splats.iter().filter(|s| s.is_anchor).count()
+    }
+
     /// Time-based exponential decay: V(t) = V0 * exp(-lambda * delta_t).
     /// Asymmetric: pain decays at 70% of the pleasure rate.
     /// Anchors (lambda=0 or is_anchor=true) never decay.
@@ -904,5 +931,46 @@ mod tests {
         gov.set_phase(2);
         let gamma_gov = gov.govern(1.0, 0.5);
         assert!((gamma_gov - 1.35).abs() < 0.01); // gamma=1.2*0.9=1.08 *1.25=1.35
+    }
+
+    #[test]
+    fn teacher_anchor_persists_as_non_decaying() {
+        // A teacher anchor must be an anchor (lambda=0, is_anchor=true) so that
+        // decay_step leaves it untouched — the scar from external correction
+        // is precisely what should survive resets.
+        let device = candle_core::Device::Cpu;
+        let mu = candle_core::Tensor::ones(&[4], candle_core::DType::F32, &device).unwrap();
+        let mut mem = SplatMemory::new(device);
+        let idx = mem.add_teacher_anchor(mu, 5.0, 140.0);
+        assert_eq!(idx, 0);
+        assert_eq!(mem.len(), 1);
+        assert_eq!(mem.anchor_count(), 1);
+
+        let s = &mem.splats_ref()[0];
+        assert!(s.is_anchor, "teacher splat must be is_anchor=true");
+        assert_eq!(s.lambda, 0.0, "teacher splat must have lambda=0 (no decay)");
+        assert_eq!(s.alpha, 5.0);
+        assert_eq!(s.sigma, 140.0);
+
+        // Decay should be a no-op for anchors.
+        mem.decay_step(0.5);
+        assert_eq!(mem.splats_ref()[0].alpha, 5.0, "anchor alpha must survive decay");
+    }
+
+    #[test]
+    fn teacher_anchor_supports_signed_alpha() {
+        // Positive alpha: attract toward the corrected hidden state.
+        // Negative alpha: repel from a known-bad hidden state.
+        let device = candle_core::Device::Cpu;
+        let mu_pos = candle_core::Tensor::ones(&[4], candle_core::DType::F32, &device).unwrap();
+        let mu_neg = candle_core::Tensor::zeros(&[4], candle_core::DType::F32, &device).unwrap();
+        let mut mem = SplatMemory::new(device);
+        let i_pos = mem.add_teacher_anchor(mu_pos, 5.0, 140.0);
+        let i_neg = mem.add_teacher_anchor(mu_neg, -3.0, 140.0);
+        assert_eq!(i_pos, 0);
+        assert_eq!(i_neg, 1);
+        assert_eq!(mem.anchor_count(), 2);
+        assert_eq!(mem.splats_ref()[0].alpha, 5.0);
+        assert_eq!(mem.splats_ref()[1].alpha, -3.0);
     }
 }
