@@ -1,8 +1,14 @@
-//! Vendored quantized Gemma 3 model — GGUF native reader
+//! Vendored quantized Gemma 3 model — GGUF native reader.
 //!
-//! Adapted from Lumina-Concourse quantized_gemma.rs with physics steering
-//! extensions (forward_with_hidden, project_to_logits, token_embeddings)
-//! to match the llama.rs interface used by main.rs and the Niodoo engine.
+//! Adapted from Lumina-Concourse `quantized_gemma.rs` with physics steering
+//! extensions (`forward_with_hidden`, `project_to_logits`, `token_embeddings`)
+//! to match the `llama.rs` interface used by main.rs and the Niodoo engine.
+//!
+//! Currently unused by `main()` — Llama is the only backend wired in. Kept as
+//! scaffolding for the planned Gemma 3 swap, so the whole module is marked
+//! `allow(dead_code)`.
+
+#![allow(dead_code)]
 //!
 //! Gemma 3 architecture specifics:
 //!   - Per-head QK RMS norms (attn_q_norm, attn_k_norm)

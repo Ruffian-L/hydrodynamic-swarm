@@ -67,6 +67,9 @@ impl DreamEngine {
 
 /// Result of a micro-dream: the corrected position + whether a TopoCoT
 /// reflection was triggered (correction_norm exceeded threshold).
+/// `correction_norm`, `reflection_*` fields are written for telemetry and
+/// future consumers; allow on the struct rather than per-field.
+#[allow(dead_code)]
 pub struct MicroDreamResult {
     pub consolidated: Tensor,
     pub correction_norm: f32,
