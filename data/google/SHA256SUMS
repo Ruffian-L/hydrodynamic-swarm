@@ -1,0 +1,5 @@
+6852f8d561078cc0cebe70ca03c5bfdd0d60a45f9d2e0e1e4cc05b68e9ec329e  tokenizer.json
+43fec98c5102b1c446b4ddd0a9439f1db3a2e1f2e0b8cd143ce1ea619a9403d6  gemma-4-12b-it-Q4_K_M.gguf
+f1b699659942c777bd3ec0bcb527d6ebf34ae14ca76e3af103d58d0c9cbdadee  gemma-3-27b-it-Q4_K_M.gguf
+3c13133469e431312fffb8b1d9c85ae42199e6bb5746ea1da84e8ddf2097d73c  Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf
+f997aef7f4ed368819f8bcd3e66262612eab4b9ecd562efbad2a7fdebc872693  gemma-3-27b-it-Q8_0.gguf

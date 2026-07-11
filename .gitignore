@@ -3,8 +3,12 @@ target/
 .cargo/
 **/*.rs.bk
 
-# Legacy data directory
-data/
+# Legacy data directory (model blobs stay local; SHA256SUMS is committed)
+data/*
+!data/google/
+data/google/*
+!data/google/SHA256SUMS
+*.sha256.verified
 project_brain_dump.json
 .ai_sweep.pid
 
@@ -65,6 +69,5 @@ yarn-error.log*
 .LSOverride
 
 .aider*
-data/google/
 .quality-gate-failed
 logs/reviews/
