@@ -2,6 +2,16 @@
 //!
 //! Full Llama 3.1 + Niodoo physics steering with real tokenization.
 //! Type a prompt → physics steers generation → decoded text output.
+//!
+//! ## Licenses & attributions
+//!
+//! - Our code: MIT-0 (LICENSE)
+//! - Candle loader code: Apache-2.0 OR MIT (NOT the same as model weights)
+//! - Llama 3.1 weights: Llama 3.1 Community License — "Built with Llama" in README
+//! - Gemma 3 weights: Gemma Terms of Use (NOT Apache; Gemma 4 is Apache)
+//! - GGUF quants: bartowski, Unsloth (on top of Meta/Google terms)
+//!
+//! See NOTICE in the repo root.
 
 #[allow(dead_code, unused_imports, unused_variables)]
 mod concourse;

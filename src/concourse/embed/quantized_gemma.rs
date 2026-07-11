@@ -1,7 +1,11 @@
 //! Vendored quantized Gemma 3 model — GGUF native reader
 //!
-//! Ported from the hydrodynamic-swarm llama.rs pattern and extended with
-//! Gemma 3 architecture specifics discovered from GGUF inspection:
+//! MODIFIED — ported from hydrodynamic-swarm `llama.rs` (Candle/Hugging Face,
+//! Apache-2.0 OR MIT, https://www.apache.org/licenses/LICENSE-2.0) and extended
+//! with Gemma 3 architecture specifics from GGUF inspection.
+//! Gemma weights: Google Gemma Terms of Use. See NOTICE.
+//!
+//! Architecture specifics:
 //!
 //!   - Per-head QK RMS norms (attn_q_norm, attn_k_norm)
 //!   - Post-attention and post-FFW scaling norms (Gemma 3 pre-residual)

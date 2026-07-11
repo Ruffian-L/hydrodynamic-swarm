@@ -1,8 +1,11 @@
 //! Vendored quantized Gemma 3 model — GGUF native reader.
 //!
-//! Adapted from Lumina-Concourse `quantized_gemma.rs` with physics steering
-//! extensions (`forward_with_hidden`, `project_to_logits`, `token_embeddings`)
-//! to match the `llama.rs` interface used by main.rs and the Niodoo engine.
+//! MODIFIED — adapted from in-tree `quantized_gemma.rs` / `llama.rs` vendoring
+//! pattern with physics steering extensions (`forward_with_hidden`,
+//! `project_to_logits`, `token_embeddings`) for main.rs and the Niodoo engine.
+//!
+//! Gemma 3 weights: Google Gemma Terms of Use (NOT Apache — Gemma 4 is Apache).
+//! Candle loader code in this file: Apache-2.0 OR MIT. See NOTICE.
 //!
 //! Currently unused by `main()` — Llama is the only backend wired in. Kept as
 //! scaffolding for the planned Gemma 3 swap, so the whole module is marked

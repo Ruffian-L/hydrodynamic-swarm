@@ -1,9 +1,15 @@
-//! Vendored quantized Llama model -- from candle-transformers 0.8.4.
+//! Vendored quantized Llama model — from Hugging Face candle-transformers.
 //!
-//! Vendored to expose `forward_hidden()` and `forward_with_hidden()` which
-//! return the pre-lm_head hidden state for physics steering.
+//! MODIFIED from upstream `candle-transformers/src/models/quantized_llama.rs`
+//! (candle 0.8.4; runtime dep candle 0.9). Changes: `forward_hidden()`,
+//! `forward_with_hidden()`, `project_to_logits()`, shared `run_layers()`.
 //!
-//! Original: candle-transformers/src/models/quantized_llama.rs
+//! License: Apache-2.0 OR MIT — https://www.apache.org/licenses/LICENSE-2.0
+//! Upstream: https://github.com/huggingface/candle
+//!
+//! This file is Apache-2.0 OR MIT (Candle code). The GGUF weights it loads are
+//! Meta Llama 3.1 (Llama 3.1 Community License — NOT Apache). Sources: bartowski,
+//! Unsloth, or Meta-Llama-3.1-8B-Instruct. See NOTICE; README says "Built with Llama".
 
 use std::collections::HashMap;
 

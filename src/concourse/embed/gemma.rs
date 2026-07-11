@@ -3,6 +3,9 @@
 //! Wraps the vendored quantized Gemma 3 GGUF reader (`quantized_gemma.rs`)
 //! in a clean API for embedding generation and text completion.
 //!
+//! Gemma weights: Google Gemma Terms of Use. EmbeddingGemma tokenizer/model
+//! from unsloth/embeddinggemma-300m-GGUF (Unsloth, https://unsloth.ai). See NOTICE.
+//!
 //! Supports all four model sizes:
 //!   - 0.3B  EmbeddingGemma 300M    (Embed Nodes, Q8_0)
 //!   - 1.0B  Gemma 3 1B Instruct    (Function Nodes, Q4_K_M)

@@ -1,5 +1,7 @@
 # Hydrodynamic Swarm
 
+**Built with Llama** — runs [Meta Llama 3.1](https://llama.meta.com/llama-downloads) and [Google Gemma 3](https://ai.google.dev/gemma) model weights. See [License](#license) and [`NOTICE`](NOTICE).
+
 **A working Rust harness for on-line, per-token vector-field steering of an 8B language model's residual stream, with a persistent on-disk memory of past hidden states that reloads across runs.**
 
 The system intervenes in the Llama 3.1 forward pass at the pre-`lm_head` hidden state, computes a steering update from three sources — a continuous field over the model's own embedding matrix, a memory of Gaussian "splats" deposited on prior trajectories, and a goal attractor from the prompt — and writes the result back into the residual before sampling. The splat memory is persisted as `safetensors` so the generator carries spatial memory of its own history across sessions. No fine-tuning, no LoRA, no architectural change to the base model.
@@ -34,7 +36,7 @@ Between sessions, splats are written to `safetensors` and reloaded on the next r
 | **Runtime** | Rust 2021 edition, Candle 0.9, `cudarc` 0.19, CUDA 13 toolkit |
 | **Tested on** | NVIDIA Blackwell GB10 (`sm_121a`), aarch64 Ubuntu 24.04. Any CUDA GPU with ≥ 8 GB should work; the wgpu/Metal path in `kernels/` is sketched but not wired in. |
 | **Codebase** | ~6.9 kLOC Rust across 15 modules; 42 unit tests in tree |
-| **License** | MIT |
+| **License** | MIT-0 (this repo's code). Model weights: Meta Llama / Google Gemma / GGUF quantizer terms — see [`NOTICE`](NOTICE) |
 
 ---
 
@@ -250,4 +252,19 @@ These are the things a contributor or reviewer should know up front, stated as f
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+Three different things — don't mix them up:
+
+| What | License | Where |
+|---|---|---|
+| **This repo's Rust code** | MIT-0 | [`LICENSE`](LICENSE) |
+| **Loader libraries** (Candle, tokenizers) | Apache-2.0 OR MIT | [`NOTICE`](NOTICE) — this is *code*, not model weights |
+| **Llama 3.1 weights** | Llama 3.1 Community License (Meta) | **Built with Llama** — not Apache |
+| **Gemma 3 weights** | Gemma Terms of Use (Google) | not Apache (Gemma 4 is Apache; we use Gemma 3) |
+
+**Model weights we run:** Meta Llama 3.1 8B Instruct (primary history; GGUF from [bartowski](https://huggingface.co/bartowski) and [Unsloth](https://huggingface.co/unsloth)), Google Gemma 3 27B IT (current default), EmbeddingGemma 300M (Unsloth Hub package of a Google model).
+
+**Required notices** (verbatim, in [`NOTICE`](NOTICE)):
+- *Llama 3.1 is licensed under the Llama 3.1 Community License, Copyright © Meta Platforms, Inc. All Rights Reserved.*
+- *Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms*
+
+*Update 2026-07-11: attributions added. We had omitted these earlier; corrected now.*

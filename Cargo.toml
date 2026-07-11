@@ -3,6 +3,9 @@ name = "hydrodynamic-swarm"
 version = "0.2.0"
 edition = "2021"
 description = "Unified Hydrodynamic Ouroboros Swarm — SplatRAG + 9-Node Matrix"
+license = "MIT-0"
+license-file = "LICENSE"
+readme = "README.md"
 
 [features]
 default = ["with-candle", "with-cuda"]

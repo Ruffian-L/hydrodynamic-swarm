@@ -4,6 +4,9 @@
 //! generation to classify the relational edge between two semantic nodes using
 //! the strict 7-edge EmbedSwarm lexicon.
 //!
+//! Gemma weights: Google Gemma Terms of Use. HF Hub fetch via unsloth repos
+//! where noted. See NOTICE.
+//!
 //! Uses a lazy singleton (`OnceLock`) so the model is loaded once on first use.
 
 use crate::concourse::embed::quantized_gemma::ModelWeights;
