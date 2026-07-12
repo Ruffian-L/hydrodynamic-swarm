@@ -121,17 +121,27 @@ fn path_looks_like_gemma(path: &str) -> bool {
 }
 
 /// Wrap a raw user prompt in Gemma 3 IT chat turns when needed.
+///
+/// Answer-only framing cuts the common IT failure mode of restating/rephrasing
+/// the user request ("explain friendship from a physics perspective…") instead
+/// of producing the paragraph. Raw prompts that already contain turn markers
+/// are left unchanged.
 fn format_prompt_for_model(raw: &str, is_gemma: bool) -> String {
     if !is_gemma {
         return raw.to_string();
     }
-    // Already formatted?
     if raw.contains("<start_of_turn>") {
         return raw.to_string();
     }
+    // Keep the user turn short — long “do not restate” preambles were not
+    // helping 27B and bloated the J-space prefill (goal norm collapsed).
     format!(
-        "<start_of_turn>user\n{}<end_of_turn>\n<start_of_turn>model\n",
-        raw
+        "<start_of_turn>user\n\
+         Answer in one short paragraph only.\n\n\
+         {}\n\
+         <end_of_turn>\n\
+         <start_of_turn>model\n",
+        raw.trim()
     )
 }
 
@@ -347,13 +357,26 @@ async fn main() -> Result<()> {
     }
 
     // Shared ocean: multi-mind field packets (starts with host deposits).
-    let ocean_cfg = OceanConfig::default();
+    // On 27B (~5376-d) single-host ocean was soft-yanking (F_ocean ~15–24) while
+    // scar force stayed quiet — disable multi-mind ocean until multi-mind or
+    // config knobs land. 4B keeps a light ocean for Lane C experiments.
+    let mut ocean_cfg = OceanConfig::default();
+    if dim >= 4096 {
+        ocean_cfg.enabled = false;
+    }
     let ocean = SharedOcean::new(dim, device.clone(), ocean_cfg.clone());
     engine.set_ocean(ocean);
-    println!(
-        "    Shared Ocean online (dim={}, deposit every {}, force_scale={})",
-        dim, ocean_cfg.deposit_interval, ocean_cfg.force_scale
-    );
+    if ocean_cfg.enabled {
+        println!(
+            "    Shared Ocean online (dim={}, deposit every {}, force_scale={})",
+            dim, ocean_cfg.deposit_interval, ocean_cfg.force_scale
+        );
+    } else {
+        println!(
+            "    Shared Ocean: OFF for dim={} (single-host soft-yank guard)",
+            dim
+        );
+    }
 
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");

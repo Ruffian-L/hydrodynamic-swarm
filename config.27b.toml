@@ -45,12 +45,12 @@ pain_recovery_ocean = false
 
 [generation]
 max_tokens = 100
-temperature = 0.85
-rep_penalty = 1.34
+temperature = 0.80
+rep_penalty = 1.28
 min_success_tokens = 10
 pleasure_alpha = 0.9
 pain_alpha = -0.45
-default_prompt = "Explain the Physics of Friendship in one paragraph."
+default_prompt = "Explain the Physics of Friendship in one short paragraph."
 
 [memory]
 max_splats = 56
