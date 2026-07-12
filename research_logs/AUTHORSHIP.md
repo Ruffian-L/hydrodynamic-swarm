@@ -44,6 +44,7 @@
 | `2026-07-12_all-four-next-directions.md` | demo lock + length push + 27B port + prompt battery |
 | `2026-07-12_splat-lens-museum-structure.md` | `./splat-lens` museum door + milestone layout |
 | `2026-07-12_B27-retune.md` | 27B Option B retune (soft mass, early F_a fade) |
+| `2026-07-12_future-direction-mistral-sidecar.md` | Long-term mistral.rs sidecar + llama.cpp attribution |
 
 ### Public museum demos (tools/museum/)
 

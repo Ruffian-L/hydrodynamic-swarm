@@ -57,6 +57,12 @@ Between sessions, splats are written to `safetensors` and reloaded on the next r
 | **Codebase** | ~6.9 kLOC Rust across 15 modules; 42 unit tests in tree |
 | **License** | MIT-0 (this repo's code). Model weights: Meta Llama / Google Gemma / GGUF quantizer terms — see [`NOTICE`](NOTICE) |
 
+### Long-term direction (intent, not a rewrite yet)
+
+This standalone harness is for **validating** residual physics steering and memory. Once that is stable, the plan is to host the **Niodoo physics layer** on a mature Rust inference backend (**starting with [mistral.rs](https://github.com/EricLBuehler/mistral.rs)** or comparable) as a **sidecar/library**, so others can use the steering without owning a full custom stack. See [`docs/FUTURE_DIRECTION.md`](docs/FUTURE_DIRECTION.md).
+
+GGUF loading here was developed **with reference to** [llama.cpp](https://github.com/ggerganov/llama.cpp)’s open implementation (not a bulk copy of llama.cpp into this tree) — details in [`NOTICE`](NOTICE).
+
 ---
 
 ## Method

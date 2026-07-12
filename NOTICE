@@ -126,6 +126,25 @@ src/gemma.rs, src/concourse/embed/quantized_gemma.rs
   Underlying Candle / candle-transformers components: Apache-2.0 OR MIT.
 
 
+llama.cpp (reference / influence — not a bulk code import)
+----------------------------------------------------------
+GGUF loading and model metadata handling in this project were developed with
+reference to llama.cpp’s open-source implementation (GGUF ecosystem, header and
+metadata conventions). We maintain a custom Rust path (Candle + our loaders);
+we do not claim to redistribute llama.cpp as our own, and we do not treat this
+as a wholesale copy of large llama.cpp sources into this tree.
+
+  https://github.com/ggerganov/llama.cpp
+  License: MIT (llama.cpp project)
+
+Safe short attribution line for docs:
+
+  “GGUF loading and model metadata handling were developed with reference to
+   llama.cpp’s open-source implementation.”
+
+See also docs/FUTURE_DIRECTION.md.
+
+
 Compliance checklist (this repo, 2026-07-11)
 ----------------------------------------------
   [x] Meta Llama required notice text (above)
