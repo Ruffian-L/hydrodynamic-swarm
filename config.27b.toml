@@ -1,61 +1,63 @@
 # =============================================================================
-# 27B instruct — lessons ported from 4B B4d-q (not a blind paste of 4B knobs)
+# B27 — 27B instruct retune (Option B)
+# Lessons from 4B B4d-q + first 27B port smoke (F_s late climb, F_a pinned at 40)
 #
-# From 4B campaign:
-#   √-law force mass, residual splat geometry (27B-scale σ/mass), online decay,
-#   late F_a attenuate, ramp + targeted, mid-run prune (code)
-# 27B can take longer budgets; short smoke first at 80, then raise carefully.
+# Changes vs naive port:
+#   softer splat mass (0.16/18) + online_decay 0.97
+#   earlier late F_a (start 45 → ×0.35) + lower goal scale/max
+#   slightly pickier deposits (interval 8, thr 85)
+# 4B demos stay on config.toml (B4d-q). Activate this profile only for 27B runs.
 # =============================================================================
 
 [physics]
 dt = 0.035
 viscosity_scale = 0.25
 force_cap = 3.5
-splat_sigma = 40.0
+splat_sigma = 36.0
 splat_alpha = 1.0
-min_splat_dist = 30.0
-splat_delta_threshold = 70.0
+min_splat_dist = 24.0
+splat_delta_threshold = 85.0
 gradient_topk = 1024
 steer_hidden = true
-manifold_pullback = 0.25
-splat_lambda_default = 0.02
+manifold_pullback = 0.28
+splat_lambda_default = 0.025
 pain_decay_factor = 0.7
-splat_force_scale = 0.22
-splat_force_max = 28.0
-goal_force_scale = 0.12
-goal_force_max = 40.0
-goal_late_start = 60
-goal_late_span = 40
-goal_late_end = 0.40
-online_splat_interval = 6
+splat_force_scale = 0.16
+splat_force_max = 18.0
+goal_force_scale = 0.10
+goal_force_max = 32.0
+goal_late_start = 45
+goal_late_span = 35
+goal_late_end = 0.35
+online_splat_interval = 8
 field_wake_mode = "dist_weighted"
 field_wake_k = 1
-field_wake_scale = 0.20
+field_wake_scale = 0.18
 field_wake_max = 25.0
 field_grad_blend = 0.10
 field_wake_dist_tau = 80.0
 field_logit_alpha = 0.0
-force_ramp_tokens = 12
-force_ramp_start = 0.20
+force_ramp_tokens = 15
+force_ramp_start = 0.18
 targeted_splat_only = true
 prefill_micro_dream = false
 pain_recovery_ocean = false
 
 [generation]
 max_tokens = 100
-temperature = 0.82
-rep_penalty = 1.32
+temperature = 0.85
+rep_penalty = 1.34
 min_success_tokens = 10
-pleasure_alpha = 1.0
-pain_alpha = -0.5
+pleasure_alpha = 0.9
+pain_alpha = -0.45
 default_prompt = "Explain the Physics of Friendship in one paragraph."
 
 [memory]
-max_splats = 60
-consolidation_dist = 25.0
+max_splats = 56
+consolidation_dist = 22.0
 decay_rate = 0.96
-prune_threshold = 0.02
-online_decay_rate = 0.98
+prune_threshold = 0.03
+online_decay_rate = 0.97
 
 [micro_dream]
 entropy_threshold = 3.0

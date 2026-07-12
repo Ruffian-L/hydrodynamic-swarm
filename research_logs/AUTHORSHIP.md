@@ -43,6 +43,7 @@
 | `2026-07-12_B4d-q-length-quality.md` | B4d-q: 65 tok cap + sample knobs |
 | `2026-07-12_all-four-next-directions.md` | demo lock + length push + 27B port + prompt battery |
 | `2026-07-12_splat-lens-museum-structure.md` | `./splat-lens` museum door + milestone layout |
+| `2026-07-12_B27-retune.md` | 27B Option B retune (soft mass, early F_a fade) |
 
 ### Public museum demos (tools/museum/)
 
