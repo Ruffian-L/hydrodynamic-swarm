@@ -611,7 +611,9 @@ async fn main() -> Result<()> {
         // NOTE: this path intentionally bypasses niodoo force_cap/ramp (applied
         // inside engine.steer). Keep the 0.01 scale tiny; do not raise without
         // folding bundle into the capped total_force sum in niodoo.rs.
-        if engine.memory().len() > 3 {
+        // Skip entirely when splat force is disabled — otherwise scars still
+        // "nuke" the residual via this uncapped side path (Jason/27B LOL).
+        if cfg.physics.splat_force_scale > 1e-8 && engine.memory().len() > 3 {
             let pos = steered_slice.squeeze(0)?;
             let bundle = engine.memory().query_bundle_force(&pos, 8)?;
             let bundle_2d = bundle.unsqueeze(0)?;
@@ -647,7 +649,10 @@ async fn main() -> Result<()> {
         }
 
         // === Micro-dream: entropy-adaptive steering consolidation ===
-        let steered_slice = if step > 12 {
+        // Skip on large residual models (27B ~5376-d): multi-step re-steer during
+        // decode was muddying surface quality while F_s was already healthy.
+        // Keep on smaller dims (4B) where it was part of the learning-lane stack.
+        let steered_slice = if step > 12 && dim < 4096 {
             let raw_probs_slice = candle_nn::ops::softmax(&raw_logits, 1)?;
             let raw_probs_flat: Vec<f32> = raw_probs_slice.squeeze(0)?.to_vec1()?;
             let sample_n = raw_probs_flat.len().min(1000);
