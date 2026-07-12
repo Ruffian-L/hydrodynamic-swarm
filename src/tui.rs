@@ -188,7 +188,7 @@ pub fn run_chat(
             let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
 
             let mut rng = rand::rng();
-            use rand::Rng;
+            use rand::RngExt;
             let roll: f32 = rng.random();
             let mut cumsum = 0.0f32;
             let mut next_token: u32 = 0;

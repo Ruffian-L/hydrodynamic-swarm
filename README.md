@@ -4,6 +4,25 @@
 
 **A working Rust harness for on-line, per-token vector-field steering of an 8B language model's residual stream, with a persistent on-disk memory of past hidden states that reloads across runs.**
 
+## Start here (fork-friendly)
+
+You do **not** need CUDA or a model to see what this project is doing.
+
+```bash
+./splat-lens
+# pick 1 → museum opens in your browser
+```
+
+- **View-only museum** plays checked-in `.viz.json` recordings + plain-language “what worked / didn’t / ongoing” notes (`tools/museum/`).
+- **Generate** (optional, menu item 4) needs NVIDIA CUDA + a GGUF model; if you don’t have them, the museum still works.
+- Milestone demos are meant to be **committed as public checkpoints** when something lands — see `tools/museum/catalog.json`.
+
+```bash
+./splat-lens museum     # skip the menu
+./splat-lens check      # CUDA / model status
+./splat-lens generate   # record a new short demo, then open museum
+```
+
 The system intervenes in the Llama 3.1 forward pass at the pre-`lm_head` hidden state, computes a steering update from three sources — a continuous field over the model's own embedding matrix, a memory of Gaussian "splats" deposited on prior trajectories, and a goal attractor from the prompt — and writes the result back into the residual before sampling. The splat memory is persisted as `safetensors` so the generator carries spatial memory of its own history across sessions. No fine-tuning, no LoRA, no architectural change to the base model.
 
 Every knob is in a TOML config, every step writes per-token JSONL telemetry, and every substantive change has a dated research-log entry pointing at the telemetry file it describes.

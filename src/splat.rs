@@ -87,11 +87,47 @@ impl Splat {
         }
     }
 
-    /// Create a splat with explicit scale based on steering delta magnitude.
+    /// Create a splat with hierarchical width from steering delta.
+    ///
+    /// `ref_delta` should be `config.physics.splat_delta_threshold` (or similar
+    /// typical high-δ scale for this model). Absolute 20/30 thresholds from the
+    /// 27B-era residual walk always classified 4B tokens (δ~80–120) as Coarse×4,
+    /// so scars were 4× too wide after a size change that only scaled force caps.
     pub fn with_scale(mu: Tensor, sigma: f32, alpha: f32, delta_norm: f32) -> Self {
-        let (scale, sigma_mult) = if delta_norm > 30.0 {
+        // Legacy absolute bands — only valid when δ lives near 10–40.
+        Self::with_scale_ref(mu, sigma, alpha, delta_norm, 30.0)
+    }
+
+    /// Hierarchical splat using bands relative to `ref_delta` (deposit threshold).
+    ///
+    /// - Fine:   δ < 0.85 × ref  → σ × 1
+    /// - Medium: δ < 1.25 × ref  → σ × 2
+    /// - Coarse: else            → σ × 4
+    pub fn with_scale_ref(
+        mu: Tensor,
+        sigma: f32,
+        alpha: f32,
+        delta_norm: f32,
+        ref_delta: f32,
+    ) -> Self {
+        Self::with_scale_ref_lambda(mu, sigma, alpha, delta_norm, ref_delta, 0.02)
+    }
+
+    /// Like `with_scale_ref` but sets evaporation `lambda` from config.
+    pub fn with_scale_ref_lambda(
+        mu: Tensor,
+        sigma: f32,
+        alpha: f32,
+        delta_norm: f32,
+        ref_delta: f32,
+        lambda: f32,
+    ) -> Self {
+        let ref_d = ref_delta.max(1e-3);
+        let fine_max = ref_d * 0.85;
+        let med_max = ref_d * 1.25;
+        let (scale, sigma_mult) = if delta_norm > med_max {
             (SplatScale::Coarse, SplatScale::Coarse.sigma_multiplier())
-        } else if delta_norm > 20.0 {
+        } else if delta_norm > fine_max {
             (SplatScale::Medium, SplatScale::Medium.sigma_multiplier())
         } else {
             (SplatScale::Fine, SplatScale::Fine.sigma_multiplier())
@@ -100,7 +136,7 @@ impl Splat {
             mu,
             sigma: sigma * sigma_mult,
             alpha,
-            lambda: 0.02,
+            lambda: lambda.max(0.0),
             created_at: now_secs(),
             scale,
             is_anchor: false,
@@ -186,19 +222,28 @@ mod tests {
         let device = Device::Cpu;
         let mu = Tensor::zeros(&[4], candle_core::DType::F32, &device).unwrap();
 
-        // Fine: delta_norm <= 20.0
+        // Legacy absolute path (ref=30): fine / medium / coarse
         let splat_fine = Splat::with_scale(mu.clone(), 1.0, 0.5, 10.0);
         assert_eq!(splat_fine.scale, SplatScale::Fine);
         assert_eq!(splat_fine.sigma, 1.0);
 
-        // Medium: 20.0 < delta_norm <= 30.0
-        let splat_medium = Splat::with_scale(mu.clone(), 1.0, 0.5, 25.0);
+        let splat_medium = Splat::with_scale(mu.clone(), 1.0, 0.5, 28.0);
         assert_eq!(splat_medium.scale, SplatScale::Medium);
         assert_eq!(splat_medium.sigma, 2.0);
 
-        // Coarse: delta_norm > 30.0
-        let splat_coarse = Splat::with_scale(mu, 1.0, 0.5, 35.0);
+        let splat_coarse = Splat::with_scale(mu.clone(), 1.0, 0.5, 40.0);
         assert_eq!(splat_coarse.scale, SplatScale::Coarse);
         assert_eq!(splat_coarse.sigma, 4.0);
+
+        // Relative to 4B-ish deposit threshold (ref=70): δ=80 is medium not coarse×4
+        let rel_med = Splat::with_scale_ref(mu.clone(), 1.0, 0.5, 80.0, 70.0);
+        assert_eq!(rel_med.scale, SplatScale::Medium);
+        assert_eq!(rel_med.sigma, 2.0);
+
+        let rel_fine = Splat::with_scale_ref(mu.clone(), 1.0, 0.5, 50.0, 70.0);
+        assert_eq!(rel_fine.scale, SplatScale::Fine);
+
+        let rel_coarse = Splat::with_scale_ref(mu, 1.0, 0.5, 100.0, 70.0);
+        assert_eq!(rel_coarse.scale, SplatScale::Coarse);
     }
 }

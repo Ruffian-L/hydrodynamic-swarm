@@ -1,0 +1,363 @@
+#!/usr/bin/env bash
+# =============================================================================
+# ./splat-lens  —  one friendly door into the Hydrodynamic Swarm museum
+#
+# Default path: VIEW ONLY (JSON + browser). No CUDA. No model. No cargo.
+# Optional: check model / generate a new demo if you have NVIDIA + GGUF.
+#
+#   ./splat-lens              interactive menu (recommended)
+#   ./splat-lens museum       open museum immediately
+#   ./splat-lens check        model + CUDA status
+#   ./splat-lens generate     record a new short demo (needs GPU + model)
+#   ./splat-lens help
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+PORT="${SPLAT_LENS_PORT:-8765}"
+MODEL="${MODEL:-data/google/gemma-3-4b-it-Q4_K_M.gguf}"
+TOKENIZER="${TOKENIZER:-data/google/tokenizer.json}"
+# Public GGUF mirrors change; these are best-effort hints (Gemma needs HF license accept).
+MODEL_HINT_HF="https://huggingface.co/models?search=gemma-3-4b-it-GGUF"
+BIN="$ROOT/target/release/hydrodynamic-swarm"
+
+c_cyan()  { printf '\033[36m%s\033[0m\n' "$*"; }
+c_green() { printf '\033[32m%s\033[0m\n' "$*"; }
+c_yellow(){ printf '\033[33m%s\033[0m\n' "$*"; }
+c_red()   { printf '\033[31m%s\033[0m\n' "$*"; }
+c_dim()   { printf '\033[2m%s\033[0m\n' "$*"; }
+
+banner() {
+  echo
+  c_cyan "=============================================="
+  c_cyan "  SPLAT LENS  ·  Hydrodynamic Swarm museum"
+  c_cyan "=============================================="
+  echo
+  echo "  Looking around does NOT need a GPU."
+  echo "  Generating new runs needs NVIDIA CUDA + a GGUF model."
+  echo
+}
+
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+open_url() {
+  local url="$1"
+  if have_cmd xdg-open; then
+    (sleep 0.5 && xdg-open "$url") >/dev/null 2>&1 &
+  elif have_cmd open; then
+    (sleep 0.5 && open "$url") >/dev/null 2>&1 &
+  else
+    c_yellow "Open this in your browser:"
+    echo "  $url"
+  fi
+}
+
+free_port() {
+  if have_cmd fuser; then
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+  fi
+}
+
+serve_museum() {
+  local path="${1:-/museum/}"
+  if ! have_cmd python3; then
+    c_red "python3 is required to serve the museum (avoids browser file:// blocks)."
+    exit 1
+  fi
+  if [[ ! -f "$ROOT/tools/museum/index.html" ]]; then
+    c_red "Missing tools/museum/index.html — is the repo complete?"
+    exit 1
+  fi
+  if [[ ! -f "$ROOT/tools/museum/catalog.json" ]]; then
+    c_red "Missing tools/museum/catalog.json"
+    exit 1
+  fi
+
+  free_port
+  local url="http://127.0.0.1:${PORT}${path}"
+  echo
+  c_green "Starting local museum server…"
+  echo "  URL:  $url"
+  c_dim "  (Ctrl+C stops the server)"
+  echo
+  open_url "$url"
+  cd "$ROOT/tools"
+  exec python3 -m http.server "$PORT" --bind 127.0.0.1
+}
+
+cuda_ok() {
+  if have_cmd nvidia-smi && nvidia-smi >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+model_ok() {
+  [[ -f "$ROOT/$MODEL" ]] || [[ -f "$MODEL" ]]
+}
+
+tokenizer_ok() {
+  [[ -f "$ROOT/$TOKENIZER" ]] || [[ -f "$TOKENIZER" ]]
+}
+
+print_check() {
+  echo "Environment check"
+  echo "-----------------"
+  if cuda_ok; then
+    c_green "  [ok] NVIDIA GPU visible (nvidia-smi)"
+    nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | sed 's/^/       /' || true
+  else
+    c_yellow "  [—] No nvidia-smi / GPU not visible"
+    echo "       You can still WATCH demos. You cannot GENERATE on this machine."
+  fi
+
+  if model_ok; then
+    c_green "  [ok] Model: $MODEL"
+  else
+    c_yellow "  [—] Model not found: $MODEL"
+    echo "       Demo watching still works (JSON in tools/museum/demos/)."
+  fi
+
+  if tokenizer_ok; then
+    c_green "  [ok] Tokenizer: $TOKENIZER"
+  else
+    c_yellow "  [—] Tokenizer not found: $TOKENIZER"
+  fi
+
+  if [[ -x "$BIN" ]]; then
+    c_green "  [ok] Binary built: target/release/hydrodynamic-swarm"
+  else
+    c_dim "  [—] Release binary not built yet (only needed to generate)"
+  fi
+
+  if [[ -f "$ROOT/tools/museum/demos/b4d-q-friendship-65.viz.json" ]]; then
+    c_green "  [ok] Museum demo JSON present"
+  else
+    c_red "  [!] Museum demo missing"
+  fi
+  echo
+}
+
+offer_model_help() {
+  echo
+  c_yellow "Model download (optional — only if you want to GENERATE)"
+  echo "-------------------------------------------------------"
+  echo "  Default path expected:"
+  echo "    $MODEL"
+  echo "    $TOKENIZER"
+  echo
+  echo "  Gemma weights need you to accept the license on Hugging Face,"
+  echo "  then download a GGUF build, for example with huggingface-cli:"
+  echo
+  echo "    pip install -U huggingface_hub"
+  echo "    huggingface-cli login"
+  echo "    # pick a gemma-3-4b-it GGUF repo you can access, then e.g.:"
+  echo "    huggingface-cli download <org/repo> <file.gguf> --local-dir data/google"
+  echo
+  echo "  Search: $MODEL_HINT_HF"
+  echo
+  echo "  Put tokenizer.json next to the model (or at data/google/tokenizer.json)."
+  echo
+  if have_cmd huggingface-cli || have_cmd hf; then
+    c_green "  huggingface CLI looks installed."
+  else
+    c_dim "  huggingface CLI not found yet (pip install huggingface_hub)."
+  fi
+  echo
+  read -r -p "Open the Hugging Face search page in a browser? [y/N] " ans || true
+  case "${ans:-}" in
+    y|Y|yes|YES) open_url "$MODEL_HINT_HF" ;;
+  esac
+}
+
+ensure_binary() {
+  if [[ -x "$BIN" ]] && [[ -z "$(find "$ROOT/src" -name '*.rs' -newer "$BIN" 2>/dev/null | head -1)" ]]; then
+    return 0
+  fi
+  echo
+  c_yellow "Need to build the release binary once (needs Rust + CUDA toolkit for full run)…"
+  if ! have_cmd cargo; then
+    c_red "cargo not found. Install Rust: https://rustup.rs"
+    exit 1
+  fi
+  export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+  cargo build --release --bin hydrodynamic-swarm
+  echo
+}
+
+do_generate() {
+  print_check
+  if ! cuda_ok; then
+    c_red "No CUDA GPU visible — cannot generate. Opening museum instead so you can still watch."
+    echo
+    read -r -p "Press Enter to open museum… " _ || true
+    serve_museum
+  fi
+  if ! model_ok || ! tokenizer_ok; then
+    c_yellow "Model and/or tokenizer missing."
+    offer_model_help
+    if ! model_ok || ! tokenizer_ok; then
+      c_red "Still missing model/tokenizer. Opening museum (view-only)."
+      read -r -p "Press Enter… " _ || true
+      serve_museum
+    fi
+  fi
+
+  local prompt tokens
+  prompt="${1:-Explain the Physics of Friendship in one short paragraph.}"
+  tokens="${2:-65}"
+
+  ensure_binary
+  export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+
+  echo
+  c_cyan "Generating short demo with --viz (this is the only noisy part)…"
+  echo "  model:  $MODEL"
+  echo "  tokens: $tokens"
+  echo "  prompt: $prompt"
+  echo
+
+  "$BIN" \
+    --model "$MODEL" \
+    --tokenizer "$TOKENIZER" \
+    --prompt "$prompt" \
+    --tokens "$tokens" \
+    --clear-memory \
+    --viz
+
+  local viz
+  viz="$(ls -t "$ROOT"/logs/*.viz.json 2>/dev/null | head -1 || true)"
+  if [[ -z "$viz" || ! -f "$viz" ]]; then
+    c_red "No .viz.json produced. Is --viz wired?"
+    exit 1
+  fi
+
+  # Pack a museum-sized copy (subsample field points)
+  python3 - "$viz" "$ROOT/tools/museum/demos/custom-latest.viz.json" "$ROOT/tools/latest_demo.viz.json" <<'PY'
+import json, sys
+src, dst, latest = sys.argv[1:4]
+with open(src) as f:
+    d = json.load(f)
+fp = d.get("field_points_3d") or []
+if len(fp) > 800:
+    step = max(1, len(fp) // 800)
+    d["field_points_3d"] = fp[::step][:800]
+with open(dst, "w") as f:
+    json.dump(d, f, separators=(",", ":"))
+with open(latest, "w") as f:
+    json.dump(d, f, separators=(",", ":"))
+print("packed", dst)
+PY
+
+  # Offer to register as a one-off in catalog under "Your latest generate"
+  python3 - "$ROOT/tools/museum/catalog.json" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+cat = json.loads(p.read_text())
+entry = {
+    "id": "custom-latest",
+    "title": "Your latest generate",
+    "date": "local",
+    "tag": "local",
+    "recommended": False,
+    "model_note": "Just recorded on this machine",
+    "prompt": "",
+    "viz": "demos/custom-latest.viz.json",
+    "blurb": "Most recent ./splat-lens generate on this machine. Not a published milestone until you add findings + commit.",
+    "worked": ["Session recorded with --viz."],
+    "didnt_work": [],
+    "ongoing": ["Edit tools/museum/catalog.json to promote this to a real milestone."],
+    "research_logs": []
+}
+ms = cat.get("milestones") or []
+ms = [m for m in ms if m.get("id") != "custom-latest"]
+# keep recommended first; append local at end
+cat["milestones"] = ms + [entry]
+p.write_text(json.dumps(cat, indent=2) + "\n")
+print("catalog: custom-latest entry refreshed")
+PY
+
+  c_green "Done. Opening museum — pick “Your latest generate” or the recommended demo."
+  echo
+  serve_museum
+}
+
+menu() {
+  banner
+  print_check
+  echo "What do you want to do?"
+  echo
+  echo "  1) Open the museum          ← recommended (works without GPU)"
+  echo "  2) Check model / CUDA again"
+  echo "  3) Help me get a model (download hints)"
+  echo "  4) Generate a new short demo (needs GPU + model)"
+  echo "  5) What is this project?"
+  echo "  q) Quit"
+  echo
+  read -r -p "Choice [1]: " choice || true
+  choice="${choice:-1}"
+  case "$choice" in
+    1) serve_museum ;;
+    2) print_check; read -r -p "Press Enter to return to menu… " _; menu ;;
+    3) offer_model_help; read -r -p "Press Enter to return to menu… " _; menu ;;
+    4)
+      read -r -p "Prompt [Friendship short paragraph]: " p || true
+      read -r -p "Tokens [65]: " t || true
+      do_generate "${p:-Explain the Physics of Friendship in one short paragraph.}" "${t:-65}"
+      ;;
+    5)
+      echo
+      echo "  Hydrodynamic Swarm steers an LLM with forces in hidden-state space:"
+      echo "  field + splat memory scars + goal. SplatLens is the 3D museum of those runs."
+      echo
+      echo "  Physics code is research software (CUDA today)."
+      echo "  The museum is JSON + HTML so anyone can fork and *see* milestones."
+      echo
+      echo "  Add a milestone: drop a .viz.json in tools/museum/demos/, edit catalog.json,"
+      echo "  commit. Prefer small demos (~50KB with subsampled field points)."
+      echo
+      read -r -p "Press Enter to return to menu… " _
+      menu
+      ;;
+    q|Q) echo "Bye."; exit 0 ;;
+    *) c_yellow "Unknown choice."; menu ;;
+  esac
+}
+
+usage() {
+  cat <<EOF
+Usage: ./splat-lens [command]
+
+  (no args)   Interactive menu
+  museum      Open the SplatLens museum (view-only)
+  check       Print CUDA / model / demo status
+  generate    Record a new short --viz demo, then open museum
+  help        This text
+
+Environment:
+  SPLAT_LENS_PORT   HTTP port (default 8765)
+  MODEL             GGUF path (default data/google/gemma-3-4b-it-Q4_K_M.gguf)
+  TOKENIZER         tokenizer.json path
+
+EOF
+}
+
+cmd="${1:-}"
+case "$cmd" in
+  "" ) menu ;;
+  museum|view|open) serve_museum ;;
+  check|status) banner; print_check ;;
+  generate|gen)
+    shift || true
+    do_generate "${1:-Explain the Physics of Friendship in one short paragraph.}" "${2:-65}"
+    ;;
+  help|-h|--help) usage ;;
+  *)
+    c_red "Unknown command: $cmd"
+    usage
+    exit 1
+    ;;
+esac

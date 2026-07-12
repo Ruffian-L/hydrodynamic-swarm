@@ -38,6 +38,50 @@ pub struct PhysicsConfig {
     pub splat_lambda_default: f32,
     pub pain_decay_factor: f32,
     pub dream_correction_threshold: f32,
+    /// Scale applied to splat force before sum (0.05–0.15 = gentle for Gemma).
+    pub splat_force_scale: f32,
+    /// Soft max on ||F_s|| after scale (0 = disabled).
+    pub splat_force_max: f32,
+    /// Scale applied to goal attractor (prefill residual).
+    pub goal_force_scale: f32,
+    /// Soft max on ||F_a|| after scale (0 = disabled).
+    pub goal_force_max: f32,
+    /// Step index to begin late F_a attenuation (0 = off). Typical B4d: 48.
+    pub goal_late_start: usize,
+    /// Tokens to ramp from full F_a → goal_late_end.
+    pub goal_late_span: usize,
+    /// F_a multiplier at end of late attenuation (0–1). e.g. 0.35.
+    pub goal_late_end: f32,
+    /// Min steps between online splat deposits (anti-spam).
+    pub online_splat_interval: usize,
+    /// Field wake mode: "off" | "wake" | "blend" | "dist_weighted"
+    /// See research_logs/*field-wake* ablation table.
+    pub field_wake_mode: String,
+    /// k nearest embeddings for wake pull.
+    pub field_wake_k: usize,
+    /// Strength of nearest-emb pull (before soft cap).
+    pub field_wake_scale: f32,
+    /// Soft max on ||wake force|| (0 = off).
+    pub field_wake_max: f32,
+    /// In blend mode: weight of pure ∇ρ vs wake (0=all wake, 1=all grad when alive).
+    pub field_grad_blend: f32,
+    /// Distance scale for dist_weighted: strength ∝ 1/(1+(d/τ)²).
+    pub field_wake_dist_tau: f32,
+    /// Surface logit bias: z += α · normalize(E û_g). 0 = off.
+    /// û_g = unit field force direction from residual steer (same D as emb).
+    pub field_logit_alpha: f32,
+    /// Force ramp: first N tokens scale total force from `force_ramp_start` → 1.0.
+    /// Original Niodoo spirit: gentler early, respect prefill J-space. 0 = off.
+    pub force_ramp_tokens: usize,
+    /// Multiplier at step 0 when ramping (e.g. 0.15).
+    pub force_ramp_start: f32,
+    /// If true, only deposit splats on high-signal steps (δ > thresh OR pain OR strong pleasure).
+    /// If false, any non-Skip quality deposit (current default path).
+    pub targeted_splat_only: bool,
+    /// After prefill, run one micro-dream against goal (respect initial hidden / J-space).
+    pub prefill_micro_dream: bool,
+    /// On Pain, deposit a stronger ocean "recovery" packet (variant E).
+    pub pain_recovery_ocean: bool,
 }
 
 /// Generation parameters.
@@ -60,8 +104,12 @@ pub struct GenerationConfig {
 pub struct MemoryConfig {
     pub max_splats: usize,
     pub consolidation_dist: f32,
+    /// End-of-run / session wall-clock evaporation fallback (see `decay_step`).
     pub decay_rate: f32,
     pub prune_threshold: f32,
+    /// Per-token scar strength multiply during generation (`decay_per_token`).
+    /// `1.0` = off. Typical B4b: `0.97`–`0.99`. Controls mid-run F_s climb.
+    pub online_decay_rate: f32,
 }
 
 /// Micro-dream consolidation tuning.
@@ -79,20 +127,47 @@ pub struct MicroDreamConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            dt: 0.04,
-            viscosity_scale: 0.15,
-            force_cap: 8.0,
-            splat_sigma: 35.0,
-            splat_alpha: 2.0,
-            min_splat_dist: 100.0,
-            splat_delta_threshold: 12.0,
-            gradient_topk: 512,
+            dt: 0.035,
+            // Slightly more field influence now that sigma isn't dead
+            viscosity_scale: 0.25,
+            force_cap: 5.0,
+            // Residual-space friendly; was 35 and treated every splat as global
+            splat_sigma: 12.0,
+            splat_alpha: 1.2,
+            min_splat_dist: 25.0,
+            // Was 12 — steering delta is routinely 100+, so that deposited every step
+            splat_delta_threshold: 90.0,
+            gradient_topk: 1024,
             steer_hidden: true,
-            manifold_pullback: 0.15,
+            manifold_pullback: 0.20,
             bundle_min_dist: 0.05,
             splat_lambda_default: 0.02,
             pain_decay_factor: 0.7,
             dream_correction_threshold: 6.0,
+            // Wake memory a bit; 0.08 left F_s≈0 mid-run
+            splat_force_scale: 0.25,
+            splat_force_max: 60.0,
+            // Stop prefill goal from monopolizing (~450 uncapped)
+            goal_force_scale: 0.15,
+            goal_force_max: 60.0,
+            goal_late_start: 0,
+            goal_late_span: 30,
+            goal_late_end: 0.4,
+            online_splat_interval: 6,
+            // Phase 1 default: nearest-emb wake (k=1)
+            field_wake_mode: "wake".into(),
+            field_wake_k: 1,
+            field_wake_scale: 0.20,
+            field_wake_max: 40.0,
+            field_grad_blend: 0.15,
+            field_wake_dist_tau: 50.0,
+            // Gentle surface tip; residual physics remains primary
+            field_logit_alpha: 0.15,
+            force_ramp_tokens: 12,
+            force_ramp_start: 0.20,
+            targeted_splat_only: true,
+            prefill_micro_dream: false,
+            pain_recovery_ocean: false,
         }
     }
 }
@@ -104,10 +179,10 @@ impl Default for GenerationConfig {
             temperature: 0.9,
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
             eos_token_ids: vec![128009, 128001],
-            rep_penalty: 1.18,
+            rep_penalty: 1.25,
             min_success_tokens: 15,
-            pleasure_alpha: 1.8,
-            pain_alpha: -0.9,
+            pleasure_alpha: 1.2,
+            pain_alpha: -0.6,
         }
     }
 }
@@ -119,6 +194,7 @@ impl Default for MemoryConfig {
             consolidation_dist: 80.0,
             decay_rate: 0.98,
             prune_threshold: 0.01,
+            online_decay_rate: 1.0, // off unless config sets < 1
         }
     }
 }
@@ -198,6 +274,12 @@ impl Config {
         if p.dream_correction_threshold < 0.0 {
             return Err("physics.dream_correction_threshold must be >= 0".into());
         }
+        if p.goal_late_end < 0.0 || p.goal_late_end > 1.0 {
+            return Err("physics.goal_late_end must be in [0, 1]".into());
+        }
+        if p.goal_late_start > 0 && p.goal_late_span == 0 {
+            return Err("physics.goal_late_span must be > 0 when goal_late_start is set".into());
+        }
 
         let g = &self.generation;
         if g.max_tokens == 0 {
@@ -219,6 +301,9 @@ impl Config {
         }
         if m.decay_rate < 0.0 {
             return Err("memory.decay_rate must be >= 0".into());
+        }
+        if m.online_decay_rate <= 0.0 || m.online_decay_rate > 1.0 {
+            return Err("memory.online_decay_rate must be in (0, 1]".into());
         }
         if m.prune_threshold < 0.0 {
             return Err("memory.prune_threshold must be >= 0".into());

@@ -5,147 +5,74 @@
 # Usage:
 #   ./run_swarm.sh
 #   ./run_swarm.sh "your prompt"
-#   ./run_swarm.sh "your prompt" 80
+#   ./run_swarm.sh "your prompt" 50
 #
-# Physics knobs live in config.toml (edit that for F_s damp, force_cap, etc.).
-# Only edit the CONFIG block below for model/prompt/tokens.
+# Default: Gemma 3 4B Q4 + B4d-q (physics frozen; ~65 tok clean-paragraph zone)
+# SplatLens museum (view-only, no GPU): ./splat-lens
+# Generate + museum: ./demo_slice.sh
+# Share doc: docs/MODEL_SIZE_PHYSICS_SCALING.md
 # =============================================================================
 
 set -euo pipefail
 
 # ── CONFIG (edit these) ─────────────────────────────────────────────────────
-PROMPT="${1:-Explain the Physics of Friendship in one paragraph.}"
-TOKENS="${2:-80}"
+PROMPT="${1:-Explain the Physics of Friendship in one short paragraph.}"
+# 4B useful ceiling ~50–70; default hard budget in the good zone
+TOKENS="${2:-65}"
 
-MODEL="data/google/gemma-3-27b-it-Q8_0.gguf"
+# Small model prime path (gemma3 arch — loader works):
+MODEL="data/google/gemma-3-4b-it-Q4_K_M.gguf"
 TOKENIZER="data/google/tokenizer.json"
 
-# Llama fallback:
-# MODEL="/home/ruffianl/projects/niodoo-live/model/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf"
-# TOKENIZER="/home/ruffianl/projects/niodoo-live/model/tokenizer.json"
+# 27B Q4 — use config.27b.toml (B4d lessons ported), not 4B B4d-q knobs:
+#   cp config.27b.toml config.toml
+# MODEL="data/google/gemma-3-27b-it-Q4_K_M.gguf"
 
-# 1 = wipe splat memory before run (recommended while tuning)
+# gemma3n E4B — NEEDS new loader (AltUp/Laurel/PLE), do not use yet:
+# MODEL="data/google/google_gemma-3n-E4B-it-Q5_K_M.gguf"
+
+# 27B Q8 (higher fidelity, slower):
+# MODEL="data/google/gemma-3-27b-it-Q8_0.gguf"
+
 CLEAR_MEMORY=1
-
-# Extra flags, e.g. "--viz"
 EXTRA_FLAGS=""
-
-# 1 = verify model/tokenizer against data/google/SHA256SUMS before run
-# (first check hashes the file; later runs use a local cache unless the file changes)
-VERIFY_SHAS=1
 
 export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
 # =============================================================================
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
-
 BIN="$ROOT/target/release/hydrodynamic-swarm"
-SHA_MANIFEST="$ROOT/data/google/SHA256SUMS"
-
-lookup_expected_sha() {
-  local base="$1"
-  awk -v name="$base" '$2 == name { print $1; exit }' "$SHA_MANIFEST"
-}
-
-verify_pinned_file() {
-  local file="$1"
-  local base expected actual size mtime stamp_hash stamp_size stamp_mtime
-
-  if [[ ! -f "$SHA_MANIFEST" ]]; then
-    echo "WARN: SHA manifest missing: $SHA_MANIFEST (skipping pin check)" >&2
-    return 0
-  fi
-
-  base="$(basename "$file")"
-  expected="$(lookup_expected_sha "$base" || true)"
-  if [[ -z "$expected" ]]; then
-    echo "  $base: not in SHA256SUMS (skipping)"
-    return 0
-  fi
-
-  size=$(stat -c%s "$file")
-  mtime=$(stat -c%Y "$file")
-  stamp="${file}.sha256.verified"
-
-  if [[ -f "$stamp" ]]; then
-    read -r stamp_hash stamp_size stamp_mtime <"$stamp" || true
-    if [[ "$stamp_hash" == "$expected" && "$stamp_size" == "$size" && "$stamp_mtime" == "$mtime" ]]; then
-      echo "  $base: pinned OK"
-      return 0
-    fi
-  fi
-
-  echo "  $base: hashing (one-time unless the file changes)..."
-  actual=$(sha256sum "$file" | awk '{print $1}')
-  if [[ "$actual" != "$expected" ]]; then
-    echo "ERROR: SHA256 mismatch for $base" >&2
-    echo "  expected: $expected" >&2
-    echo "  actual:   $actual" >&2
-    exit 1
-  fi
-
-  printf '%s %s %s\n' "$actual" "$size" "$mtime" >"$stamp"
-  echo "  $base: pinned OK"
-}
 
 echo "=============================================="
 echo "  Hydrodynamic Swarm launcher"
 echo "=============================================="
-echo "  dir:        $ROOT"
 echo "  model:      $MODEL"
-echo "  tokenizer:  $TOKENIZER"
 echo "  tokens:     $TOKENS"
 echo "  clear_mem:  $CLEAR_MEMORY"
 echo "  config:     $ROOT/config.toml"
 echo "  prompt:     $PROMPT"
 echo "=============================================="
-echo "  Tip: damp F_s via config.toml → splat_force_scale / splat_force_max"
-echo "  Live: tail -f logs/live.txt"
-echo "=============================================="
 echo
 
-if [[ ! -f "$MODEL" ]]; then
-  echo "ERROR: model not found: $MODEL" >&2
-  exit 1
-fi
-if [[ ! -f "$TOKENIZER" ]]; then
-  echo "ERROR: tokenizer not found: $TOKENIZER" >&2
-  exit 1
-fi
+[[ -f "$MODEL" ]] || { echo "ERROR: model not found: $MODEL" >&2; exit 1; }
+[[ -f "$TOKENIZER" ]] || { echo "ERROR: tokenizer not found: $TOKENIZER" >&2; exit 1; }
 
-if [[ "$VERIFY_SHAS" == "1" ]]; then
-  echo "[*] Verifying pinned model files..."
-  verify_pinned_file "$MODEL"
-  verify_pinned_file "$TOKENIZER"
-  echo
-fi
-
-if [[ ! -x "$BIN" ]] || [[ -n "$(find src -name '*.rs' -newer "$BIN" 2>/dev/null | head -1)" ]] \
-   || [[ -f build.rs && build.rs -nt "$BIN" ]]; then
-  echo "[*] Building release binary..."
+if [[ ! -x "$BIN" ]] || [[ -n "$(find src -name '*.rs' -newer "$BIN" 2>/dev/null | head -1)" ]]; then
+  echo "[*] Building release..."
   cargo build --release --bin hydrodynamic-swarm
   echo
 fi
 
-ARGS=(
-  --model "$MODEL"
-  --tokenizer "$TOKENIZER"
-  --prompt "$PROMPT"
-  --tokens "$TOKENS"
-)
-if [[ "$CLEAR_MEMORY" == "1" ]]; then
-  ARGS+=(--clear-memory)
-fi
+ARGS=(--model "$MODEL" --tokenizer "$TOKENIZER" --prompt "$PROMPT" --tokens "$TOKENS")
+[[ "$CLEAR_MEMORY" == "1" ]] && ARGS+=(--clear-memory)
 if [[ -n "$EXTRA_FLAGS" ]]; then
-  # intentional word-split for user-supplied flags
   # shellcheck disable=SC2206
   EXTRA=( $EXTRA_FLAGS )
   ARGS+=("${EXTRA[@]}")
 fi
 
-echo "[*] Running..."
-echo "    $BIN ${ARGS[*]}"
+echo "[*] Running: $BIN ${ARGS[*]}"
+echo "--- live: tail -f logs/live.txt ---"
 echo
-
 exec "$BIN" "${ARGS[@]}"

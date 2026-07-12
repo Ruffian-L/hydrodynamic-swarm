@@ -85,6 +85,8 @@ impl PrimeGovernor {
 pub struct SplatMemory {
     splats: Vec<Splat>,
     device: candle_core::Device,
+    /// Wall-clock second of last `decay_step` call (avoids double-counting age).
+    last_decay_wall: Option<u64>,
 }
 
 const BUNDLE_MIN_DIST: f32 = 0.05;
@@ -99,11 +101,43 @@ impl SplatMemory {
         Self {
             splats: Vec::new(),
             device,
+            last_decay_wall: None,
         }
     }
 
     pub fn add_splat(&mut self, splat: Splat) {
         self.splats.push(splat);
+    }
+
+    /// Per-token multiplicative decay of scar strength (generation loop).
+    ///
+    /// Use this for mid-run F_s control. Wall-clock `decay_step` is for end-of-run /
+    /// inter-session evaporation and must not be called every token with age-from-
+    /// create (that multiplies `exp(-λ·age)` every call and over-decays).
+    ///
+    /// - Pleasure: `alpha *= rate`
+    /// - Pain: decays less (lasts longer): `alpha *= 1 - (1-rate)*pain_factor`
+    /// - Anchors: unchanged
+    ///
+    /// `rate` in (0,1]; `1.0` = no-op. Typical online: 0.97–0.99.
+    pub fn decay_per_token(&mut self, rate: f32, pain_factor: f32) {
+        if rate >= 1.0 || rate <= 0.0 {
+            return;
+        }
+        let r = rate.clamp(1e-6, 1.0);
+        let pf = pain_factor.clamp(0.0, 1.0);
+        // Pain lasts longer → multiply by something closer to 1.0
+        let pain_r = (1.0 - (1.0 - r) * pf).clamp(1e-6, 1.0);
+        for splat in &mut self.splats {
+            if splat.is_anchor {
+                continue;
+            }
+            if splat.alpha >= 0.0 {
+                splat.alpha *= r;
+            } else {
+                splat.alpha *= pain_r;
+            }
+        }
     }
 
     /// Deposit a *teacher* anchor splat at `mu` — the residual-stream position
@@ -133,36 +167,48 @@ impl SplatMemory {
         self.splats.iter().filter(|s| s.is_anchor).count()
     }
 
-    /// Time-based exponential decay: V(t) = V0 * exp(-lambda * delta_t).
-    /// Asymmetric: pain decays at 70% of the pleasure rate.
-    /// Anchors (lambda=0 or is_anchor=true) never decay.
-    /// `decay_rate` is the legacy per-step fallback for splats without lambda.
+    /// Wall-clock evaporation between sessions / end-of-run (not per-token).
+    ///
+    /// Applies `alpha *= exp(-λ · Δt)` where `Δt` is seconds since the **last**
+    /// `decay_step` call (or since create on first call). Safe to call once at
+    /// end of generation; do **not** use as per-token decay (use `decay_per_token`).
+    ///
+    /// Asymmetric: pain uses `λ * 0.7` (lasts longer). Anchors never decay.
+    /// `decay_rate` is a fallback multiplier when Δt == 0.
     pub fn decay_step(&mut self, decay_rate: f32) {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
+        let dt = match self.last_decay_wall {
+            Some(prev) => now.saturating_sub(prev) as f32,
+            None => {
+                // First call this process: use age of oldest non-anchor, or 0
+                self.splats
+                    .iter()
+                    .filter(|s| !s.is_anchor && s.lambda > 0.0)
+                    .map(|s| now.saturating_sub(s.created_at) as f32)
+                    .fold(0.0_f32, f32::max)
+            }
+        };
+        self.last_decay_wall = Some(now);
+
         for splat in &mut self.splats {
-            // Anchors never decay
             if splat.is_anchor || splat.lambda == 0.0 {
                 continue;
             }
 
-            let dt = (now.saturating_sub(splat.created_at)) as f32;
             let effective_lambda = if splat.alpha < 0.0 {
-                // Pain lasts longer: 70% decay rate
                 splat.lambda * 0.7
             } else {
                 splat.lambda
             };
 
             if dt > 0.0 {
-                // Exponential decay: alpha *= exp(-lambda * dt)
                 let decay_factor = (-effective_lambda * dt).exp();
                 splat.alpha *= decay_factor;
-            } else {
-                // Fallback: per-step decay for freshly created splats
+            } else if decay_rate > 0.0 && decay_rate < 1.0 {
                 if splat.alpha > 0.0 {
                     splat.alpha *= decay_rate;
                 } else {
@@ -186,9 +232,14 @@ impl SplatMemory {
     ///
     /// For each splat: force = alpha * (mu - pos) * exp(-||mu - pos||^2 / sigma^2)
     /// Positive alpha pulls toward the splat (pleasure), negative pushes away (pain).
+    ///
+    /// Multi-splat accumulation is **sublinear**: after summing, force is scaled by
+    /// `1/sqrt(n_active)` so scar tissue cannot grow as O(N) gravity wells (the
+    /// 2026-07-11 Gemma runaway: F_s 14 → 4000 as splat count rose).
     pub fn query_force(&self, pos: &Tensor) -> Result<Tensor> {
         let dims = pos.dims().to_vec();
         let mut total_force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
+        let mut n_active = 0usize;
 
         for splat in &self.splats {
             let diff = (&splat.mu - pos)?;
@@ -202,6 +253,12 @@ impl SplatMemory {
             }
             let signed_force = diff.affine(scale, 0.0)?;
             total_force = (&total_force + &signed_force)?;
+            n_active += 1;
+        }
+
+        if n_active > 1 {
+            let norm = 1.0 / (n_active as f64).sqrt();
+            total_force = total_force.affine(norm, 0.0)?;
         }
         Ok(total_force)
     }

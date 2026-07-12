@@ -24,3 +24,7 @@
 | 2026-03-03 | ab40b6c1fdefd6b72843d8e396b872a85f4c9479 | fix: resolve 3D hidden-state shape bug, rewrite crucible runner |
 | 2026-03-03 | d0be37e829a13ab65b450dcd7b8f491ea41f1a2c | feat: Phase 2.2 evaporation engine -- time-degrading splat memory |
 | 2026-03-03 | 89cfd0da1fa0754f63682db89ad3b846bd7c0db0 | fix: stabilize core steering loop -- three critical fixes |
+
+## 2026-07-11 — Grok (xAI) + Jason session
+- Gemma 3 wire, ocean, F_s damp, field audit, wake ablations, logit bias A/B
+- Authorship: research_logs/AUTHORSHIP.md

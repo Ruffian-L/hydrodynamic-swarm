@@ -1,0 +1,71 @@
+{
+  "title": "SplatLens Museum",
+  "subtitle": "Watch a physics-steered model walk through its own memory. No GPU needed to look.",
+  "one_liner": "Trail = tokens so far. Gold = prompt goal. Teal scars = pleasure memory. Rust = pain. Bright dots = big steering pushes.",
+  "milestones": [
+    {
+      "id": "b4d-q-friendship-65",
+      "title": "B4d-q — Friendship (65 tok)",
+      "date": "2026-07-12",
+      "tag": "current demo",
+      "recommended": true,
+      "model_note": "Gemma 3 4B Q4 (recorded; you only need the JSON to watch)",
+      "prompt": "Explain the Physics of Friendship in one short paragraph.",
+      "viz": "demos/b4d-q-friendship-65.viz.json",
+      "blurb": "Latest locked short-paragraph demo. Physics frozen (B4d). Clean-ish full budget on 4B.",
+      "worked": [
+        "√-law splat damping so scars stop exploding (old F_s ~1872 story is dead).",
+        "Field wake (dist_weighted) so field force is actually alive, not zero by geometry.",
+        "Hard length budget ~65 tokens = practical clean-paragraph zone on 4B.",
+        "Light quality knobs (temp 0.88, rep 1.36, softer scar alphas) without reopening force hunt."
+      ],
+      "didnt_work": [
+        "Pushing 80–90+ tokens with sample knobs alone — mid/late surface fray; not a force latch.",
+        "Logit bias alone as a fix for late collapse — slight calm, not a cure.",
+        "Assuming bigger force budgets = better prose on small models."
+      ],
+      "ongoing": [
+        "27B port retune (F_s climbs more late than 4B at same length).",
+        "Optional early-stop quality gate around 55–60.",
+        "Ocean deposit quality-gating so garbage doesn't crystallize."
+      ],
+      "research_logs": [
+        "research_logs/2026-07-12_B4d-q-length-quality.md",
+        "research_logs/2026-07-12_all-four-next-directions.md",
+        "research_logs/2026-07-12_splat-lens-museum-structure.md",
+        "research_logs/2026-07-11_SESSION_CATCHUP.md",
+        "research_logs/AUTHORSHIP.md"
+      ],
+      "authors": "Jason (co-engineer) · Grok (xAI)"
+    },
+    {
+      "id": "early-v1-friendship-50",
+      "title": "Early v1 — Friendship (50 tok)",
+      "date": "2026-03-02",
+      "tag": "historical",
+      "recommended": false,
+      "model_note": "Older Llama/unsloth-era recording",
+      "prompt": "(session-era default friendship-style run)",
+      "viz": "demos/early-v1-friendship-50.viz.json",
+      "blurb": "Early SplatLens recording. Useful as 'what the trail looked like before the July force fixes.' Scar deposit story was different; often few/no scars in this file.",
+      "worked": [
+        "JSON session export + 3D random projection so people can watch without the model.",
+        "Per-step trail + steering delta visualization.",
+        "Idea that memory scars should show up as spatial objects, not just numbers in a log."
+      ],
+      "didnt_work": [
+        "Relying on console-only telemetry — easy to give up if you don't know the flags.",
+        "Force caps / splat scaling still maturing; later runs re-learned what explodes.",
+        "No museum / one-command path for forks."
+      ],
+      "ongoing": [
+        "This milestone is a museum exhibit, not the physics default. Prefer B4d-q for new demos."
+      ],
+      "research_logs": [
+        "research_logs/2026-03-02_splatlens-tui-and-viz-polish.md",
+        "research_logs/timeline.md"
+      ]
+    }
+  ],
+  "how_to_add_checkpoint": "Copy a logs/*.viz.json into tools/museum/demos/ (optionally subsample field_points), add an entry here, commit. Prefer ~50–100KB demos so git stays friendly."
+}

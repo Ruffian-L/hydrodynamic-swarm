@@ -142,20 +142,22 @@ impl ContinuousField {
                 total_dist += dist as f64;
             }
             let mean_dist = (total_dist / n_pairs as f64) as f32;
-            let s = if mean_dist > 1.0 {
-                mean_dist * 0.5
+            // Old rule (mean_dist * 0.5) produced sigma≈0.72 on Gemma 5376-d and
+            // killed field gradient (F_g=0 every step). Use a wider kernel so the
+            // residual can still "feel" the embedding cloud under Top-K probes.
+            let floor = (dim as f32).sqrt() * 0.15; // ~11 for 5376-d
+            let s = if mean_dist > 1e-3 {
+                (mean_dist * 4.0).max(floor)
             } else {
-                // L2-normalized embeddings: typical dist ~ sqrt(2)
-                // Fallback for degenerate data
-                (dim as f32).sqrt() * 0.035
+                floor
             };
             println!(
-                "    Sigma auto-tuned: mean_dist={:.2}, sigma={:.4}",
-                mean_dist, s
+                "    Sigma auto-tuned: mean_dist={:.2}, sigma={:.4} (floor={:.2})",
+                mean_dist, s, floor
             );
             s
         } else {
-            (dim as f32).sqrt() * 0.035
+            (dim as f32).sqrt() * 0.15
         };
 
         println!(

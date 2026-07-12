@@ -87,7 +87,7 @@ pub struct MicroDreamResult {
 /// When correction_norm exceeds DREAM_CORRECTION_THRESHOLD, we flag it as a
 /// TopoCoT reflection event -- the model hit a wall and course-corrected.
 pub fn micro_dream(
-    engine: &NiodooEngine,
+    engine: &mut NiodooEngine,
     current_pos: &Tensor, // (1, D) steered logits
     goal_pos: &Tensor,    // (D,) goal attractor
     step: usize,          // current generation step
