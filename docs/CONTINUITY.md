@@ -72,3 +72,5 @@ Telemetry keys: `tct_force_norm`, `tct_potential`, `tct_nearest_dist`, `tct_n_ac
 First visit may still be **COLD** (locality) even when load succeeds — same physics as hydro.
 
 Wire-up lives in the `niodoo-live` tree (`tct_splat_lite` module + `apply_forces` hook). Ship status follows that repo; hydro remains the continuity **mint** and KPI home.
+
+**Gemma speech on live (2026-07-17):** use low mid-layer blend (0.02), free system, not February theta. Smoke: `niodoo-live/scripts/gemma_speak_smoke.sh` — mode 0 clean **SPEECH PASS**; mode 2 loads hydro TCT and still **SPEECH PASS** on Friendship. See `niodoo-live/research_logs/2026-07-17_gemma_speak_not_garbage.md`.
