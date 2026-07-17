@@ -28,6 +28,7 @@ mod ocean;
 mod quality;
 mod ridge;
 mod splat;
+mod tct;
 mod tui;
 mod viz;
 // mod viz_metal; // removed: XSS-vulnerable HTML viewer (security audit 2026-03-07)
@@ -149,15 +150,21 @@ fn format_prompt_for_model(raw: &str, is_gemma: bool) -> String {
 async fn main() -> Result<()> {
     println!("=== SplatRAG v1 -- Hydrodynamic Swarm ===\n");
 
-    // Load configuration (falls back to defaults if no config.toml)
-    let cfg = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
-        eprintln!("    [CONFIG] {}, using defaults", e);
+    // Parse CLI first so --config can choose the TOML before load.
+    let args: Vec<String> = std::env::args().collect();
+    let config_path = args
+        .iter()
+        .position(|a| a == "--config")
+        .and_then(|i| args.get(i + 1).cloned())
+        .unwrap_or_else(|| "config.toml".to_string());
+    let cfg = Config::load(Path::new(&config_path)).unwrap_or_else(|e| {
+        eprintln!("    [CONFIG] {} ({}) — using defaults", e, config_path);
         Config::default()
     });
+    println!("[*] Config: {}", config_path);
 
-    // Parse CLI args
-    let args: Vec<String> = std::env::args().collect();
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
+    let no_save_memory = args.iter().any(|a| a == "--no-save-memory");
     let cli_prompt = args
         .iter()
         .position(|a| a == "--prompt")
@@ -178,10 +185,30 @@ async fn main() -> Result<()> {
         .min(50_000); // security: cap to prevent DoS-level resource exhaustion
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
+    // Optional: import a TCT-splat-lite store before the run (appends after safetensors load).
+    let import_tct = args
+        .iter()
+        .position(|a| a == "--import-tct")
+        .and_then(|i| args.get(i + 1).cloned());
+    // Optional override path for TCT export (default: data/splat_memory.tct).
+    let export_tct_path = args
+        .iter()
+        .position(|a| a == "--export-tct")
+        .and_then(|i| args.get(i + 1).cloned());
 
-    // Force full NVIDIA CUDA for all Candle ops + physics (post-upgrade)
-    let device = Device::new_cuda(0).expect("CUDA GPU required - nvidia-smi shows GB10. Fix: export CUDA_VISIBLE_DEVICES=0 && sudo apt install nvidia-cuda-toolkit");
-    println!("[*] Using CUDA GPU (forced - all tensors/physics on NVIDIA)");
+    // Generation path requires NVIDIA CUDA (museum / unit tests do not).
+    let device = Device::new_cuda(0).map_err(|e| {
+        anyhow::anyhow!(
+            "CUDA GPU required for generation (Device::new_cuda(0) failed: {e}).\n\
+             \n\
+             Fix:\n\
+               • NVIDIA driver + CUDA toolkit 12+ on PATH (nvcc, libcuda)\n\
+               • export CUDA_VISIBLE_DEVICES=0\n\
+               • View-only path needs neither GPU nor model:  ./splat-lens museum\n\
+             See SETUP.md"
+        )
+    })?;
+    println!("[*] Using CUDA GPU (all tensors/physics on NVIDIA)");
 
     // =========================================================
     // Phase 1: Load GGUF (Gemma 3 or Llama) + Tokenizer
@@ -189,6 +216,7 @@ async fn main() -> Result<()> {
     println!("\n--- Phase 1: Loading Model + Tokenizer ---");
 
     // Prefer --model, then Gemma 3 sizes that the gemma3 loader can open, then Llama.
+    // Paths are repo-relative only (no machine-specific absolute fallbacks).
     let model_path = cli_model
         .filter(|path| Path::new(path).exists())
         .or_else(|| {
@@ -200,12 +228,16 @@ async fn main() -> Result<()> {
                 "data/gemma-3-27b-it-Q8_0.gguf",
                 // gemma3n / gemma4 need dedicated loaders — do not list until wired
                 "data/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
-                "/home/ruffianl/projects/niodoo-live/model/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
+                "data/google/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
             ])
         })
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "Required model file not found. Pass --model /path/to/model.gguf or put it in data/."
+                "Required model file not found.\n\
+                 Pass --model /path/to/model.gguf, or place a GGUF under data/google/.\n\
+                 Recommended starter: data/google/gemma-3-4b-it-Q4_K_M.gguf\n\
+                 Download help: ./splat-lens check   (or see SETUP.md)\n\
+                 View-only (no model): ./splat-lens museum"
             )
         })?;
     println!("    Model: {}", model_path);
@@ -252,13 +284,13 @@ async fn main() -> Result<()> {
             find_existing_file(&[
                 "data/google/tokenizer.json",
                 "data/tokenizer.json",
-                "/home/ruffianl/projects/niodoo-live/model/tokenizer.json",
-                "/home/ruff/projects/Homernd/team_build/niodoo/model/tokenizer.json",
             ])
         })
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "Required tokenizer file not found. Pass --tokenizer /path/to/tokenizer.json or put it next to the model."
+                "Required tokenizer file not found.\n\
+                 Pass --tokenizer /path/to/tokenizer.json, put tokenizer.json next to the model,\n\
+                 or at data/google/tokenizer.json. See SETUP.md."
             )
         })?;
     let tokenizer =
@@ -382,12 +414,34 @@ async fn main() -> Result<()> {
     let splat_file = Path::new("data/splat_memory.safetensors");
     if clear_memory && splat_file.exists() {
         std::fs::remove_file(splat_file)?;
+        // Also clear TCT companions so --clear-memory is a true process death for both formats.
+        let _ = std::fs::remove_file("data/splat_memory.tct");
+        let _ = std::fs::remove_file("data/splat_memory.tct.json");
         println!("    Cleared splat memory (--clear-memory)");
     }
     let loaded_count = engine.memory_mut().load(splat_file)?;
     if loaded_count == 0 && !clear_memory {
         println!("    No existing splat memory found (first run)");
+    } else if loaded_count > 0 {
+        println!("    Loaded {} splats from {}", loaded_count, splat_file.display());
     }
+    let mut tct_import_count = 0usize;
+    if let Some(ref tct_in) = import_tct {
+        match engine.memory_mut().import_tct(Path::new(tct_in)) {
+            Ok(n) => {
+                tct_import_count = n;
+                println!(
+                    "    Imported {} TCT records (total scars={})",
+                    n,
+                    engine.memory().len()
+                );
+            }
+            Err(e) => eprintln!("    [TCT] import failed: {e}"),
+        }
+    }
+    let scars_at_start = engine.memory().len();
+    let memory_loaded = scars_at_start > 0;
+    let n_prefill_bridges_start = engine.memory().count_prefill_bridges();
 
     // =========================================================
     // Chat TUI mode (--chat)
@@ -433,22 +487,21 @@ async fn main() -> Result<()> {
         cfg.physics.min_splat_dist as i32,
     );
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
-    logger.log_config(SessionConfig {
-        prompt: raw_prompt.to_string(),
-        dt: cfg.physics.dt,
-        viscosity: cfg.physics.viscosity_scale,
-        kernel_sigma: engine.field_kernel_sigma(),
-        embedding_dim: dim,
-        field_points: engine.field_n_points(),
-        model: model_path.clone(),
-        model_variant: model_variant.to_string(),
-        backend: engine.backend_name().to_string(),
-        splat_sigma: cfg.physics.splat_sigma,
-        splat_alpha: cfg.physics.splat_alpha,
-        force_cap: cfg.physics.force_cap,
-        temperature: cfg.generation.temperature as f32,
-        min_splat_dist: cfg.physics.min_splat_dist,
-    })?;
+    let bridge_fps_start = engine.memory().list_bridge_prompt_fps();
+    println!(
+        "    Memory session: loaded={} scars_start={} bridges={} fps={:?} (safetensors={} tct_import={}) clear={} ramp={}",
+        memory_loaded,
+        scars_at_start,
+        n_prefill_bridges_start,
+        bridge_fps_start
+            .iter()
+            .map(|f| format!("{:#x}", f))
+            .collect::<Vec<_>>(),
+        loaded_count,
+        tct_import_count,
+        clear_memory,
+        cfg.physics.force_ramp_tokens
+    );
 
     // =========================================================
     // Phase 4: Real Prompt -> Physics-Steered Generation
@@ -501,6 +554,91 @@ async fn main() -> Result<()> {
     };
     let goal_norm: f32 = goal_pos.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
     println!("    Goal attractor norm: {:.4}", goal_norm);
+
+    // Death→reload geometry: is the start residual near any scar? (LOCALITY cold diagnosis)
+    let (nearest_scar_dist, nearest_scar_sigma, mean_scar_dist, scars_checked) =
+        if engine.memory().len() > 0 {
+            engine
+                .memory()
+                .nearest_scar_stats(&goal_pos, 64)
+                .unwrap_or((f32::INFINITY, 0.0, 0.0, 0))
+        } else {
+            (f32::INFINITY, 0.0, 0.0, 0)
+        };
+    let nearest_scar_dist_log = if nearest_scar_dist.is_finite() {
+        nearest_scar_dist
+    } else {
+        -1.0
+    };
+    let scar_potential_at_prefill = if engine.memory().len() > 0 {
+        engine
+            .memory()
+            .query_potential(&goal_pos)
+            .unwrap_or(0.0)
+    } else {
+        0.0
+    };
+    if scars_checked > 0 {
+        let cold = nearest_scar_dist.is_finite()
+            && nearest_scar_sigma > 1e-6
+            && nearest_scar_dist > 3.0 * nearest_scar_sigma;
+        println!(
+            "    Scar geometry @ prefill: n={} nearest_L2={:.2} σ_near={:.2} mean_L2={:.2} pot={:.3}{}{}",
+            scars_checked,
+            nearest_scar_dist,
+            nearest_scar_sigma,
+            mean_scar_dist,
+            scar_potential_at_prefill,
+            if cold {
+                "  [LOCALITY COLD: d > 3σ]"
+            } else if nearest_scar_dist < 1.0 && scar_potential_at_prefill.abs() > 0.1 {
+                "  [BASIN LIVE: pot high, F_s may be ~0 on-center]"
+            } else {
+                ""
+            },
+            if cfg.physics.force_ramp_tokens > 0 {
+                format!(
+                    "  ramp={}->1.0 over {} tok",
+                    cfg.physics.force_ramp_start, cfg.physics.force_ramp_tokens
+                )
+            } else {
+                "  ramp=OFF".into()
+            }
+        );
+    } else {
+        println!("    Scar geometry @ prefill: no scars loaded");
+    }
+
+    // Config log after prefill so scar geometry is real (not placeholders).
+    logger.log_config(SessionConfig {
+        prompt: raw_prompt.to_string(),
+        dt: cfg.physics.dt,
+        viscosity: cfg.physics.viscosity_scale,
+        kernel_sigma: engine.field_kernel_sigma(),
+        embedding_dim: dim,
+        field_points: engine.field_n_points(),
+        model: model_path.clone(),
+        model_variant: model_variant.to_string(),
+        backend: engine.backend_name().to_string(),
+        splat_sigma: cfg.physics.splat_sigma,
+        splat_alpha: cfg.physics.splat_alpha,
+        force_cap: cfg.physics.force_cap,
+        temperature: cfg.generation.temperature as f32,
+        min_splat_dist: cfg.physics.min_splat_dist,
+        config_path: config_path.clone(),
+        clear_memory,
+        scars_loaded_safetensors: loaded_count,
+        scars_imported_tct: tct_import_count,
+        scars_at_start,
+        memory_loaded,
+        nearest_scar_dist: nearest_scar_dist_log,
+        nearest_scar_sigma,
+        mean_scar_dist,
+        scars_checked,
+        force_ramp_tokens: cfg.physics.force_ramp_tokens,
+        scar_potential_at_prefill,
+        n_prefill_bridges: n_prefill_bridges_start,
+    })?;
 
     // Optional reflective micro-dream on prefill (variant D) — work with J-space, not yank it
     let mut prefill_hidden = prefill_hidden;
@@ -949,6 +1087,7 @@ async fn main() -> Result<()> {
             grad_force_mag: grad_mag,
             splat_force_mag: splat_mag,
             goal_force_mag: goal_mag,
+            scars_active: engine.memory().len(),
         })?;
 
         // Stop on EOS tokens
@@ -1031,11 +1170,7 @@ async fn main() -> Result<()> {
         .consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
-    // TODO: re-enable splat persistence + museum once steering is stable
-    println!(
-        "    Splats in memory: {} (persistence disabled)",
-        engine.memory().len()
-    );
+    println!("    Splats in memory: {} (will persist unless --no-save-memory)", engine.memory().len());
 
     // =========================================================
     // Phase 6: Dream Replay (REAL — replays actual generation trajectory)
@@ -1081,6 +1216,91 @@ async fn main() -> Result<()> {
         cfg.memory.decay_rate,
         engine.memory().len(),
     );
+
+    // Prefill-bridge scar: land memory in the next-run start basin (LOCALITY cold fix).
+    // After final decay so it is not wiped the same session.
+    if cfg.physics.prefill_bridge_scar && !no_save_memory {
+        let success = generated_tokens.len() > cfg.generation.min_success_tokens;
+        let bridge_alpha = if success {
+            cfg.physics.prefill_bridge_alpha.abs()
+        } else {
+            -cfg.physics.prefill_bridge_alpha.abs()
+        };
+        let replace_dist = (cfg.physics.prefill_bridge_sigma
+            * (1.0 + cfg.physics.prefill_bridge_offset_frac.abs()))
+        .max(cfg.memory.consolidation_dist);
+        let prompt_fp = tct::prompt_fp(raw_prompt);
+        match engine.memory_mut().deposit_prefill_bridge(
+            &goal_pos,
+            cfg.physics.prefill_bridge_sigma,
+            bridge_alpha,
+            cfg.physics.prefill_bridge_lambda,
+            replace_dist,
+            cfg.physics.prefill_bridge_offset_frac,
+            prompt_fp,
+        ) {
+            Ok(removed) => {
+                let dropped = engine
+                    .memory_mut()
+                    .enforce_max_prefill_bridges(cfg.memory.max_prefill_bridges);
+                let fps = engine.memory().list_bridge_prompt_fps();
+                if let Err(e) = tct::upsert_bridge_prompt_registry(
+                    &tct::bridge_prompts_path_default(),
+                    prompt_fp,
+                    raw_prompt,
+                ) {
+                    eprintln!("    [BRIDGE] prompt registry update failed: {e}");
+                }
+                println!(
+                    "    + Prefill-bridge scar (σ={:.1} α={:.2} λ={:.4} offset={:.2}σ fp={:#x}) replaced={} bridges_now={} cap_drop={} fps={:?} total={}",
+                    cfg.physics.prefill_bridge_sigma,
+                    bridge_alpha,
+                    cfg.physics.prefill_bridge_lambda,
+                    cfg.physics.prefill_bridge_offset_frac,
+                    prompt_fp,
+                    removed,
+                    engine.memory().count_prefill_bridges(),
+                    dropped,
+                    fps.iter().map(|f| format!("{:#x}", f)).collect::<Vec<_>>(),
+                    engine.memory().len()
+                );
+            }
+            Err(e) => eprintln!("    [BRIDGE] prefill scar failed: {e}"),
+        }
+    }
+
+    // =========================================================
+    // Persist memory (safetensors + TCT-splat-lite)
+    // Continuity goal: scars must survive process death.
+    // =========================================================
+    if !no_save_memory && engine.memory().len() > 0 {
+        println!("\n--- Phase 6b: Persist Memory ---");
+        if let Some(parent) = splat_file.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match engine.memory().save(splat_file) {
+            Ok(()) => {}
+            Err(e) => eprintln!("    [MEMORY] safetensors save failed: {e}"),
+        }
+        let tct_out = export_tct_path
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("data/splat_memory.tct"));
+        let fp = tct::model_fp_from_path(&model_path);
+        let reg = tct::bridge_prompts_path_default();
+        match engine.memory().export_tct_with_registry(
+            &tct_out,
+            dim,
+            fp,
+            /* json sidecar */ true,
+            Some(&reg),
+        ) {
+            Ok(()) => {}
+            Err(e) => eprintln!("    [TCT] export failed: {e}"),
+        }
+    } else if no_save_memory {
+        println!("    Skipping memory save (--no-save-memory)");
+    }
 
     // =========================================================
     // Summary

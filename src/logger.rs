@@ -25,6 +25,9 @@ pub struct StepEntry {
     pub grad_force_mag: f32,
     pub splat_force_mag: f32,
     pub goal_force_mag: f32,
+    /// Scars currently in memory at this step (for death→reload coupling).
+    #[serde(default)]
+    pub scars_active: usize,
 }
 
 /// Session config snapshot
@@ -44,6 +47,45 @@ pub struct SessionConfig {
     pub force_cap: f32,
     pub temperature: f32,
     pub min_splat_dist: f32,
+    /// Path of TOML used for this run (`--config` or config.toml).
+    #[serde(default)]
+    pub config_path: String,
+    /// `--clear-memory` was set.
+    #[serde(default)]
+    pub clear_memory: bool,
+    /// Scars loaded from safetensors at start.
+    #[serde(default)]
+    pub scars_loaded_safetensors: usize,
+    /// Scars imported from TCT at start.
+    #[serde(default)]
+    pub scars_imported_tct: usize,
+    /// Total scars after load+import (start of generation).
+    #[serde(default)]
+    pub scars_at_start: usize,
+    /// True if any scars were present when generation began.
+    #[serde(default)]
+    pub memory_loaded: bool,
+    /// L2 distance from prefill/goal residual to nearest scar center (−1 if none).
+    #[serde(default)]
+    pub nearest_scar_dist: f32,
+    /// Sigma of the nearest scar (0 if none).
+    #[serde(default)]
+    pub nearest_scar_sigma: f32,
+    /// Mean L2 over scars checked at start.
+    #[serde(default)]
+    pub mean_scar_dist: f32,
+    /// How many scars entered the nearest-scar scan.
+    #[serde(default)]
+    pub scars_checked: usize,
+    /// force_ramp_tokens from config (0 = ramp off) — early F_s may be clamped when >0.
+    #[serde(default)]
+    pub force_ramp_tokens: usize,
+    /// Scar potential at prefill: Σ α exp(−d²/σ²). High when memory is "here" even if F_s≈0.
+    #[serde(default)]
+    pub scar_potential_at_prefill: f32,
+    /// Prefill-bridge scars in store at session start (multi-basin continuity).
+    #[serde(default)]
+    pub n_prefill_bridges: usize,
 }
 
 /// Final session summary
@@ -372,6 +414,7 @@ mod taco_tests {
             grad_force_mag: 0.3,
             splat_force_mag: 0.8,
             goal_force_mag: 0.4,
+            scars_active: 0,
         };
         let session_id = "test_session_001";
         db.log_step(session_id, &step).unwrap();

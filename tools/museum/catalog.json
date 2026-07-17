@@ -1,18 +1,79 @@
 {
   "title": "SplatLens Museum",
   "subtitle": "Watch a physics-steered model walk through its own memory. No GPU needed to look.",
-  "one_liner": "Trail = tokens so far. Gold = prompt goal. Teal scars = pleasure memory. Rust = pain. Bright dots = big steering pushes.",
+  "one_liner": "Trail = tokens so far. Gold = prompt goal. Teal scars = pleasure memory. Rust = pain. Bright dots = big steering pushes. Continuity = scars that still matter after process death.",
   "milestones": [
+    {
+      "id": "reload-bridge-offset-35",
+      "title": "Reload + soft bridge — Friendship (35 tok)",
+      "date": "2026-07-16",
+      "tag": "continuity",
+      "recommended": true,
+      "model_note": "Gemma 3 4B · second life after death→reload · offset bridge 0.35σ",
+      "prompt": "Explain the Physics of Friendship in one short paragraph.",
+      "viz": "demos/reload-bridge-offset-35.viz.json",
+      "blurb": "RELOAD session with soft off-center bridge. Same-prompt death→reload is warm. Multi-bridge: live several topics without --clear-memory and return visits stay warm; first visit to a new topic is still cold until that basin earns a bridge.",
+      "worked": [
+        "Soft off-center bridge: goal + 0.35σ · û_⊥ → step0 F_s ≈ 1.46, pot ≈ 0.66, nearest ≈ 31.5 (=0.35σ).",
+        "Death→reload with memory_loaded=true; force engages from the first tokens (ramp off in this recording).",
+        "TCT marks prefill_bridge scars; TCT import matches safetensors on same prompt.",
+        "Multi-bridge: friendship→CUDA→friendship→CUDA without clear keeps two basins; return visits stay warm."
+      ],
+      "didnt_work": [
+        "On-center bridge alone: pot high but step0 F_s≈0 (gradient zero at peak) — fixed by offset.",
+        "Trail-only scars without bridge: LOCALITY COLD (~180 L2).",
+        "Cross-prompt first visit still cold — must earn a bridge per basin (not a universal pull)."
+      ],
+      "ongoing": [
+        "Team re-runs A–D with offset default + multi-bridge note (do not clear between topics if multi-topic wanted).",
+        "Optional prompt-hash labels on bridges for museum/debug."
+      ],
+      "research_logs": [
+        "research_logs/2026-07-16_soft-offset-bridge.md",
+        "research_logs/2026-07-16_cross-prompt-continuity.md",
+        "research_logs/2026-07-16_multi-bridge-basins.md",
+        "research_logs/2026-07-16_prefill-bridge-scar.md",
+        "research_logs/2026-07-16_basin-live-potential.md"
+      ],
+      "authors": "Jason (vision) · Grok (xAI)"
+    },
+    {
+      "id": "prefill-bridge-friendship-40",
+      "title": "Prefill-bridge (on-center mint) — Friendship (40 tok)",
+      "date": "2026-07-16",
+      "tag": "continuity",
+      "recommended": false,
+      "model_note": "Gemma 3 4B Q4 · first mint with bridge at goal (on-center)",
+      "prompt": "Explain the Physics of Friendship in one short paragraph.",
+      "viz": "demos/prefill-bridge-friendship-40.viz.json",
+      "blurb": "First continuity mint: bridge scar planted at prefill residual. Prefer the reload+offset card for the full death→reload force story.",
+      "worked": [
+        "Death→reload save/load (safetensors + TCT-splat-lite).",
+        "Diagnosed LOCALITY COLD; prefill-bridge → nearest_L2≈0, pot≈0.75.",
+        "Honest KPI: potential + nearest, not step0 F_s alone on-center."
+      ],
+      "didnt_work": [
+        "On-center F_s at step0 is ~0 by Gaussian gradient geometry."
+      ],
+      "ongoing": [
+        "Superseded for demos by reload-bridge-offset-35."
+      ],
+      "research_logs": [
+        "research_logs/2026-07-16_prefill-bridge-scar.md",
+        "research_logs/2026-07-16_basin-live-potential.md"
+      ],
+      "authors": "Jason (vision) · Grok (xAI)"
+    },
     {
       "id": "b4d-q-friendship-65",
       "title": "B4d-q — Friendship (65 tok)",
       "date": "2026-07-12",
-      "tag": "current demo",
-      "recommended": true,
+      "tag": "demo lock",
+      "recommended": false,
       "model_note": "Gemma 3 4B Q4 (recorded; you only need the JSON to watch)",
       "prompt": "Explain the Physics of Friendship in one short paragraph.",
       "viz": "demos/b4d-q-friendship-65.viz.json",
-      "blurb": "Latest locked short-paragraph demo. Physics frozen (B4d). Clean-ish full budget on 4B.",
+      "blurb": "Locked short-paragraph demo. Physics frozen (B4d). Clean-ish full budget on 4B. Force hunt closed; continuity work continued after this card.",
       "worked": [
         "√-law splat damping so scars stop exploding (old F_s ~1872 story is dead).",
         "Field wake (dist_weighted) so field force is actually alive, not zero by geometry.",
@@ -25,16 +86,13 @@
         "Assuming bigger force budgets = better prose on small models."
       ],
       "ongoing": [
-        "27B port retune (F_s climbs more late than 4B at same length).",
-        "Optional early-stop quality gate around 55–60.",
-        "Ocean deposit quality-gating so garbage doesn't crystallize."
+        "Prefer prefill-bridge card for continuity story.",
+        "27B surface polish is a separate multi-session lane."
       ],
       "research_logs": [
         "research_logs/2026-07-12_B4d-q-length-quality.md",
         "research_logs/2026-07-12_all-four-next-directions.md",
-        "research_logs/2026-07-12_splat-lens-museum-structure.md",
-        "research_logs/2026-07-11_SESSION_CATCHUP.md",
-        "research_logs/AUTHORSHIP.md"
+        "research_logs/2026-07-12_splat-lens-museum-structure.md"
       ],
       "authors": "Jason (co-engineer) · Grok (xAI)"
     },
@@ -59,7 +117,7 @@
         "No museum / one-command path for forks."
       ],
       "ongoing": [
-        "This milestone is a museum exhibit, not the physics default. Prefer B4d-q for new demos."
+        "This milestone is a museum exhibit, not the physics default. Prefer B4d-q / prefill-bridge for new demos."
       ],
       "research_logs": [
         "research_logs/2026-03-02_splatlens-tui-and-viz-polish.md",

@@ -6,6 +6,14 @@
 
 ## Start here (fork-friendly)
 
+**Does this work on anyone’s system?** Partially — by design, in three tiers. Full details: [`SETUP.md`](SETUP.md).
+
+| Tier | Command | Needs |
+|------|---------|--------|
+| **0 · Watch** | `./splat-lens museum` | `python3` + browser only |
+| **1 · Tests** | `cargo test --no-default-features --features with-candle` | Rust, no GPU |
+| **2 · Generate** | `./run_swarm.sh` | NVIDIA CUDA + GGUF under `data/google/` |
+
 You do **not** need CUDA or a model to see what this project is doing.
 
 ```bash
@@ -16,6 +24,7 @@ You do **not** need CUDA or a model to see what this project is doing.
 - **View-only museum** plays checked-in `.viz.json` recordings + plain-language “what worked / didn’t / ongoing” notes (`tools/museum/`).
 - **Generate** (optional, menu item 4) needs NVIDIA CUDA + a GGUF model; if you don’t have them, the museum still works.
 - Milestone demos are meant to be **committed as public checkpoints** when something lands — see `tools/museum/catalog.json`.
+- First-time generate setup: `cp config.example.toml config.toml`, then `./splat-lens check`.
 
 ```bash
 ./splat-lens museum     # skip the menu
@@ -196,12 +205,12 @@ A wrapper for the chat case lives at [`scripts/chat.sh`](scripts/chat.sh).
 
 ### Requirements
 
-- Rust 1.75+ (stable).
-- An NVIDIA GPU with the CUDA 13 toolkit. Developed on Blackwell GB10 (`sm_121a`).
-- Llama 3.1 8B Instruct in GGUF Q5_K_M, plus the matching tokenizer:
-  - `Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf` (~5.7 GB)
-  - `tokenizer.json` from the same upstream
-- Place them in `data/` or pass `--model` / `--tokenizer`.
+See [`SETUP.md`](SETUP.md) for the full matrix. Short version:
+
+- **Museum only:** `python3` (no Rust, no GPU, no model).
+- **Generate:** Rust 1.75+ (stable); NVIDIA GPU + CUDA 12+ toolkit; GGUF + tokenizer under `data/google/` (recommended: Gemma 3 4B Q4) or pass `--model` / `--tokenizer`.
+- Developed on Blackwell GB10 (`sm_121a`), aarch64 Ubuntu 24.04; any CUDA GPU with ≥ ~8 GB should run the 4B path.
+- Weights are **not** in git (see `data/google/SHA256SUMS`).
 
 ### Configuration
 

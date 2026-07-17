@@ -1341,7 +1341,6 @@ dependencies = [
  "candle-transformers",
  "cc",
  "crossbeam",
- "cudarc 0.19.3",
  "futures",
  "hf-hub",
  "nalgebra",

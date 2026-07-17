@@ -74,3 +74,21 @@ yarn-error.log*
 .aider*
 .quality-gate-failed
 logs/reviews/
+
+# local bridge prompt registry / runtime memory stores
+data/bridge_prompts.json
+data/splat_memory.*
+
+# Internal operator / team docs (not for public tree)
+LOAD.md
+SHEP_FORK_HANDOFF.md
+TEAM_GOAL*.md
+*_HANDOFF.md
+research_logs/*HANDOFF*
+research_logs/*SESSION_CATCHUP*
+research_logs/*CONTINUITY_FIRST*
+AGENTS*.md
+AGENTS(jules).md
+.agent/
+.jules/
+.grok/

@@ -82,6 +82,19 @@ pub struct PhysicsConfig {
     pub prefill_micro_dream: bool,
     /// On Pain, deposit a stronger ocean "recovery" packet (variant E).
     pub pain_recovery_ocean: bool,
+    /// Deposit a scar at the **prefill residual** before save so death→reload
+    /// can couple early F_s (fixes LOCALITY COLD: trail scars sit far from next prefill).
+    pub prefill_bridge_scar: bool,
+    /// Width of the prefill-bridge scar (residual L2). ~80–120 covers small prefill jitter.
+    pub prefill_bridge_sigma: f32,
+    /// |alpha| scale for bridge scar (sign follows success pleasure / short pain).
+    pub prefill_bridge_alpha: f32,
+    /// Evaporation λ for bridge (low = lasts across sessions). 0 = anchor (never decays).
+    pub prefill_bridge_lambda: f32,
+    /// Soft off-center: place bridge at goal + (offset_frac · σ) along a deterministic
+    /// direction perpendicular to goal. 0 = on-center (F_s≈0 at start by gradient geometry).
+    /// ~0.3–0.4 keeps high potential and non-zero step0 F_s.
+    pub prefill_bridge_offset_frac: f32,
 }
 
 /// Generation parameters.
@@ -110,6 +123,8 @@ pub struct MemoryConfig {
     /// Per-token scar strength multiply during generation (`decay_per_token`).
     /// `1.0` = off. Typical B4b: `0.97`–`0.99`. Controls mid-run F_s climb.
     pub online_decay_rate: f32,
+    /// Cap on prefill-bridge scars (LRU by created_at). 0 = unlimited.
+    pub max_prefill_bridges: usize,
 }
 
 /// Micro-dream consolidation tuning.
@@ -168,6 +183,11 @@ impl Default for PhysicsConfig {
             targeted_splat_only: true,
             prefill_micro_dream: false,
             pain_recovery_ocean: false,
+            prefill_bridge_scar: true,
+            prefill_bridge_sigma: 90.0,
+            prefill_bridge_alpha: 0.75,
+            prefill_bridge_lambda: 0.005,
+            prefill_bridge_offset_frac: 0.35,
         }
     }
 }
@@ -195,6 +215,7 @@ impl Default for MemoryConfig {
             decay_rate: 0.98,
             prune_threshold: 0.01,
             online_decay_rate: 1.0, // off unless config sets < 1
+            max_prefill_bridges: 24,
         }
     }
 }

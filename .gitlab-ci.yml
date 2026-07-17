@@ -8,9 +8,12 @@ stages:
   - security
   - build
 
+# Default features enable CUDA (generation path). CI image has no GPU toolkit.
+# Use candle-on-CPU for lint/test/build. Full CUDA link needs a GPU runner (Tier 2).
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
   RUST_BACKTRACE: "1"
+  CARGO_CPU_FEATURES: "--no-default-features --features with-candle"
 
 # Cache Cargo registry and build artifacts
 cache:
@@ -26,8 +29,8 @@ clippy:
   image: rust:latest
   script:
     - rustup component add clippy
-    - echo "[CI] Running clippy with -D warnings (blocks on any warnings)"
-    - cargo clippy --release --all-targets -- -D warnings
+    - echo "[CI] Running clippy (CPU candle features) with -D warnings"
+    - cargo clippy --release --all-targets $CARGO_CPU_FEATURES -- -D warnings
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -62,13 +65,8 @@ cargo-test:
   stage: test
   image: rust:latest
   script:
-    - echo "[CI] Running test suite (19 tests across 4 modules)"
-    - cargo test --release --verbose
-    - echo "[CI] Test summary:"
-    - echo "  - config.rs: 5 tests"
-    - echo "  - field.rs: 4 tests"
-    - echo "  - memory.rs: 7 tests"
-    - echo "  - gpu.rs: 3 tests"
+    - echo "[CI] Running test suite on CPU (no CUDA toolkit in image)"
+    - cargo test --release --verbose $CARGO_CPU_FEATURES
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -100,8 +98,8 @@ build-release:
   stage: build
   image: rust:latest
   script:
-    - echo "[CI] Building release binary"
-    - cargo build --release
+    - echo "[CI] Building release binary (CPU candle — links; generation still needs CUDA at runtime)"
+    - cargo build --release $CARGO_CPU_FEATURES
     - echo "[CI] Build complete: target/release/hydrodynamic-swarm"
     - ls -la target/release/
   artifacts:
@@ -118,8 +116,8 @@ build-crucible:
   stage: build
   image: rust:latest
   script:
-    - echo "[CI] Building crucible test suite"
-    - cargo build --release --bin crucible
+    - echo "[CI] Building crucible test suite (CPU features)"
+    - cargo build --release --bin crucible $CARGO_CPU_FEATURES
     - echo "[CI] Crucible build complete"
   artifacts:
     name: "crucible-$CI_COMMIT_SHORT_SHA"

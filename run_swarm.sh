@@ -37,7 +37,7 @@ TOKENIZER="data/google/tokenizer.json"
 CLEAR_MEMORY=1
 EXTRA_FLAGS=""
 
-export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+source "${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/scripts/cuda_env.sh"
 # =============================================================================
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -4,7 +4,7 @@
 # Scaled √-law base (Algo_WIPjuly → 4B instruct) · 90 tokens · early vs late
 # =============================================================================
 set -euo pipefail
-export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+source "${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/scripts/cuda_env.sh"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"

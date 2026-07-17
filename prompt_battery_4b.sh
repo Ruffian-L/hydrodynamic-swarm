@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Multi-prompt battery at 65 tok (B4d-q default) — option 4
 set -euo pipefail
-export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+source "${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/scripts/cuda_env.sh"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 MODEL="data/google/gemma-3-4b-it-Q4_K_M.gguf"

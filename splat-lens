@@ -103,21 +103,27 @@ tokenizer_ok() {
 }
 
 print_check() {
-  echo "Environment check"
-  echo "-----------------"
+  echo "Environment check (see SETUP.md for tiers)"
+  echo "------------------------------------------"
+  if have_cmd python3; then
+    c_green "  [ok] python3 (Tier 0 museum server)"
+  else
+    c_red "  [!] python3 missing — needed for ./splat-lens museum"
+  fi
+
   if cuda_ok; then
-    c_green "  [ok] NVIDIA GPU visible (nvidia-smi)"
+    c_green "  [ok] NVIDIA GPU visible (nvidia-smi) — Tier 2 generate possible"
     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | sed 's/^/       /' || true
   else
     c_yellow "  [—] No nvidia-smi / GPU not visible"
-    echo "       You can still WATCH demos. You cannot GENERATE on this machine."
+    echo "       Tier 0 museum still works. Generation needs NVIDIA + CUDA."
   fi
 
   if model_ok; then
     c_green "  [ok] Model: $MODEL"
   else
     c_yellow "  [—] Model not found: $MODEL"
-    echo "       Demo watching still works (JSON in tools/museum/demos/)."
+    echo "       Watching demos still works (JSON in tools/museum/demos/)."
   fi
 
   if tokenizer_ok; then
@@ -132,10 +138,18 @@ print_check() {
     c_dim "  [—] Release binary not built yet (only needed to generate)"
   fi
 
-  if [[ -f "$ROOT/tools/museum/demos/b4d-q-friendship-65.viz.json" ]]; then
-    c_green "  [ok] Museum demo JSON present"
+  local demo_count
+  demo_count="$(find "$ROOT/tools/museum/demos" -name '*.viz.json' 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "${demo_count:-0}" -ge 1 ]]; then
+    c_green "  [ok] Museum demo JSON present ($demo_count file(s))"
   else
-    c_red "  [!] Museum demo missing"
+    c_red "  [!] Museum demos missing under tools/museum/demos/"
+  fi
+
+  if [[ -f "$ROOT/config.toml" ]]; then
+    c_dim "  [ok] config.toml present (local)"
+  elif [[ -f "$ROOT/config.example.toml" ]]; then
+    c_dim "  [—] no config.toml — copy config.example.toml when generating"
   fi
   echo
 }
@@ -182,7 +196,7 @@ ensure_binary() {
     c_red "cargo not found. Install Rust: https://rustup.rs"
     exit 1
   fi
-  export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+  source "$ROOT/scripts/cuda_env.sh"
   cargo build --release --bin hydrodynamic-swarm
   echo
 }
@@ -210,7 +224,7 @@ do_generate() {
   tokens="${2:-65}"
 
   ensure_binary
-  export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+  source "$ROOT/scripts/cuda_env.sh"
 
   echo
   c_cyan "Generating short demo with --viz (this is the only noisy part)…"

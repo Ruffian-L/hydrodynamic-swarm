@@ -5,7 +5,7 @@
 # Model: data/google/gemma-3-27b-it-Q4_K_M.gguf
 # =============================================================================
 set -euo pipefail
-export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+source "${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/scripts/cuda_env.sh"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"

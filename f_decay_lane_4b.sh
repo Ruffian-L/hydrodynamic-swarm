@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # F-decay + B4b retune lane on 4B Q4 (70 tok)
 set -euo pipefail
-export PATH="/usr/local/cuda-13.1/bin:${PATH:-}"
+source "${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/scripts/cuda_env.sh"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 MODEL="${MODEL:-data/google/gemma-3-4b-it-Q4_K_M.gguf}"

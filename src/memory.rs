@@ -10,6 +10,43 @@ use crate::splat::Splat;
 use candle_core::{DType, Result, Tensor};
 use std::path::Path;
 
+/// Deterministic unit vector roughly orthogonal to `g` (for soft off-center bridge).
+fn perpendicular_unit(g: &[f32]) -> Vec<f32> {
+    let d = g.len();
+    if d == 0 {
+        return vec![];
+    }
+    let mut v = vec![0.0f32; d];
+    v[0] = 1.0;
+    if d > 1 {
+        v[1] = 0.37;
+    }
+    if d > 2 {
+        v[2] = -0.19;
+    }
+    let g2: f32 = g.iter().map(|x| x * x).sum();
+    if g2 > 1e-12 {
+        let dot: f32 = g.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+        for i in 0..d {
+            v[i] -= (dot / g2) * g[i];
+        }
+    }
+    let n: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if n < 1e-8 {
+        v = vec![0.0f32; d];
+        if d > 1 {
+            v[1] = 1.0;
+        } else {
+            v[0] = 1.0;
+        }
+        return v;
+    }
+    for x in &mut v {
+        *x /= n;
+    }
+    v
+}
+
 /// Completed EmbedManager for multi-stage semantic steering phases
 /// (Alpha: coarse init, Beta: refinement, Gamma: full Gemma integration).
 pub struct EmbedManager {
@@ -129,7 +166,7 @@ impl SplatMemory {
         // Pain lasts longer → multiply by something closer to 1.0
         let pain_r = (1.0 - (1.0 - r) * pf).clamp(1e-6, 1.0);
         for splat in &mut self.splats {
-            if splat.is_anchor {
+            if splat.is_anchor || Self::is_prefill_bridge(splat) {
                 continue;
             }
             if splat.alpha >= 0.0 {
@@ -195,7 +232,12 @@ impl SplatMemory {
         self.last_decay_wall = Some(now);
 
         for splat in &mut self.splats {
+            // Prefill-bridges use their own slow λ only via wall-clock path below,
+            // but skip bulk decay_rate fallback thrashing that kills continuity.
             if splat.is_anchor || splat.lambda == 0.0 {
+                continue;
+            }
+            if Self::is_prefill_bridge(splat) && dt <= 0.0 {
                 continue;
             }
 
@@ -223,8 +265,9 @@ impl SplatMemory {
     /// Returns the number of splats culled.
     pub fn cull(&mut self, threshold: f32) -> usize {
         let before = self.splats.len();
-        self.splats
-            .retain(|s| s.is_anchor || s.alpha.abs() >= threshold);
+        self.splats.retain(|s| {
+            s.is_anchor || Self::is_prefill_bridge(s) || s.alpha.abs() >= threshold
+        });
         before - self.splats.len()
     }
 
@@ -261,6 +304,20 @@ impl SplatMemory {
             total_force = total_force.affine(norm, 0.0)?;
         }
         Ok(total_force)
+    }
+
+    /// Scalar scar **potential** at `pos`: Σ α · exp(−d²/σ²).
+    ///
+    /// Unlike `query_force`, this is **max at a scar center** (force is the gradient,
+    /// so F_s≈0 when sitting on a bridge scar is expected physics, not dead memory).
+    pub fn query_potential(&self, pos: &Tensor) -> Result<f32> {
+        let mut pot = 0.0f32;
+        for splat in &self.splats {
+            let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
+            let sigma_sq = (splat.sigma * splat.sigma).max(1e-8);
+            pot += splat.alpha * (-dist_sq / sigma_sq).exp();
+        }
+        Ok(pot)
     }
 
     /// Collective force from K nearest splats — emergent bundle structure.
@@ -313,6 +370,11 @@ impl SplatMemory {
         &self.splats
     }
 
+    /// Device scars live on (CPU or CUDA).
+    pub fn device(&self) -> &candle_core::Device {
+        &self.device
+    }
+
     /// Check if any splat center is within min_dist of pos (L2).
     /// Samples at most 50 splats for performance when memory is large.
     pub fn has_nearby(&self, pos: &Tensor, min_dist: f32) -> Result<bool> {
@@ -327,6 +389,143 @@ impl SplatMemory {
             }
         }
         Ok(false)
+    }
+
+    /// Mark used on prefill-bridge scars (replaceable continuity anchors).
+    pub const PREFILL_BRIDGE_FLUX: f32 = 0.991;
+
+    /// How many prefill-bridge scars are currently stored.
+    pub fn count_prefill_bridges(&self) -> usize {
+        self.splats
+            .iter()
+            .filter(|s| Self::is_prefill_bridge(s))
+            .count()
+    }
+
+    #[inline]
+    pub fn is_prefill_bridge(s: &Splat) -> bool {
+        (s.flux - Self::PREFILL_BRIDGE_FLUX).abs() < 1e-4
+    }
+
+    /// Prompt fingerprint stored on a bridge scar (`friction` bit-pattern; non-bridges → 0).
+    pub fn bridge_prompt_fp(s: &Splat) -> u32 {
+        if Self::is_prefill_bridge(s) {
+            s.friction.to_bits()
+        } else {
+            0
+        }
+    }
+
+    /// Distinct prompt fingerprints among prefill-bridges (order: first seen).
+    pub fn list_bridge_prompt_fps(&self) -> Vec<u32> {
+        let mut out = Vec::new();
+        for s in &self.splats {
+            if !Self::is_prefill_bridge(s) {
+                continue;
+            }
+            let fp = Self::bridge_prompt_fp(s);
+            if !out.contains(&fp) {
+                out.push(fp);
+            }
+        }
+        out
+    }
+
+    /// Deposit (or replace) a scar near the prefill residual so the **next** run's
+    /// start basin can feel F_s (LOCALITY cold fix).
+    ///
+    /// Removes prior bridge scars within `replace_dist` (same-sign), then inserts
+    /// a new one at `goal + (offset_frac · σ) · û_⊥` where û_⊥ is a deterministic
+    /// unit vector perpendicular to goal (so step0 F_s is non-zero by design while
+    /// potential stays high). `offset_frac = 0` → on-center (F_s≈0 at peak).
+    pub fn deposit_prefill_bridge(
+        &mut self,
+        goal: &Tensor,
+        sigma: f32,
+        alpha: f32,
+        lambda: f32,
+        replace_dist: f32,
+        offset_frac: f32,
+        prompt_fp: u32,
+    ) -> Result<usize> {
+        let replace_dist_sq = replace_dist * replace_dist;
+        let mut kept = Vec::with_capacity(self.splats.len());
+        let mut removed = 0usize;
+        for s in self.splats.drain(..) {
+            if Self::is_prefill_bridge(&s) {
+                let dist_sq: f32 = (&s.mu - goal)?.sqr()?.sum_all()?.to_scalar()?;
+                let same_sign = s.alpha.signum() == alpha.signum() || s.alpha.abs() < 1e-8;
+                // Replace same-basin bridge: near this goal, or same prompt fingerprint.
+                let same_fp = prompt_fp != 0 && Self::bridge_prompt_fp(&s) == prompt_fp;
+                if same_sign && (dist_sq <= replace_dist_sq || same_fp) {
+                    removed += 1;
+                    continue;
+                }
+            }
+            kept.push(s);
+        }
+        self.splats = kept;
+
+        let sigma = sigma.max(1.0);
+        let mu = if offset_frac.abs() < 1e-6 {
+            goal.copy()?
+        } else {
+            let g = goal.flatten_all()?.to_vec1::<f32>()?;
+            let d = g.len();
+            let dir = perpendicular_unit(&g);
+            let scale = offset_frac * sigma;
+            let mut center = vec![0.0f32; d];
+            for i in 0..d {
+                center[i] = g[i] + scale * dir[i];
+            }
+            Tensor::from_vec(center, d, goal.device())?
+        };
+
+        let mut splat = Splat::new(mu, sigma, alpha);
+        splat.lambda = lambda.max(0.0);
+        splat.scale = crate::splat::SplatScale::Coarse;
+        splat.flux = Self::PREFILL_BRIDGE_FLUX;
+        // Encode prompt fingerprint in friction bits (unused on force path for bridges).
+        splat.friction = f32::from_bits(prompt_fp);
+        if lambda <= 1e-8 {
+            splat.is_anchor = true;
+            splat.lambda = 0.0;
+        }
+        self.splats.push(splat);
+        Ok(removed)
+    }
+
+    /// Nearest-scar geometry for death→reload coupling diagnostics.
+    ///
+    /// Returns `(min_l2, sigma_of_nearest, mean_l2_of_all_checked, n_checked)`.
+    /// If empty memory: `(f32::INFINITY, 0.0, 0.0, 0)`.
+    /// Checks up to `max_check` most recent scars (default use: 64).
+    pub fn nearest_scar_stats(
+        &self,
+        pos: &Tensor,
+        max_check: usize,
+    ) -> Result<(f32, f32, f32, usize)> {
+        if self.splats.is_empty() {
+            return Ok((f32::INFINITY, 0.0, 0.0, 0));
+        }
+        let max_check = max_check.max(1).min(self.splats.len());
+        let start = self.splats.len().saturating_sub(max_check);
+        let mut min_d = f32::INFINITY;
+        let mut nearest_sigma = 0.0f32;
+        let mut sum = 0.0f32;
+        let mut n = 0usize;
+        for splat in &self.splats[start..] {
+            let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
+            let d = dist_sq.max(0.0).sqrt();
+            sum += d;
+            n += 1;
+            if d < min_d {
+                min_d = d;
+                nearest_sigma = splat.sigma;
+            }
+        }
+        let mean = if n > 0 { sum / n as f32 } else { 0.0 };
+        Ok((min_d, nearest_sigma, mean, n))
     }
 
     /// Remove all normal splats whose absolute alpha is below `threshold`.
@@ -372,34 +571,42 @@ impl SplatMemory {
             let mut cluster_sigma = self.splats[i].sigma;
             let mut cluster_size = 1usize;
 
-            // Find nearby same-sign splats
-            #[allow(clippy::needless_range_loop)]
-            for j in (i + 1)..self.splats.len() {
-                if consumed[j] {
-                    continue;
-                }
-                let sign_j = self.splats[j].alpha >= 0.0;
-                if sign_i != sign_j {
-                    continue;
-                }
-                let dist_sq: f32 = (&cluster_mu - &self.splats[j].mu)?
-                    .sqr()?
-                    .sum_all()?
-                    .to_scalar()?;
-                if dist_sq < merge_dist_sq {
-                    // Weighted mean of mu (cluster_mu is current centroid)
-                    let w_j = self.splats[j].alpha.abs();
-                    let total_w = cluster_weight + w_j;
-                    if total_w > 0.0 {
-                        cluster_mu = (&cluster_mu
-                            .affine((cluster_weight / total_w) as f64, 0.0)?
-                            + &self.splats[j].mu.affine((w_j / total_w) as f64, 0.0)?)?;
+            // Prefill-bridges never merge (would smash multi-basin labels / geometry).
+            let seed_is_bridge = Self::is_prefill_bridge(&self.splats[i]);
+            if !seed_is_bridge {
+                // Find nearby same-sign *trail* splats only
+                #[allow(clippy::needless_range_loop)]
+                for j in (i + 1)..self.splats.len() {
+                    if consumed[j] {
+                        continue;
                     }
-                    cluster_weight = total_w;
-                    cluster_alpha += self.splats[j].alpha;
-                    cluster_sigma = cluster_sigma.max(self.splats[j].sigma);
-                    cluster_size += 1;
-                    consumed[j] = true;
+                    if Self::is_prefill_bridge(&self.splats[j]) {
+                        continue;
+                    }
+                    let sign_j = self.splats[j].alpha >= 0.0;
+                    if sign_i != sign_j {
+                        continue;
+                    }
+                    let dist_sq: f32 = (&cluster_mu - &self.splats[j].mu)?
+                        .sqr()?
+                        .sum_all()?
+                        .to_scalar()?;
+                    if dist_sq < merge_dist_sq {
+                        let w_j = self.splats[j].alpha.abs();
+                        let total_w = cluster_weight + w_j;
+                        if total_w > 0.0 {
+                            cluster_mu = (&cluster_mu
+                                .affine((cluster_weight / total_w) as f64, 0.0)?
+                                + &self.splats[j]
+                                    .mu
+                                    .affine((w_j / total_w) as f64, 0.0)?)?;
+                        }
+                        cluster_weight = total_w;
+                        cluster_alpha += self.splats[j].alpha;
+                        cluster_sigma = cluster_sigma.max(self.splats[j].sigma);
+                        cluster_size += 1;
+                        consumed[j] = true;
+                    }
                 }
             }
 
@@ -474,20 +681,85 @@ impl SplatMemory {
     }
 
     /// Keep only the N strongest splats (by |alpha|), discarding the weakest.
+    /// Prefill-bridge scars are reserved first so multi-basin continuity is not
+    /// accidentally truncated by trail scar volume.
     pub fn prune_to_limit(&mut self, max_count: usize) {
         if self.splats.len() <= max_count {
             return;
         }
 
-        // ⚡ Bolt Optimization: Use select_nth_unstable_by for O(N) Top-K partial sorting
-        // instead of O(N log N) full sorting, since we only need to keep the strongest N.
-        if max_count > 0 {
-            self.splats
-                .select_nth_unstable_by(max_count - 1, |a, b| b.alpha.abs().total_cmp(&a.alpha.abs()));
+        let mut bridges: Vec<Splat> = Vec::new();
+        let mut trail: Vec<Splat> = Vec::new();
+        for s in self.splats.drain(..) {
+            if Self::is_prefill_bridge(&s) {
+                bridges.push(s);
+            } else {
+                trail.push(s);
+            }
         }
-        self.splats.truncate(max_count);
 
-        println!("    [PRUNE] Capped to {} strongest splats", max_count);
+        // Prefer keeping all bridges if they fit; otherwise keep newest bridges.
+        if bridges.len() > max_count {
+            bridges.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+            bridges.truncate(max_count);
+            self.splats = bridges;
+            println!(
+                "    [PRUNE] Cap {} — bridges only (trail dropped to protect continuity)",
+                max_count
+            );
+            return;
+        }
+
+        let trail_slots = max_count - bridges.len();
+        if trail.len() > trail_slots && trail_slots > 0 {
+            trail.select_nth_unstable_by(trail_slots - 1, |a, b| {
+                b.alpha.abs().total_cmp(&a.alpha.abs())
+            });
+            trail.truncate(trail_slots);
+        } else if trail_slots == 0 {
+            trail.clear();
+        }
+
+        self.splats = bridges;
+        self.splats.append(&mut trail);
+        println!(
+            "    [PRUNE] Capped to {} ({} bridges reserved + {} trail)",
+            self.splats.len(),
+            self.count_prefill_bridges(),
+            self.splats.len().saturating_sub(self.count_prefill_bridges())
+        );
+    }
+
+    /// Cap number of prefill-bridges (LRU by created_at). Trail scars untouched.
+    pub fn enforce_max_prefill_bridges(&mut self, max_bridges: usize) -> usize {
+        if max_bridges == 0 {
+            return 0;
+        }
+        let n = self.count_prefill_bridges();
+        if n <= max_bridges {
+            return 0;
+        }
+        let mut bridges: Vec<(usize, u64)> = self
+            .splats
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| Self::is_prefill_bridge(s))
+            .map(|(i, s)| (i, s.created_at))
+            .collect();
+        // oldest first
+        bridges.sort_by_key(|(_, t)| *t);
+        let drop_n = n - max_bridges;
+        let mut drop_idx: Vec<usize> = bridges.iter().take(drop_n).map(|(i, _)| *i).collect();
+        drop_idx.sort_unstable();
+        drop_idx.reverse();
+        for i in drop_idx {
+            self.splats.remove(i);
+        }
+        println!(
+            "    [BRIDGE CAP] kept {} newest prefill-bridges (dropped {})",
+            max_bridges, drop_n
+        );
+        drop_n
     }
 
     /// Save all splats to a safetensors file.
@@ -910,6 +1182,44 @@ mod tests {
                 splat.alpha
             );
         }
+    }
+
+    #[test]
+    fn prune_reserves_prefill_bridges() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        for i in 0..20 {
+            let mu = Tensor::new(&[i as f32, 0.0, 0.0, 0.0], &device).unwrap();
+            memory.add_splat(Splat::new(mu, 1.0, 0.1)); // weak trail
+        }
+        let goal = Tensor::new(&[100.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        memory
+            .deposit_prefill_bridge(&goal, 90.0, 0.75, 0.005, 90.0, 0.35, 0x1111)
+            .unwrap();
+        assert_eq!(memory.count_prefill_bridges(), 1);
+        memory.prune_to_limit(5);
+        assert_eq!(memory.count_prefill_bridges(), 1, "bridge must survive prune");
+        assert_eq!(memory.len(), 5);
+    }
+
+    #[test]
+    fn enforce_max_bridges_lru() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        for i in 0..5 {
+            let goal = Tensor::new(&[i as f32 * 200.0, 0.0, 0.0, 0.0], &device).unwrap();
+            memory
+                .deposit_prefill_bridge(&goal, 90.0, 0.75, 0.005, 50.0, 0.35, 0x1000 + i as u32)
+                .unwrap();
+            // bump created_at artificially
+            if let Some(s) = memory.splats.last_mut() {
+                s.created_at = 1000 + i as u64;
+            }
+        }
+        assert_eq!(memory.count_prefill_bridges(), 5);
+        let dropped = memory.enforce_max_prefill_bridges(2);
+        assert_eq!(dropped, 3);
+        assert_eq!(memory.count_prefill_bridges(), 2);
     }
 
     #[test]
