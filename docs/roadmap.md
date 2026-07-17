@@ -188,7 +188,7 @@ Turn the notebook into a movement.
     - **Tier 2 (Demo-Ready):** WebSocket streaming -- tokens + viz snapshots sent per-step, 3D updates live. (~3-4h)
     - **Tier 3 (Production):** WebSocket + Metal shared memory for zero-copy GPU-to-browser viz at 60 FPS.
   - Purely `localhost` -- no external ports exposed.
-  - **This is the killer demo feature.** Type a prompt in the browser, watch the AI's thought trajectory unfold in 3D in real-time.
+  - **This is the flagship demo feature.** Type a prompt in the browser, watch the AI's thought trajectory unfold in 3D in real-time.
 
 - [ ] **Unit & Integration Tests**
   - `tests/` dir exists but is empty. Add tests for `micro_dream`, `SplatMemory::query_force`, `ContinuousField::probe_gradient`.

@@ -92,3 +92,8 @@ AGENTS(jules).md
 .agent/
 .jules/
 .grok/
+
+# editor/backup cruft
+*.bak
+*.old
+Untitled
