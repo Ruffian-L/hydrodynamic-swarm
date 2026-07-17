@@ -232,12 +232,10 @@ impl SplatMemory {
         self.last_decay_wall = Some(now);
 
         for splat in &mut self.splats {
-            // Prefill-bridges use their own slow λ only via wall-clock path below,
-            // but skip bulk decay_rate fallback thrashing that kills continuity.
-            if splat.is_anchor || splat.lambda == 0.0 {
-                continue;
-            }
-            if Self::is_prefill_bridge(splat) && dt <= 0.0 {
+            // Anchors + prefill-bridges: no wall-clock evaporation.
+            // Bridges are continuity mass — λ was killing gain to ~0 over hours
+            // (exp(-0.005·Δt) → 0). Refresh only on deposit_prefill_bridge replace.
+            if splat.is_anchor || Self::is_prefill_bridge(splat) || splat.lambda == 0.0 {
                 continue;
             }
 
@@ -1182,6 +1180,30 @@ mod tests {
                 splat.alpha
             );
         }
+    }
+
+    #[test]
+    fn decay_step_does_not_evaporate_prefill_bridges() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        let goal = Tensor::zeros(4, candle_core::DType::F32, &device).unwrap();
+        memory
+            .deposit_prefill_bridge(&goal, 90.0, 0.75, 0.005, 90.0, 0.35, 0xabcdu32)
+            .unwrap();
+        // Fake an old wall-clock so decay_step would apply huge Δt if bridges decayed.
+        memory.last_decay_wall = Some(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                .saturating_sub(20_000),
+        );
+        memory.decay_step(0.96);
+        let a = memory.splats_ref()[0].alpha;
+        assert!(
+            (a - 0.75).abs() < 1e-5,
+            "prefill-bridge gain must survive wall-clock decay, got {a}"
+        );
     }
 
     #[test]
