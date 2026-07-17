@@ -137,4 +137,4 @@ cargo run --release --bin hydrodynamic-swarm -- \
 
 ---
 
-*Research continuity ledger (operators): [`LOAD.md`](LOAD.md).*
+*Continuity lane (public): [`docs/CONTINUITY.md`](docs/CONTINUITY.md). Local operator ledger: `LOAD.md` (gitignored if present).*
