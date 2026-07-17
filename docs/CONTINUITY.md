@@ -71,6 +71,8 @@ Requires a **matching residual dim** (e.g. Gemma 2560 store on a 2560 hidden mod
 Telemetry keys: `tct_force_norm`, `tct_potential`, `tct_nearest_dist`, `tct_n_active`.  
 First visit may still be **COLD** (locality) even when load succeeds — same physics as hydro.
 
-Wire-up lives in the `niodoo-live` tree (`tct_splat_lite` module + `apply_forces` hook). Ship status follows that repo; hydro remains the continuity **mint** and KPI home.
+Wire-up lives in the `niodoo-live` tree (`tct_splat_lite` + **final post-norm** residual apply). Hydro remains the continuity **mint** and KPI home.
+
+**Live residual geometry (2026-07-17):** scars must be queried at the **final RMSNorm last-token residual** (hydro mint space, `‖μ‖~O(100)` on Gemma-4B). Mid-layer post-attn is a different site → false COLD (`nearest~1e4`). After final-hidden apply: Friendship bridge KPI **WARM** `nearest_min≈184` `pot_max≈0.013` `force_max=0.05` (clamp). See `niodoo-live/research_logs/2026-07-17_residual_tct_final_hidden_warm.md`.
 
 **Gemma speech on live (2026-07-17):** use low mid-layer blend (0.02), free system, not February theta. Smoke: `niodoo-live/scripts/gemma_speak_smoke.sh` — mode 0 clean **SPEECH PASS**; mode 2 loads hydro TCT and still **SPEECH PASS** on Friendship. See `niodoo-live/research_logs/2026-07-17_gemma_speak_not_garbage.md`.
