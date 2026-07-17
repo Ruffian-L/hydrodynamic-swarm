@@ -400,6 +400,15 @@ impl SplatMemory {
             .count()
     }
 
+    /// Drop prefill-bridges with negative α (legacy pain deposits). Continuity
+    /// multi-bridge tables should be pleasure-only.
+    pub fn drop_pain_prefill_bridges(&mut self) -> usize {
+        let before = self.splats.len();
+        self.splats
+            .retain(|s| !(Self::is_prefill_bridge(s) && s.alpha < 0.0));
+        before.saturating_sub(self.splats.len())
+    }
+
     #[inline]
     pub fn is_prefill_bridge(s: &Splat) -> bool {
         (s.flux - Self::PREFILL_BRIDGE_FLUX).abs() < 1e-4

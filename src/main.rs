@@ -439,6 +439,14 @@ async fn main() -> Result<()> {
             Err(e) => eprintln!("    [TCT] import failed: {e}"),
         }
     }
+    // Continuity: drop legacy pain prefill-bridges (failed-gen deposits).
+    let pain_dropped = engine.memory_mut().drop_pain_prefill_bridges();
+    if pain_dropped > 0 {
+        println!(
+            "    [BRIDGE] dropped {} pain prefill-bridge(s) (pleasure-only continuity)",
+            pain_dropped
+        );
+    }
     let scars_at_start = engine.memory().len();
     let memory_loaded = scars_at_start > 0;
     let n_prefill_bridges_start = engine.memory().count_prefill_bridges();
@@ -1219,17 +1227,23 @@ async fn main() -> Result<()> {
 
     // Prefill-bridge scar: land memory in the next-run start basin (LOCALITY cold fix).
     // After final decay so it is not wiped the same session.
+    // Pleasure-only: pain bridges (failed gen) pollute multi-bridge weight tables and
+    // false "continuity" on garbage short runs. Skip deposit when success gate fails.
     if cfg.physics.prefill_bridge_scar && !no_save_memory {
         let success = generated_tokens.len() > cfg.generation.min_success_tokens;
-        let bridge_alpha = if success {
-            cfg.physics.prefill_bridge_alpha.abs()
-        } else {
-            -cfg.physics.prefill_bridge_alpha.abs()
-        };
+        if !success {
+            println!(
+                "    [BRIDGE] skip prefill-bridge (gen tokens {} ≤ min_success {}) — no pain deposit",
+                generated_tokens.len(),
+                cfg.generation.min_success_tokens
+            );
+        }
+        let bridge_alpha = cfg.physics.prefill_bridge_alpha.abs();
         let replace_dist = (cfg.physics.prefill_bridge_sigma
             * (1.0 + cfg.physics.prefill_bridge_offset_frac.abs()))
         .max(cfg.memory.consolidation_dist);
         let prompt_fp = tct::prompt_fp(raw_prompt);
+        if success {
         match engine.memory_mut().deposit_prefill_bridge(
             &goal_pos,
             cfg.physics.prefill_bridge_sigma,
@@ -1267,6 +1281,7 @@ async fn main() -> Result<()> {
             }
             Err(e) => eprintln!("    [BRIDGE] prefill scar failed: {e}"),
         }
+        } // success
     }
 
     // =========================================================
