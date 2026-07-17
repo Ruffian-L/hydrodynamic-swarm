@@ -39,6 +39,9 @@ Default features enable CUDA (for this project’s generation path). For CPU-onl
 # Install Rust: https://rustup.rs
 cargo test --no-default-features --features with-candle
 cargo clippy --no-default-features --features with-candle --all-targets
+
+# Continuity tooling (no GPU, no model):
+python3 scripts/continuity_selftest.py
 ```
 
 Unit tests use `Device::Cpu`. You do not need `nvcc` or a model for this tier.

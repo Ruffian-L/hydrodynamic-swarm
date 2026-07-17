@@ -18,6 +18,7 @@
 
 ```bash
 ./splat-lens museum          # watch continuity demos
+python3 scripts/continuity_selftest.py  # no GPU — card + list_bridges fixtures
 ./scripts/continuity_status.sh   # store + bridges + latest cards (needs local data/)
 ./scripts/continuity_revisit.sh  # same-prompt revisit cards (CUDA + model)
 ./scripts/continuity_multibridge.sh  # A→B→A return verdict
