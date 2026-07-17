@@ -24,6 +24,7 @@ You do **not** need CUDA or a model to see what this project is doing.
 - **View-only museum** plays checked-in `.viz.json` recordings + plain-language “what worked / didn’t / ongoing” notes (`tools/museum/`).
 - **Generate** (optional, menu item 4) needs NVIDIA CUDA + a GGUF model; if you don’t have them, the museum still works.
 - Milestone demos are meant to be **committed as public checkpoints** when something lands — see `tools/museum/catalog.json`.
+- **Continuity lane** (memory that survives process death): [`docs/CONTINUITY.md`](docs/CONTINUITY.md) · museum card *Reload + soft bridge*.
 - First-time generate setup: `cp config.example.toml config.toml`, then `./splat-lens check`.
 
 ```bash

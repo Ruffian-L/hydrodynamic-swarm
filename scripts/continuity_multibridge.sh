@@ -109,7 +109,12 @@ def load(i):
 a1, b1, a2 = load("A1"), load("B1"), load("A2")
 
 def fmt(d, name):
-    return f"{name}: status={d.get('status')} nearest={d.get('nearest_min')} pot={d.get('pot_max')}"
+    g = d.get("gain_max")
+    gs = f"{g:.3f}" if isinstance(g, (int, float)) and g == g else "n/a"
+    return (
+        f"{name}: status={d.get('status')} nearest={d.get('nearest_min')} "
+        f"pot={d.get('pot_max')} gain_max={gs}"
+    )
 
 ok = a2.get("status") == "WARM"
 if a2.get("nearest_min") is not None:
@@ -118,12 +123,19 @@ if a1.get("pot_max") and a1["pot_max"] > 0.2 and a2.get("pot_max") is not None:
     ok = ok and (
         a2["pot_max"] >= 0.5 * a1["pot_max"] or (a2.get("nearest_min") or 999) < 80
     )
+# weight floor: strongest bridge should not vanish after multi-topic
+g2 = a2.get("gain_max")
+if isinstance(g2, (int, float)) and g2 == g2:
+    ok = ok and g2 >= 0.2
+
 verdict = "PASS_RETURN" if ok else "WEAK_RETURN"
 print(verdict)
 print(fmt(a1, "A1"))
 print(fmt(b1, "B1"))
 print(fmt(a2, "A2"))
 print(f"bridges={a2.get('n_prefill_bridges')} fps={a2.get('bridge_prompt_fps')}")
+if a2.get("bridge_gains"):
+    print(f"bridge_gains={a2.get('bridge_gains')}")
 PY
 
 {
