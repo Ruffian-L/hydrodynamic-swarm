@@ -53,3 +53,20 @@ CONT  WARM|NEAR|LUKE|COLD  nearest_min=…  pot_max=…  gain_max=…  bridges=�
 
 Binary `TCT1` v3: residual center + σ + signed α + λ + `trigger_kind` (5 = prefill_bridge) + `prompt_fp`.  
 Import/export: `--import-tct` / `--export-tct`. Dim must match the model (**INV-5**).
+
+### Optional consumer: niodoo-live
+
+Live can load the same binary via residual apply (not the 64D packet path):
+
+```text
+--tct-splat-path path/to/splat_memory.tct
+--tct-splat-bridge-only
+--tct-splat-gain 1.0
+--tct-splat-clamp 0.05
+```
+
+Requires a **matching residual dim** (e.g. Gemma 2560 store on a 2560 hidden model). Dim mismatch is refused, not padded.  
+Telemetry keys: `tct_force_norm`, `tct_potential`, `tct_nearest_dist`, `tct_n_active`.  
+First visit may still be **COLD** (locality) even when load succeeds — same physics as hydro.
+
+Wire-up lives in the `niodoo-live` tree (`tct_splat_lite` module + `apply_forces` hook). Ship status follows that repo; hydro remains the continuity **mint** and KPI home.
