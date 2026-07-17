@@ -10,9 +10,10 @@
 | Trail-only reload is **LOCALITY COLD** (~180 L2) | research logs |
 | **Prefill-bridge** warms the start basin | offset 0.35σ → nearest ≈ 31.5, pot lives |
 | On-center \(F_s \approx 0\) is geometry, not dead memory | measure **potential** + nearest |
-| **Multi-bridge return** without `--clear-memory` | A→B→A **PASS_RETURN** |
-| Bridge **gain** = weight proxy (Friendship 0.75 vs weaker basins) | `list_bridges.py` |
+| **Multi-bridge return** without `--clear-memory` | A→B→A **PASS_RETURN** (e.g. 2026-07-17 pot≈0.71 all steps) |
+| Bridge **gain** = weight proxy (stay 0.75; not evaporated) | `list_bridges.py` · fix `decay_step` skips bridges |
 | Prune reserves prefill-bridges | unit test `prune_reserves_prefill_bridges` |
+| Novel prompt not false-warm | e.g. capital-of-France → **LUKE** nearest≈217 pot≈0.004 |
 
 ## Public ops (no GPU to *read* museum)
 
