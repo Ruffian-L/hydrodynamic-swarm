@@ -17,6 +17,7 @@
 mod concourse;
 mod config;
 mod dream;
+mod endocrine;
 mod field;
 mod gemma;
 mod gpu;
@@ -185,6 +186,8 @@ async fn main() -> Result<()> {
         .min(50_000); // security: cap to prevent DoS-level resource exhaustion
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
+    // Shep endocrine lane: ON by default. Pass --no-endocrine to disable.
+    let endocrine_enabled = !args.iter().any(|a| a == "--no-endocrine");
     // Optional: import a TCT-splat-lite store before the run (appends after safetensors load).
     let import_tct = args
         .iter()
@@ -344,6 +347,19 @@ async fn main() -> Result<()> {
         dist_tau: cfg.physics.field_wake_dist_tau,
     });
     engine.set_force_ramp(cfg.physics.force_ramp_tokens, cfg.physics.force_ramp_start);
+
+    // ── Shep endocrine system (Function Gemma stubs → Monolith blooms) ──
+    // Channels: main sends EndocrineSignal; worker returns BloomEvent → apply_monolith.
+    let (_shared_universe, endocrine_tx, mut endocrine_rx) = if endocrine_enabled {
+        let (universe, tx, rx) = endocrine::create_endocrine_system();
+        println!("    Endocrine: ON (Shep restore — worker sleeping until signal)");
+        (Some(universe), Some(tx), Some(rx))
+    } else {
+        println!("    Endocrine: OFF (--no-endocrine)");
+        (None, None, None)
+    };
+    let mut last_endocrine_signal_step: isize = -999;
+
     println!(
         "    Engine ready (backend: {}, Top-K: {}, F_s={}/{}, F_a={}/{})",
         engine.backend_name(),
@@ -733,6 +749,24 @@ async fn main() -> Result<()> {
             (s, false)
         };
 
+        // Endocrine: drain any blooms from Function Gemma worker (non-blocking).
+        if let Some(ref mut rx) = endocrine_rx {
+            while let Ok(bloom) = rx.try_recv() {
+                let mono = endocrine::Monolith {
+                    pos: bloom.embedded_4d,
+                    mass: 10_000.0,
+                    repulsion: 1.0,
+                };
+                engine.apply_monolith(&mono);
+                // Surface the FACT line so live stream / logs show Shep's enzyme fired.
+                let fact_line = bloom.raw_text.chars().take(120).collect::<String>();
+                println!("    [BLOOM] {}", fact_line.replace('\n', " "));
+                let _ = writeln!(live_file, "\n[BLOOM] {}\n", fact_line);
+                let _ = live_file.flush();
+            }
+        }
+        engine.tick_endocrine();
+
         let SteerResult {
             steered: mut steered_slice,
             grad_mag,
@@ -965,6 +999,44 @@ async fn main() -> Result<()> {
                             splat_alpha,
                             decoded.replace('\n', "⏎")
                         );
+                    }
+                    // Shep endocrine: pain / high-δ → wake Function Gemma enzyme (rate-limited).
+                    if let Some(ref tx) = endocrine_tx {
+                        let cooldown_ok =
+                            (step as isize - last_endocrine_signal_step) >= 12;
+                        if cooldown_ok
+                            && (kind == SplatKind::Pain
+                                || (high_delta && quality.topk_entropy > 2.5))
+                        {
+                            let intent = format!(
+                                "stabilize generation after {:?} token «{}»",
+                                kind,
+                                decoded.replace('\n', " ").chars().take(40).collect::<String>()
+                            );
+                            let context = format!(
+                                "prompt_prefix={} step={} p={:.3} H={:.2} delta={:.1}",
+                                raw_prompt.chars().take(80).collect::<String>(),
+                                step,
+                                quality.p_chosen,
+                                quality.topk_entropy,
+                                delta_norm
+                            );
+                            match tx.try_send(endocrine::EndocrineSignal::ExecuteTool {
+                                intent,
+                                context,
+                            }) {
+                                Ok(()) => {
+                                    last_endocrine_signal_step = step as isize;
+                                    println!(
+                                        "    [ENDOCRINE] signal sent at step {} (pain/high-δ)",
+                                        step
+                                    );
+                                }
+                                Err(_) => {
+                                    // channel full or closed — skip
+                                }
+                            }
+                        }
                     }
                 }
             }

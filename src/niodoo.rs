@@ -117,6 +117,15 @@ pub struct NiodooEngine {
     /// Force ramp: steps + start multiplier (original Niodoo gentler early).
     force_ramp_tokens: usize,
     force_ramp_start: f32,
+    // Endocrine modulation (Monolith BloomEvents from src/endocrine.rs — Shep restore)
+    /// Cool noise after a monolith "Eureka" (optional; default unused by steer).
+    pub noise_sigma: f32,
+    /// Transient viscosity hint after monolith.
+    pub viscosity: f32,
+    /// Tag gravity mult after monolith (reserved).
+    pub tag_gravity_mult: f32,
+    /// Impulse mass * scale from last apply_monolith.
+    pub eureka_impulse: f32,
     /// Shared multi-mind ocean (Lane C). Optional force source.
     ocean: Option<SharedOcean>,
 }
@@ -151,8 +160,43 @@ impl NiodooEngine {
             field_wake: FieldWakeConfig::default(),
             force_ramp_tokens: 12,
             force_ramp_start: 0.20,
+            noise_sigma: 0.3,
+            viscosity: viscosity_scale,
+            tag_gravity_mult: 1.0,
+            eureka_impulse: 0.0,
             ocean: None,
         }
+    }
+
+    /// Apply a Monolith (truth vector from Function Gemma / endocrine system).
+    /// Eureka path: cool noise, drop viscosity, record impulse used by `steer`.
+    /// Restored with endocrine.rs (Shep mar22) + wired 2026-07-18 so impulse is not dead state.
+    pub fn apply_monolith(&mut self, monolith: &crate::endocrine::Monolith) {
+        // Cap impulse so one bloom cannot sledgehammer residual (same spirit as F_s/F_a caps).
+        self.eureka_impulse = (monolith.mass * 0.001).clamp(0.5, 8.0);
+        self.viscosity = (self.viscosity * 0.3).max(0.05);
+        self.noise_sigma = 0.05;
+        println!(
+            "[NIODOO] Monolith applied (mass={:.0} impulse={:.2} pos={:?}). Eureka window open.",
+            monolith.mass, self.eureka_impulse, monolith.pos
+        );
+    }
+
+    /// Decay eureka window each token (called from generation loop).
+    pub fn tick_endocrine(&mut self) {
+        if self.eureka_impulse > 1e-4 {
+            self.eureka_impulse *= 0.92;
+            if self.eureka_impulse < 0.05 {
+                self.eureka_impulse = 0.0;
+                // restore viscosity toward base scale
+                self.viscosity = self.viscosity_scale;
+                self.noise_sigma = 0.3;
+            }
+        }
+    }
+
+    pub fn eureka_impulse(&self) -> f32 {
+        self.eureka_impulse
     }
 
     /// Original Niodoo ramp: weaker forces for first N tokens (respect prefill).
@@ -323,7 +367,13 @@ impl NiodooEngine {
         } else {
             self.backend.field_gradient(&self.field, &pos)?
         };
-        let pure_grad = raw_grad.affine(self.viscosity_scale as f64, 0.0)?;
+        // Endocrine: during Eureka, use cooled viscosity for field grad (truth window).
+        let visc_scale = if self.eureka_impulse > 1e-4 {
+            self.viscosity
+        } else {
+            self.viscosity_scale
+        };
+        let pure_grad = raw_grad.affine(visc_scale as f64, 0.0)?;
         let pure_mag: f32 = pure_grad.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
 
         let grad_force = match self.field_wake.mode {
@@ -412,6 +462,12 @@ impl NiodooEngine {
 
         // Sum and scale by dt
         let mut total_force = (((&grad_force + &splat_force)? + &goal_force)? + &ocean_force)?;
+
+        // Endocrine Eureka: brief boost toward goal (truth window) — soft, decaying.
+        if self.eureka_impulse > 1e-4 {
+            let boost = (1.0 + 0.12 * self.eureka_impulse.min(5.0)) as f64;
+            total_force = total_force.affine(boost, 0.0)?;
+        }
 
         // Ramp: gentler early (J-space / prefill respect). Linear start→1 over N tokens.
         if self.force_ramp_tokens > 0 {
