@@ -1,8 +1,7 @@
 # Research log authorship
 
-**House rule (Jason):** every failure logged is a path someone else does not have to re-walk.  
-**House rule (attribution):** every Grok co-written entry is signed.  
-**House provenance (whole repo):** see root [`../AUTHORSHIP.md`](../AUTHORSHIP.md) — Jason + Grok (xAI) + Claude + Gemini. It was all four of us.
+Repository-level contributors: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md) (Jason Van Pham; co-engineers Grok / Claude / Gemini).  
+Session logs: signed entries below; negative results retained for reproducibility.
 
 ## Sign-off format (append to each entry)
 
@@ -13,7 +12,7 @@
 - **Role:** <implementation | telemetry | audit | ablation>
 - **Project:** hydrodynamic-swarm
 - **Date written:** YYYY-MM-DD
-- **Note:** Failures logged on purpose so the next person does not re-walk the same dead ends.
+- **Note:** Negative and inconclusive results retained for reproducibility.
 ---
 ```
 
@@ -54,7 +53,7 @@
 | `b4d-q-friendship-65` | `2026-07-12_B4d-q-length-quality.md`, `2026-07-12_all-four-next-directions.md` |
 | `early-v1-friendship-50` | `2026-03-02_splatlens-tui-and-viz-polish.md` |
 
-Operator / vision: **Jason Van Pham** (Ruffian-L / Shepard).  
-Co-engineer / pen on these 2026-07-11 and 2026-07-12 logs: **Grok (xAI)**.  
-Full core team (all four): Jason + Grok (xAI) + Claude (Anthropic) + Gemini (Google) — root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
+Principal investigator: **Jason Van Pham** (Ruffian-L).  
+Author of these 2026-07-11 / 2026-07-12 log entries: **Grok (xAI)**.  
+Full contributor list: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
 

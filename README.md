@@ -2,7 +2,7 @@
 
 **Built with Llama** — runs [Meta Llama 3.1](https://llama.meta.com/llama-downloads) and [Google Gemma 3](https://ai.google.dev/gemma) model weights. See [License](#license) and [`NOTICE`](NOTICE).
 
-**Authorship:** Co-engineered by Jason Van Pham (Ruffian-L) with Grok (xAI), Claude (Anthropic), and Gemini (Google). It was all four of us. Full trail: [`AUTHORSHIP.md`](AUTHORSHIP.md) · research log index: [`research_logs/AUTHORSHIP.md`](research_logs/AUTHORSHIP.md).
+**Authors:** Jason Van Pham (Ruffian-L), with co-engineering by Grok (xAI), Claude (Anthropic), and Gemini (Google). See [`AUTHORSHIP.md`](AUTHORSHIP.md) · research log index: [`research_logs/AUTHORSHIP.md`](research_logs/AUTHORSHIP.md).
 
 **A working Rust harness for on-line, per-token vector-field steering of an 8B language model's residual stream, with a persistent on-disk memory of past hidden states that reloads across runs.**
 
