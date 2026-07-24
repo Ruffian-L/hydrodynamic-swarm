@@ -1,7 +1,8 @@
 # Research log authorship
 
 **House rule (Jason):** every failure logged is a path someone else does not have to re-walk.  
-**House rule (attribution):** every Grok co-written entry is signed.
+**House rule (attribution):** every Grok co-written entry is signed.  
+**House provenance (whole repo):** see root [`../AUTHORSHIP.md`](../AUTHORSHIP.md) — Jason + Grok (xAI) + Claude + Gemini. It was all four of us.
 
 ## Sign-off format (append to each entry)
 
@@ -53,6 +54,7 @@
 | `b4d-q-friendship-65` | `2026-07-12_B4d-q-length-quality.md`, `2026-07-12_all-four-next-directions.md` |
 | `early-v1-friendship-50` | `2026-03-02_splatlens-tui-and-viz-polish.md` |
 
-Operator / vision: **Jason** (Shepard).  
-Co-engineer / pen on these logs: **Grok (xAI)**.
+Operator / vision: **Jason Van Pham** (Ruffian-L / Shepard).  
+Co-engineer / pen on these 2026-07-11 and 2026-07-12 logs: **Grok (xAI)**.  
+Full core team (all four): Jason + Grok (xAI) + Claude (Anthropic) + Gemini (Google) — root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
 
