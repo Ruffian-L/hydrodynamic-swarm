@@ -1,6 +1,19 @@
 # Research log authorship
 
-Repository-level contributors: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md) (Jason Van Pham; co-engineers Grok / Claude / Gemini).  
+Repository-level provenance: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
+
+## Contributors (same as root)
+
+| Role | Name |
+|------|------|
+| **Principal investigator / lead** | Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L)) |
+| **Co-engineer** | Grok (xAI) |
+| **Co-engineer** | Claude / Claude Code (Anthropic) |
+| **Co-engineer** | Gemini (Google) |
+| **Co-engineer** | ChatGPT / Codex (OpenAI) |
+
+**Short form:** Jason Van Pham, with co-engineering by Grok (xAI), Claude (Anthropic), Gemini (Google), and ChatGPT / Codex (OpenAI).
+
 Session logs: signed entries below; negative results retained for reproducibility.
 
 ## Sign-off format (append to each entry)
