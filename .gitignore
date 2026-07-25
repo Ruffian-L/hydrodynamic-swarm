@@ -1,6 +1,8 @@
 # Rust build artifacts
 target/
-.cargo/
+# Keep vendored offline sources + cargo vendor replace config for worktrees/clones
+.cargo/*
+!.cargo/config.toml
 **/*.rs.bk
 
 # Legacy data directory (model blobs stay local; SHA256SUMS is committed)
@@ -42,7 +44,8 @@ logs/taco.db
 /tmp/
 
 # Local machine config (profiles like config.27b.toml ARE committed)
-config.toml
+# Anchor to repo root so .cargo/config.toml is not ignored
+/config.toml
 
 # Model files (use LFS for large files)
 *.gguf
