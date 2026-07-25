@@ -134,6 +134,12 @@ impl SessionLogger {
     pub fn new(label: &str, model_variant: &str) -> std::io::Result<Self> {
         let log_dir = Path::new("logs");
         fs::create_dir_all(log_dir)?;
+        // Group-readable so agents / teammates on the same box can `tail` logs.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(log_dir, fs::Permissions::from_mode(0o775));
+        }
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -176,8 +182,39 @@ impl SessionLogger {
             .write(true)
             .create_new(true)
             .open(&log_path)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&log_path, fs::Permissions::from_mode(0o664));
+        }
+
+        // Stable pointer so scripts / agents can always find the current run:
+        //   tail -f logs/live.txt
+        //   less logs/latest.jsonl
+        // Relative symlink keeps working if the tree is moved as a unit.
+        let latest = log_dir.join("latest.jsonl");
+        let _ = fs::remove_file(&latest);
+        #[cfg(unix)]
+        {
+            if let Err(e) = std::os::unix::fs::symlink(&filename, &latest) {
+                eprintln!(
+                    "    [log] could not update {}: {} (session file still at {})",
+                    latest.display(),
+                    e,
+                    log_path.display()
+                );
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            // Best-effort: write a one-line pointer file.
+            if let Err(e) = fs::write(&latest, format!("{}\n", log_path.display())) {
+                eprintln!("    [log] could not write {}: {}", latest.display(), e);
+            }
+        }
 
         println!("    Logging to: {}", log_path.display());
+        println!("    Latest pointer: {}", latest.display());
 
         let taco = match TacoDb::new_persistent("logs/taco.db") {
             Ok(db) => {

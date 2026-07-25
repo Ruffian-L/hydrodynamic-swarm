@@ -32,6 +32,7 @@ mod splat;
 mod tct;
 mod tui;
 mod viz;
+mod weather;
 // mod viz_metal; // removed: XSS-vulnerable HTML viewer (security audit 2026-03-07)
 
 use anyhow::Result;
@@ -92,6 +93,15 @@ impl Model {
         match self {
             Model::Llama(m) => m.token_embeddings(),
             Model::Gemma(m) => m.token_embeddings(),
+        }
+    }
+
+    /// Pre-layer embedding scale applied in forward (Gemma: √hidden_dim; Llama: 1).
+    /// Same factor as `gemma.rs` run_layers — raw matrix rows are *not* residual-space.
+    fn embedding_input_scale(&self) -> f64 {
+        match self {
+            Model::Gemma(m) => (m.hidden_dim as f64).sqrt(),
+            Model::Llama(_) => 1.0,
         }
     }
 
@@ -186,6 +196,8 @@ async fn main() -> Result<()> {
         .min(50_000); // security: cap to prevent DoS-level resource exhaustion
     let viz_enabled = args.iter().any(|a| a == "--viz");
     let chat_mode = args.iter().any(|a| a == "--chat");
+    // TermSplat live weather JSONL (FieldFrame). ON by default; --no-termsplat to skip.
+    let termsplat_enabled = !args.iter().any(|a| a == "--no-termsplat");
     // Shep endocrine lane: ON by default. Pass --no-endocrine to disable.
     let endocrine_enabled = !args.iter().any(|a| a == "--no-endocrine");
     // Optional: import a TCT-splat-lite store before the run (appends after safetensors load).
@@ -348,11 +360,12 @@ async fn main() -> Result<()> {
     });
     engine.set_force_ramp(cfg.physics.force_ramp_tokens, cfg.physics.force_ramp_start);
 
-    // ── Shep endocrine system (Function Gemma stubs → Monolith blooms) ──
-    // Channels: main sends EndocrineSignal; worker returns BloomEvent → apply_monolith.
+    // ── Shep endocrine: worker = text enzyme; geometry = native tok_embeddings ──
     let (_shared_universe, endocrine_tx, mut endocrine_rx) = if endocrine_enabled {
         let (universe, tx, rx) = endocrine::create_endocrine_system();
-        println!("    Endocrine: ON (Shep restore — worker sleeping until signal)");
+        println!(
+            "    Endocrine: ON (enzyme idle until signal · native embed · no TinyEmbed)"
+        );
         (Some(universe), Some(tx), Some(rx))
     } else {
         println!("    Endocrine: OFF (--no-endocrine)");
@@ -511,6 +524,18 @@ async fn main() -> Result<()> {
         cfg.physics.min_splat_dist as i32,
     );
     let mut logger = SessionLogger::new(&test_label, model_variant)?;
+    let mut weather = if termsplat_enabled {
+        match weather::WeatherPipe::open_beside_log(logger.path().as_path(), dim) {
+            Ok(w) => Some(w),
+            Err(e) => {
+                eprintln!("    [weather] could not open TermSplat pipe: {e}");
+                None
+            }
+        }
+    } else {
+        println!("    TermSplat weather: OFF (--no-termsplat)");
+        None
+    };
     let bridge_fps_start = engine.memory().list_bridge_prompt_fps();
     println!(
         "    Memory session: loaded={} scars_start={} bridges={} fps={:?} (safetensors={} tct_import={}) clear={} ramp={}",
@@ -700,6 +725,8 @@ async fn main() -> Result<()> {
     // Track last steered position for splat creation
     let mut last_steered_pos: Option<Tensor> = None;
     let mut last_online_splat_step: isize = -999;
+    // Consecutive pain deposits this run — pleasure answers pain.
+    let mut pain_deposit_streak: usize = 0;
 
     // Sliding window of recent hidden states for VR H1 reflex
     let mut recent_hidden: Vec<Tensor> = Vec::new();
@@ -715,15 +742,41 @@ async fn main() -> Result<()> {
         max_tokens
     );
 
-    // Live stream file: per-token output for tail -f viewing
+    // Live stream file: tokens + physics lines for `tail -f logs/live.txt`
+    // (stdout alone is easy to miss when runs are backgrounded / piped).
     use std::io::Write;
     let live_path = std::path::Path::new("logs/live.txt");
     let mut live_file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(live_path)?;
-    writeln!(live_file, "\n=== [{}] \"{}\" ===", model_variant, prompt)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(live_path, std::fs::Permissions::from_mode(0o664));
+    }
+    writeln!(
+        live_file,
+        "\n=== [{}] \"{}\" ===\njsonl={}  latest=logs/latest.jsonl",
+        model_variant,
+        raw_prompt,
+        logger.path().display()
+    )?;
     live_file.flush()?;
+    println!(
+        "    Live log: {}  (tail -f logs/live.txt)",
+        live_path.display()
+    );
+
+    // Dual-write: keep stdout and live.txt in sync for force / splat / bloom lines.
+    macro_rules! live_println {
+        ($($arg:tt)*) => {{
+            let line = format!($($arg)*);
+            println!("{}", line);
+            let _ = writeln!(live_file, "{}", line);
+            let _ = live_file.flush();
+        }};
+    }
 
     #[allow(clippy::explicit_counter_loop)]
     for step in 0..max_tokens {
@@ -749,20 +802,35 @@ async fn main() -> Result<()> {
             (s, false)
         };
 
-        // Endocrine: drain any blooms from Function Gemma worker (non-blocking).
+        // Endocrine: drain blooms (text) → embed with **native** tok_embeddings → eureka.
         if let Some(ref mut rx) = endocrine_rx {
             while let Ok(bloom) = rx.try_recv() {
+                let (pos4, native_opt) =
+                    match native_embed_mean(&model, &tokenizer, &bloom.raw_text) {
+                        Ok(t) => {
+                            let flat = t
+                                .flatten_all()
+                                .and_then(|x| x.to_vec1::<f32>())
+                                .unwrap_or_default();
+                            let p4 = endocrine::project_native_to_4d(&flat);
+                            (p4, Some(t))
+                        }
+                        Err(e) => {
+                            eprintln!("    [ENDOCRINE] native embed failed: {e}");
+                            ([0.0; 4], None)
+                        }
+                    };
                 let mono = endocrine::Monolith {
-                    pos: bloom.embedded_4d,
+                    pos: pos4,
                     mass: 10_000.0,
                     repulsion: 1.0,
                 };
-                engine.apply_monolith(&mono);
-                // Surface the FACT line so live stream / logs show Shep's enzyme fired.
+                engine.apply_monolith_native(&mono, native_opt);
                 let fact_line = bloom.raw_text.chars().take(120).collect::<String>();
-                println!("    [BLOOM] {}", fact_line.replace('\n', " "));
-                let _ = writeln!(live_file, "\n[BLOOM] {}\n", fact_line);
-                let _ = live_file.flush();
+                live_println!(
+                    "    [BLOOM native] {}",
+                    fact_line.replace('\n', " ")
+                );
             }
         }
         engine.tick_endocrine();
@@ -819,9 +887,10 @@ async fn main() -> Result<()> {
                         last_reflex_step = step;
                         steered_slice =
                             (&steered_slice.affine(0.7, 0.0)? + &steer_input.affine(0.3, 0.0)?)?;
-                        println!(
+                        live_println!(
                             "    [REFLEX] step {} | tight H1 (thr=1.12) + stress F_s={:.1} -> blend",
-                            step, splat_mag
+                            step,
+                            splat_mag
                         );
                     }
                 }
@@ -988,9 +1057,49 @@ async fn main() -> Result<()> {
                     engine
                         .memory_mut()
                         .prune_to_limit(cfg.memory.max_splats);
+                    // Pain snowball brake: scars can log; they must not own the residual.
+                    if splat_alpha < 0.0
+                        || cfg.memory.max_pain_splats > 0
+                        || cfg.memory.max_pain_mass > 0.0
+                    {
+                        engine.memory_mut().enforce_pain_budget(
+                            cfg.memory.max_pain_splats,
+                            cfg.memory.max_pain_mass,
+                        );
+                    }
+
+                    // Heart: pleasure answers pain — soft +α near goal after a pain streak.
+                    if kind == SplatKind::Pain {
+                        pain_deposit_streak = pain_deposit_streak.saturating_add(1);
+                    } else if kind == SplatKind::Pleasure {
+                        pain_deposit_streak = 0;
+                    }
+                    let answer_after = cfg.memory.pleasure_answer_after;
+                    if answer_after > 0
+                        && kind == SplatKind::Pain
+                        && pain_deposit_streak >= answer_after
+                    {
+                        let ans_alpha = cfg.memory.pleasure_answer_alpha.abs().max(0.15);
+                        let ans_sigma = (cfg.physics.splat_sigma
+                            * cfg.memory.pleasure_answer_sigma_scale.max(0.5))
+                        .max(1.0);
+                        // goal_pos is (D,) residual attractor — pleasure at the home basin
+                        engine.memory_mut().add_splat(Splat::new(
+                            goal_pos.clone(),
+                            ans_sigma,
+                            ans_alpha,
+                        ));
+                        pain_deposit_streak = 0;
+                        live_println!(
+                            "    [PLEASURE ANSWER] α=+{:.2} σ={:.1} near goal (pain was stacking)",
+                            ans_alpha,
+                            ans_sigma
+                        );
+                    }
+
                     last_online_splat_step = step as isize;
                     if step % 20 == 0 || kind == SplatKind::Pain || high_delta {
-                        println!(
+                        live_println!(
                             "    [SPLAT {:?}] p={:.3} H≈{:.2} δ={:.1} α={:.2} «{}»",
                             kind,
                             quality.p_chosen,
@@ -1000,7 +1109,7 @@ async fn main() -> Result<()> {
                             decoded.replace('\n', "⏎")
                         );
                     }
-                    // Shep endocrine: pain / high-δ → wake Function Gemma enzyme (rate-limited).
+                    // Endocrine: pain / high-δ → text enzyme (rate-limited).
                     if let Some(ref tx) = endocrine_tx {
                         let cooldown_ok =
                             (step as isize - last_endocrine_signal_step) >= 12;
@@ -1027,7 +1136,7 @@ async fn main() -> Result<()> {
                             }) {
                                 Ok(()) => {
                                     last_endocrine_signal_step = step as isize;
-                                    println!(
+                                    live_println!(
                                         "    [ENDOCRINE] signal sent at step {} (pain/high-δ)",
                                         step
                                     );
@@ -1062,9 +1171,10 @@ async fn main() -> Result<()> {
                             // Variant E: recovery anchor — stronger corrective packet
                             ocean.deposit(mind, &host_vec, 0.85, 0.35)?;
                             if step % 10 == 0 {
-                                println!(
+                                live_println!(
                                     "    [OCEAN recovery] pain packet p={:.3} δ={:.1}",
-                                    quality.p_chosen, delta_norm
+                                    quality.p_chosen,
+                                    delta_norm
                                 );
                             }
                         } else {
@@ -1150,9 +1260,15 @@ async fn main() -> Result<()> {
                     )
                 })
                 .unwrap_or_default();
-            println!(
+            live_println!(
                 "  [{}/{}] δ={:.1} F_g={:.1} F_s={:.1} F_a={:.1}{}",
-                step, max_tokens, delta_norm, grad_mag, splat_mag, goal_mag, ocean_info
+                step,
+                max_tokens,
+                delta_norm,
+                grad_mag,
+                splat_mag,
+                goal_mag,
+                ocean_info
             );
         }
 
@@ -1161,7 +1277,7 @@ async fn main() -> Result<()> {
         logger.log_step(StepEntry {
             step,
             token_id: next_token,
-            token_text: decoded,
+            token_text: decoded.clone(),
             steering_delta: delta_norm,
             residual_norm,
             grad_force_mag: grad_mag,
@@ -1170,9 +1286,22 @@ async fn main() -> Result<()> {
             scars_active: engine.memory().len(),
         })?;
 
+        // TermSplat live FieldFrame (entropy weather) — same contract as termsplat frame.rs
+        if let Some(ref mut w) = weather {
+            if let Err(e) = w.emit_step(
+                step,
+                quality.topk_entropy,
+                &decoded,
+                delta_norm,
+                engine.memory(),
+            ) {
+                eprintln!("    [weather] emit fail step {step}: {e}");
+            }
+        }
+
         // Stop on EOS tokens
         if eos_token_ids.contains(&next_token) {
-            println!("    → EOS at step {}", step);
+            live_println!("    → EOS at step {}", step);
             break;
         }
 
@@ -1445,6 +1574,14 @@ async fn main() -> Result<()> {
             .create(true)
             .append(true)
             .open(readable_path)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(
+                readable_path,
+                std::fs::Permissions::from_mode(0o664),
+            );
+        }
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -1461,10 +1598,11 @@ async fn main() -> Result<()> {
         )?;
         writeln!(
             f,
-            "Model: {} | Tokens: {} | Splats: {}",
+            "Model: {} | Tokens: {} | Splats: {} | jsonl: {}",
             model_variant,
             generated_tokens.len(),
-            engine.memory().len()
+            engine.memory().len(),
+            logger.path().display()
         )?;
         writeln!(f, "Prompt: \"{}\"", raw_prompt)?;
         writeln!(f)?;
@@ -1501,4 +1639,53 @@ fn tokenizer_next_to_model(model_path: &str) -> Option<String> {
     tokenizer_path
         .exists()
         .then(|| tokenizer_path.display().to_string())
+}
+
+/// Mean token embedding of `text` from the **live** model — pre-layer space.
+///
+/// Gemma (3/4 family): `tok_embeddings * √hidden_dim` before the first layer
+/// (see `gemma.rs` run_layers). Without that scale, blooms sit on the raw
+/// matrix shell and miss the geometry the stack actually eats.
+/// Llama: raw rows (scale 1).
+fn native_embed_mean(
+    model: &Model,
+    tokenizer: &Tokenizer,
+    text: &str,
+) -> anyhow::Result<Tensor> {
+    let emb = model.token_embeddings(); // (V, D) raw weight matrix
+    let vocab = emb.dim(0)?;
+    let dim = emb.dim(1)?;
+    let encoded = tokenizer
+        .encode(text, true)
+        .map_err(|e| anyhow::anyhow!("tokenize bloom: {e}"))?;
+    let ids: Vec<u32> = encoded.get_ids().to_vec();
+    if ids.is_empty() {
+        return Ok(Tensor::zeros(dim, candle_core::DType::F32, emb.device())?);
+    }
+
+    let mut sum: Option<Tensor> = None;
+    let mut n = 0usize;
+    for &id in ids.iter().take(96) {
+        let i = id as usize;
+        if i >= vocab {
+            continue;
+        }
+        let row = emb.get(i)?.to_dtype(candle_core::DType::F32)?;
+        sum = Some(match sum {
+            None => row,
+            Some(s) => (&s + &row)?,
+        });
+        n += 1;
+    }
+    if n == 0 {
+        return Ok(Tensor::zeros(dim, candle_core::DType::F32, emb.device())?);
+    }
+    let mean = sum.unwrap().affine(1.0 / n as f64, 0.0)?;
+    // Pre-layer scale (Gemma √d) — matches forward, not TinyEmbed hash.
+    let scale = model.embedding_input_scale();
+    if (scale - 1.0).abs() > 1e-12 {
+        Ok(mean.affine(scale, 0.0)?)
+    } else {
+        Ok(mean)
+    }
 }

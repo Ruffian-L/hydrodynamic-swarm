@@ -1,0 +1,11 @@
+// 3. b0 via Union-Find (connected components) — measures fragmentation
+// 4. b1 via graph homology: b1 = E - V + b0 — measures loops
+```
+
+The b0 sensor detects FRAGMENTATION — when the particle cloud breaks into disconnected clusters (bad: model's thoughts aren't coherent). Ideal b0 = 1 (everything connected). High b0 = fractured reasoning.
+
+The b1 computation (`edges - vertices + components`) is exact for the 1-skeleton (graph). It counts independent loops in the connectivity structure. This feeds directly into the Compass state machine: high b1 = loops detected = trigger Panic or Persist state.
+
+The sensor operates on the SentenceParticle cloud positions, not on hidden states. It measures the SHAPE of the model's thought constellation — whether sentences are forming coherent structure or flying apart into disconnected fragments.
+
+---

@@ -5,29 +5,29 @@
   "milestones": [
     {
       "id": "reload-bridge-offset-35",
-      "title": "Reload + soft bridge — Friendship (35 tok)",
+      "title": "Reload + soft bridge \u2014 Friendship (35 tok)",
       "date": "2026-07-16",
       "tag": "continuity",
       "recommended": true,
-      "model_note": "Gemma 3 4B · second life after death→reload · offset bridge 0.35σ",
+      "model_note": "Gemma 3 4B \u00b7 second life after death\u2192reload \u00b7 offset bridge 0.35\u03c3",
       "prompt": "Explain the Physics of Friendship in one short paragraph.",
       "viz": "demos/reload-bridge-offset-35.viz.json",
-      "blurb": "RELOAD session with soft off-center bridge. Same-prompt death→reload is warm. Multi-bridge: live several topics without --clear-memory and return visits stay warm; first visit to a new topic is still cold until that basin earns a bridge.",
+      "blurb": "RELOAD session with soft off-center bridge. Same-prompt death\u2192reload is warm. Multi-bridge: live several topics without --clear-memory and return visits stay warm; first visit to a new topic is still cold until that basin earns a bridge.",
       "worked": [
-        "Soft off-center bridge: goal + 0.35σ · û_⊥ → step0 F_s ≈ 1.46, pot ≈ 0.66, nearest ≈ 31.5 (=0.35σ).",
-        "Death→reload with memory_loaded=true; force engages from the first tokens (ramp off in this recording).",
+        "Soft off-center bridge: goal + 0.35\u03c3 \u00b7 \u00fb_\u22a5 \u2192 step0 F_s \u2248 1.46, pot \u2248 0.66, nearest \u2248 31.5 (=0.35\u03c3).",
+        "Death\u2192reload with memory_loaded=true; force engages from the first tokens (ramp off in this recording).",
         "TCT marks prefill_bridge scars; TCT import matches safetensors on same prompt.",
-        "Multi-bridge: friendship→CUDA→friendship→CUDA without clear keeps two basins; return visits stay warm."
+        "Multi-bridge: friendship\u2192CUDA\u2192friendship\u2192CUDA without clear keeps two basins; return visits stay warm."
       ],
       "didnt_work": [
-        "On-center bridge alone: pot high but step0 F_s≈0 (gradient zero at peak) — fixed by offset.",
+        "On-center bridge alone: pot high but step0 F_s\u22480 (gradient zero at peak) \u2014 fixed by offset.",
         "Trail-only scars without bridge: LOCALITY COLD (~180 L2).",
-        "Cross-prompt first visit still cold — must earn a bridge per basin (not a universal pull)."
+        "Cross-prompt first visit still cold \u2014 must earn a bridge per basin (not a universal pull)."
       ],
       "ongoing": [
-        "Public ops: docs/CONTINUITY.md · scripts/continuity_{status,revisit,multibridge}.sh · CONT cards (pot + gain_max).",
-        "Measured PASS_RETURN on A→B→A (2026-07-17); pot separates basins better than nearest (offset ring ≈31.5).",
-        "Team re-runs A–D when ready; do not --clear-memory between topics if multi-bridge wanted."
+        "Public ops: docs/CONTINUITY.md \u00b7 scripts/continuity_{status,revisit,multibridge}.sh \u00b7 CONT cards (pot + gain_max).",
+        "Measured PASS_RETURN on A\u2192B\u2192A (2026-07-17); pot separates basins better than nearest (offset ring \u224831.5).",
+        "Team re-runs A\u2013D when ready; do not --clear-memory between topics if multi-bridge wanted."
       ],
       "research_logs": [
         "research_logs/2026-07-16_soft-offset-bridge.md",
@@ -38,21 +38,21 @@
         "research_logs/2026-07-17_multi-bridge-return.md",
         "docs/CONTINUITY.md"
       ],
-      "authors": "Jason (vision) · Grok (xAI)"
+      "authors": "Jason (vision) \u00b7 Grok (xAI)"
     },
     {
       "id": "prefill-bridge-friendship-40",
-      "title": "Prefill-bridge (on-center mint) — Friendship (40 tok)",
+      "title": "Prefill-bridge (on-center mint) \u2014 Friendship (40 tok)",
       "date": "2026-07-16",
       "tag": "continuity",
       "recommended": false,
-      "model_note": "Gemma 3 4B Q4 · first mint with bridge at goal (on-center)",
+      "model_note": "Gemma 3 4B Q4 \u00b7 first mint with bridge at goal (on-center)",
       "prompt": "Explain the Physics of Friendship in one short paragraph.",
       "viz": "demos/prefill-bridge-friendship-40.viz.json",
-      "blurb": "First continuity mint: bridge scar planted at prefill residual. Prefer the reload+offset card for the full death→reload force story.",
+      "blurb": "First continuity mint: bridge scar planted at prefill residual. Prefer the reload+offset card for the full death\u2192reload force story.",
       "worked": [
-        "Death→reload save/load (safetensors + TCT-splat-lite).",
-        "Diagnosed LOCALITY COLD; prefill-bridge → nearest_L2≈0, pot≈0.75.",
+        "Death\u2192reload save/load (safetensors + TCT-splat-lite).",
+        "Diagnosed LOCALITY COLD; prefill-bridge \u2192 nearest_L2\u22480, pot\u22480.75.",
         "Honest KPI: potential + nearest, not step0 F_s alone on-center."
       ],
       "didnt_work": [
@@ -65,11 +65,11 @@
         "research_logs/2026-07-16_prefill-bridge-scar.md",
         "research_logs/2026-07-16_basin-live-potential.md"
       ],
-      "authors": "Jason (vision) · Grok (xAI)"
+      "authors": "Jason (vision) \u00b7 Grok (xAI)"
     },
     {
       "id": "b4d-q-friendship-65",
-      "title": "B4d-q — Friendship (65 tok)",
+      "title": "B4d-q \u2014 Friendship (65 tok)",
       "date": "2026-07-12",
       "tag": "demo lock",
       "recommended": false,
@@ -78,14 +78,14 @@
       "viz": "demos/b4d-q-friendship-65.viz.json",
       "blurb": "Locked short-paragraph demo. Physics frozen (B4d). Clean-ish full budget on 4B. Force hunt closed; continuity work continued after this card.",
       "worked": [
-        "√-law splat damping so scars stop exploding (old F_s ~1872 story is dead).",
+        "\u221a-law splat damping so scars stop exploding (old F_s ~1872 story is dead).",
         "Field wake (dist_weighted) so field force is actually alive, not zero by geometry.",
         "Hard length budget ~65 tokens = practical clean-paragraph zone on 4B.",
         "Light quality knobs (temp 0.88, rep 1.36, softer scar alphas) without reopening force hunt."
       ],
       "didnt_work": [
-        "Pushing 80–90+ tokens with sample knobs alone — mid/late surface fray; not a force latch.",
-        "Logit bias alone as a fix for late collapse — slight calm, not a cure.",
+        "Pushing 80\u201390+ tokens with sample knobs alone \u2014 mid/late surface fray; not a force latch.",
+        "Logit bias alone as a fix for late collapse \u2014 slight calm, not a cure.",
         "Assuming bigger force budgets = better prose on small models."
       ],
       "ongoing": [
@@ -97,11 +97,11 @@
         "research_logs/2026-07-12_all-four-next-directions.md",
         "research_logs/2026-07-12_splat-lens-museum-structure.md"
       ],
-      "authors": "Jason (co-engineer) · Grok (xAI)"
+      "authors": "Jason (co-engineer) \u00b7 Grok (xAI)"
     },
     {
       "id": "early-v1-friendship-50",
-      "title": "Early v1 — Friendship (50 tok)",
+      "title": "Early v1 \u2014 Friendship (50 tok)",
       "date": "2026-03-02",
       "tag": "historical",
       "recommended": false,
@@ -115,7 +115,7 @@
         "Idea that memory scars should show up as spatial objects, not just numbers in a log."
       ],
       "didnt_work": [
-        "Relying on console-only telemetry — easy to give up if you don't know the flags.",
+        "Relying on console-only telemetry \u2014 easy to give up if you don't know the flags.",
         "Force caps / splat scaling still maturing; later runs re-learned what explodes.",
         "No museum / one-command path for forks."
       ],
@@ -126,7 +126,18 @@
         "research_logs/2026-03-02_splatlens-tui-and-viz-polish.md",
         "research_logs/timeline.md"
       ]
+    },
+    {
+      "id": "2026-07-24-geometric-continuity",
+      "title": "Geometric Continuity: Scars Survive Topic Change",
+      "date": "2026-07-24",
+      "tag": "continuity",
+      "recommended": true,
+      "model_note": "Gemma 3 4B \u00b7 Multi-bridge (Friendship\u2192Music\u2192Friendship) \u00b7 No --clear-memory",
+      "prompt": "Explain the Physics of Friendship / Music / Friendship",
+      "viz": "logs/2026-07-24_11-30-40_*.jsonl",
+      "blurb": "Proves scars form a unified geometric field. Changing prompt topic does not clear memory; it adds to the field. Return visits are influenced by accumulated scar geometry. Confirms persistent state independent of immediate context window."
     }
   ],
-  "how_to_add_checkpoint": "Copy a logs/*.viz.json into tools/museum/demos/ (optionally subsample field_points), add an entry here, commit. Prefer ~50–100KB demos so git stays friendly."
+  "how_to_add_checkpoint": "Copy a logs/*.viz.json into tools/museum/demos/ (optionally subsample field_points), add an entry here, commit. Prefer ~50\u2013100KB demos so git stays friendly."
 }

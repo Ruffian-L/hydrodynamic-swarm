@@ -122,10 +122,13 @@ pub struct NiodooEngine {
     pub noise_sigma: f32,
     /// Transient viscosity hint after monolith.
     pub viscosity: f32,
-    /// Tag gravity mult after monolith (reserved).
+    /// Tag gravity mult after monolith (reserved for future endocrine wiring).
+    #[allow(dead_code)]
     pub tag_gravity_mult: f32,
     /// Impulse mass * scale from last apply_monolith.
     pub eureka_impulse: f32,
+    /// Native-model mean embedding of bloom text (D,) — real attractor during eureka.
+    eureka_target: Option<Tensor>,
     /// Shared multi-mind ocean (Lane C). Optional force source.
     ocean: Option<SharedOcean>,
 }
@@ -164,21 +167,34 @@ impl NiodooEngine {
             viscosity: viscosity_scale,
             tag_gravity_mult: 1.0,
             eureka_impulse: 0.0,
+            eureka_target: None,
             ocean: None,
         }
     }
 
-    /// Apply a Monolith (truth vector from Function Gemma / endocrine system).
-    /// Eureka path: cool noise, drop viscosity, record impulse used by `steer`.
-    /// Restored with endocrine.rs (Shep mar22) + wired 2026-07-18 so impulse is not dead state.
+    /// Apply a Monolith without a full-D target (impulse + viscosity only).
+    #[allow(dead_code)]
     pub fn apply_monolith(&mut self, monolith: &crate::endocrine::Monolith) {
+        self.apply_monolith_native(monolith, None);
+    }
+
+    /// Same as `apply_monolith`, plus a native (D,) target from the live model.
+    pub fn apply_monolith_native(
+        &mut self,
+        monolith: &crate::endocrine::Monolith,
+        native_target: Option<Tensor>,
+    ) {
         // Cap impulse so one bloom cannot sledgehammer residual (same spirit as F_s/F_a caps).
         self.eureka_impulse = (monolith.mass * 0.001).clamp(0.5, 8.0);
         self.viscosity = (self.viscosity * 0.3).max(0.05);
         self.noise_sigma = 0.05;
+        if let Some(t) = native_target {
+            self.eureka_target = Some(t);
+        }
+        let has_native = self.eureka_target.is_some();
         println!(
-            "[NIODOO] Monolith applied (mass={:.0} impulse={:.2} pos={:?}). Eureka window open.",
-            monolith.mass, self.eureka_impulse, monolith.pos
+            "[NIODOO] Monolith applied (mass={:.0} impulse={:.2} pos4={:?} native={}). Eureka window open.",
+            monolith.mass, self.eureka_impulse, monolith.pos, has_native
         );
     }
 
@@ -188,6 +204,7 @@ impl NiodooEngine {
             self.eureka_impulse *= 0.92;
             if self.eureka_impulse < 0.05 {
                 self.eureka_impulse = 0.0;
+                self.eureka_target = None;
                 // restore viscosity toward base scale
                 self.viscosity = self.viscosity_scale;
                 self.noise_sigma = 0.3;
@@ -195,6 +212,7 @@ impl NiodooEngine {
         }
     }
 
+    #[allow(dead_code)] // public API for endocrine / TUI callers
     pub fn eureka_impulse(&self) -> f32 {
         self.eureka_impulse
     }
@@ -230,6 +248,7 @@ impl NiodooEngine {
         self.field_wake = cfg;
     }
 
+    #[allow(dead_code)] // public API for field-wake inspection
     pub fn field_wake(&self) -> &FieldWakeConfig {
         &self.field_wake
     }
@@ -463,10 +482,20 @@ impl NiodooEngine {
         // Sum and scale by dt
         let mut total_force = (((&grad_force + &splat_force)? + &goal_force)? + &ocean_force)?;
 
-        // Endocrine Eureka: brief boost toward goal (truth window) — soft, decaying.
+        // Endocrine Eureka: soft force boost + optional pull toward **native** bloom embed.
         if self.eureka_impulse > 1e-4 {
             let boost = (1.0 + 0.12 * self.eureka_impulse.min(5.0)) as f64;
             total_force = total_force.affine(boost, 0.0)?;
+            if let Some(ref target) = self.eureka_target {
+                // Pull residual toward native mean tok-emb of bloom text (same D as pos).
+                if target.dims() == pos.dims() {
+                    let pull = (target - &pos)?.affine(
+                        (0.04 * self.eureka_impulse.min(5.0)) as f64,
+                        0.0,
+                    )?;
+                    total_force = (&total_force + &pull)?;
+                }
+            }
         }
 
         // Ramp: gentler early (J-space / prefill respect). Linear start→1 over N tokens.

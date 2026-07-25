@@ -14,7 +14,8 @@ pub struct TokenQuality {
     pub is_recent_repeat: bool,
     /// How many times it appears in that window (spam detector).
     pub recent_count: usize,
-    /// Decoded text (for logging).
+    /// Decoded text (for logging / telemetry).
+    #[allow(dead_code)]
     pub token_text: String,
 }
 

@@ -125,6 +125,18 @@ pub struct MemoryConfig {
     pub online_decay_rate: f32,
     /// Cap on prefill-bridge scars (LRU by created_at). 0 = unlimited.
     pub max_prefill_bridges: usize,
+    /// Max active **pain** trail scars (α < 0, non-bridge). 0 = unlimited.
+    /// Soft ceiling — prefer dissipation; budget is a backstop.
+    pub max_pain_splats: usize,
+    /// Max sum of |α| over active pain scars. 0 = unlimited.
+    pub max_pain_mass: f32,
+    /// After this many pain deposits in a row, place a pleasure answer near goal.
+    /// 0 = off. Heart of anti-snowball: pleasure answers pain.
+    pub pleasure_answer_after: usize,
+    /// |α| for the pleasure-answer scar (positive).
+    pub pleasure_answer_alpha: f32,
+    /// Width scale for pleasure-answer (multiplies splat_sigma).
+    pub pleasure_answer_sigma_scale: f32,
 }
 
 /// Micro-dream consolidation tuning.
@@ -216,6 +228,11 @@ impl Default for MemoryConfig {
             prune_threshold: 0.01,
             online_decay_rate: 1.0, // off unless config sets < 1
             max_prefill_bridges: 24,
+            max_pain_splats: 12,
+            max_pain_mass: 5.0,
+            pleasure_answer_after: 2,
+            pleasure_answer_alpha: 0.55,
+            pleasure_answer_sigma_scale: 1.2,
         }
     }
 }

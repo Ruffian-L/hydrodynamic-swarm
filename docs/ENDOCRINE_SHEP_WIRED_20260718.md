@@ -19,11 +19,13 @@
 | `steer()` | Eureka boost + cooled viscosity while impulse decays |
 | `tick_endocrine()` | Impulse decays each token (~0.92×) |
 
-## Honest stubs (same as Shep left)
+## Honest stubs / geometry (2026-07-25 update)
 
-- `FunctionGemma::strict_execute` → fake `[FACT #n]` strings  
-- `TinyEmbed::embed_4d` → hash projection, not a real model  
-- Real FunctionGemma 270M = later (when you have a machine + model)
+- `FunctionGemma::strict_execute` → still fake `[FACT #n]` text enzyme  
+- **TinyEmbed removed** — blooms embed via **native** `model.token_embeddings()` mean-pool on main  
+- Eureka window: impulse + optional pull toward that native (D,) vector  
+- gemma-lab `universe_*.safetensors` = offline geometry lab (field load key `positions`); live endocrine uses the **running** model, not a second embedder  
+- Real FunctionGemma 270M text enzyme = later
 
 ## Run
 

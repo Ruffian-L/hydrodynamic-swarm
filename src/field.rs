@@ -31,8 +31,11 @@ impl ContinuousField {
         let keys: Vec<_> = tensors.keys().collect();
         println!("    Keys found: {:?}", keys);
 
-        // Try common key names, or take the largest tensor
+        // Try common key names (incl. gemma-lab universe `positions`), or largest tensor
         let positions = if let Some(t) = tensors.get("embeddings") {
+            t.clone()
+        } else if let Some(t) = tensors.get("positions") {
+            // gemma-lab / niodoo universe_*.safetensors
             t.clone()
         } else if let Some(t) = tensors.get("tensor") {
             t.clone()

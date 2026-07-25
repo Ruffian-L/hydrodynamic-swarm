@@ -73,6 +73,13 @@ if [[ -n "$EXTRA_FLAGS" ]]; then
 fi
 
 echo "[*] Running: $BIN ${ARGS[*]}"
-echo "--- live: tail -f logs/live.txt ---"
+echo "--- live (tokens + forces):  tail -f logs/live.txt ---"
+echo "--- jsonl (this run):         less logs/latest.jsonl ---"
+echo "--- weather (TermSplat):      termsplat pipe logs/latest.termsplat.jsonl --follow ---"
+if [[ -n "${ENDOCRINE_URL:-}" ]]; then
+  echo "--- enzyme text:              ENDOCRINE_URL=$ENDOCRINE_URL ---"
+else
+  echo "--- enzyme text:              stub (./scripts/endocrine_enzyme.sh + export ENDOCRINE_URL=…) ---"
+fi
 echo
 exec "$BIN" "${ARGS[@]}"

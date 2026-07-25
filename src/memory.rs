@@ -146,6 +146,72 @@ impl SplatMemory {
         self.splats.push(splat);
     }
 
+    /// Count trail pain scars (α < 0, not anchors/bridges).
+    pub fn pain_count(&self) -> usize {
+        self.splats
+            .iter()
+            .filter(|s| s.alpha < 0.0 && !s.is_anchor && !Self::is_prefill_bridge(s))
+            .count()
+    }
+
+    /// Sum of |α| over trail pain scars.
+    pub fn pain_mass(&self) -> f32 {
+        self.splats
+            .iter()
+            .filter(|s| s.alpha < 0.0 && !s.is_anchor && !Self::is_prefill_bridge(s))
+            .map(|s| s.alpha.abs())
+            .sum()
+    }
+
+    /// Anti-snowball: drop weakest pain until count/mass budgets hold.
+    /// Pleasure and prefill-bridges untouched. Returns how many pain scars removed.
+    pub fn enforce_pain_budget(&mut self, max_count: usize, max_mass: f32) -> usize {
+        if max_count == 0 && max_mass <= 0.0 {
+            return 0;
+        }
+        let mut removed = 0usize;
+        loop {
+            let n = self.pain_count();
+            let mass = self.pain_mass();
+            let over_count = max_count > 0 && n > max_count;
+            let over_mass = max_mass > 0.0 && mass > max_mass;
+            if !over_count && !over_mass {
+                break;
+            }
+            // Drop weakest |α| pain (oldest among equals preferred via created_at)
+            let mut best_i: Option<usize> = None;
+            let mut best_key = (f32::INFINITY, u64::MAX);
+            for (i, s) in self.splats.iter().enumerate() {
+                if s.alpha >= 0.0 || s.is_anchor || Self::is_prefill_bridge(s) {
+                    continue;
+                }
+                let key = (s.alpha.abs(), s.created_at);
+                if key < best_key {
+                    best_key = key;
+                    best_i = Some(i);
+                }
+            }
+            match best_i {
+                Some(i) => {
+                    self.splats.remove(i);
+                    removed += 1;
+                }
+                None => break,
+            }
+            if removed > 10_000 {
+                break; // safety
+            }
+        }
+        if removed > 0 {
+            println!(
+                "    [PAIN BUDGET] dropped {removed} weak pain scars (count={} mass={:.2})",
+                self.pain_count(),
+                self.pain_mass()
+            );
+        }
+        removed
+    }
+
     /// Per-token multiplicative decay of scar strength (generation loop).
     ///
     /// Use this for mid-run F_s control. Wall-clock `decay_step` is for end-of-run /
@@ -1189,6 +1255,30 @@ mod tests {
                 splat.alpha
             );
         }
+    }
+
+    #[test]
+    fn pain_budget_drops_weakest_pain_keeps_pleasure() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        for i in 0..6 {
+            let mu = Tensor::new(&[i as f32, 0.0, 0.0, 0.0], &device).unwrap();
+            memory.add_splat(Splat::new(mu, 1.0, -0.2 * (i as f32 + 1.0))); // pain -0.2..-1.2
+        }
+        let mu = Tensor::new(&[9.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        memory.add_splat(Splat::new(mu, 1.0, 0.9)); // pleasure
+        let dropped = memory.enforce_pain_budget(3, 0.0);
+        assert!(dropped >= 3);
+        assert_eq!(memory.pain_count(), 3);
+        assert!(memory.splats_ref().iter().any(|s| s.alpha > 0.0));
+        // strongest pain kept
+        let max_pain = memory
+            .splats_ref()
+            .iter()
+            .filter(|s| s.alpha < 0.0)
+            .map(|s| s.alpha.abs())
+            .fold(0.0f32, f32::max);
+        assert!(max_pain >= 1.0);
     }
 
     #[test]
