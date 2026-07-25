@@ -14,7 +14,7 @@ Repository-level provenance: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
 
 **Short form:** Jason Van Pham, with co-engineering by Grok (xAI), Claude (Anthropic), Gemini (Google), and ChatGPT / Codex (OpenAI).
 
-Session logs: signed entries below; negative results retained for reproducibility.
+Session logs: signed entries below.
 
 ## Sign-off format (append to each entry)
 
@@ -25,7 +25,6 @@ Session logs: signed entries below; negative results retained for reproducibilit
 - **Role:** <implementation | telemetry | audit | ablation>
 - **Project:** hydrodynamic-swarm
 - **Date written:** YYYY-MM-DD
-- **Note:** Negative and inconclusive results retained for reproducibility.
 ---
 ```
 
