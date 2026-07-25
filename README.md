@@ -1,39 +1,33 @@
 # Hydrodynamic Swarm
 
-**Built with Llama** — runs [Meta Llama 3.1](https://llama.meta.com/llama-downloads) and [Google Gemma 3](https://ai.google.dev/gemma) model weights. See [License](#license) and [`NOTICE`](NOTICE).
+<p align="center">
+  <img src="docs/assets/niodoo-terminal.svg" alt="Niodoo terminal mock: niodoo@hydro — SplatLens museum" width="720" />
+</p>
 
-**Authors:** Jason Van Pham (Ruffian-L) — lead. Co-engineering by Grok (xAI), Claude / Claude Code (Anthropic), ChatGPT / Codex (OpenAI), and Gemini (Google). Not a lone-author project. See [`AUTHORSHIP.md`](AUTHORSHIP.md) · research log index: [`research_logs/AUTHORSHIP.md`](research_logs/AUTHORSHIP.md).
+**Niodoo physics layer** — online, per-token vector-field steering of a frozen LLM residual stream, with splat memory that reloads across runs.
 
-**A working Rust harness for on-line, per-token vector-field steering of an 8B language model's residual stream, with a persistent on-disk memory of past hidden states that reloads across runs.**
+**Built by Jason Van Pham in collaboration with Grok, Claude, ChatGPT, Gemini, and Codex.**  
+See [`AUTHORSHIP.md`](AUTHORSHIP.md).
 
-## Start here (fork-friendly)
+**Built with Llama** — [Meta Llama 3.1](https://llama.meta.com/llama-downloads) / [Google Gemma 3](https://ai.google.dev/gemma). Weights terms: [`NOTICE`](NOTICE).
 
-**Does this work on anyone’s system?** Partially — by design, in three tiers. Full details: [`SETUP.md`](SETUP.md).
+## Start here
 
 | Tier | Command | Needs |
 |------|---------|--------|
-| **0 · Watch** | `./splat-lens museum` | `python3` + browser only |
-| **1 · Tests** | `cargo test --no-default-features --features with-candle` | Rust, no GPU |
+| **0 · Watch** | `./splat-lens museum` | `python3` + browser |
+| **1 · Tests** | `cargo test --no-default-features --features with-candle` | Rust |
 | **2 · Generate** | `./run_swarm.sh` | NVIDIA CUDA + GGUF under `data/google/` |
 
-You do **not** need CUDA or a model to see what this project is doing.
-
 ```bash
-./splat-lens
-# pick 1 → museum opens in your browser
-```
-
-- **View-only museum** plays checked-in `.viz.json` recordings + plain-language “what worked / didn’t / ongoing” notes (`tools/museum/`).
-- **Generate** (optional, menu item 4) needs NVIDIA CUDA + a GGUF model; if you don’t have them, the museum still works.
-- Milestone demos are meant to be **committed as public checkpoints** when something lands — see `tools/museum/catalog.json`.
-- **Continuity lane** (memory that survives process death): [`docs/CONTINUITY.md`](docs/CONTINUITY.md) · museum card *Reload + soft bridge*.
-- First-time generate setup: `cp config.example.toml config.toml`, then `./splat-lens check`.
-
-```bash
-./splat-lens museum     # skip the menu
+./splat-lens museum     # open the museum (no GPU)
 ./splat-lens check      # CUDA / model status
-./splat-lens generate   # record a new short demo, then open museum
+./splat-lens generate   # record a short demo, then open museum
 ```
+
+- **Museum** = real `.viz.json` run recordings + “what worked / didn’t” cards (`tools/museum/`). Terminal chrome is presentation; the telemetry is real.
+- **Continuity** (memory past process death): [`docs/CONTINUITY.md`](docs/CONTINUITY.md)
+- Full setup: [`SETUP.md`](SETUP.md) · `cp config.example.toml config.toml`
 
 The system intervenes in the Llama 3.1 forward pass at the pre-`lm_head` hidden state, computes a steering update from three sources — a continuous field over the model's own embedding matrix, a memory of Gaussian "splats" deposited on prior trajectories, and a goal attractor from the prompt — and writes the result back into the residual before sampling. The splat memory is persisted as `safetensors` so the generator carries spatial memory of its own history across sessions. No fine-tuning, no LoRA, no architectural change to the base model.
 

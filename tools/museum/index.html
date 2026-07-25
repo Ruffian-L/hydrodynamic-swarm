@@ -6,11 +6,11 @@
   <title>SplatLens Museum</title>
   <style>
     :root {
-      --bg: #0F111A;
-      --panel: rgba(15, 17, 26, 0.92);
-      --border: rgba(80, 100, 140, 0.22);
-      --text: #A0B4D0;
-      --muted: #5A6A82;
+      --bg: #0a0c10;
+      --panel: rgba(12, 14, 20, 0.94);
+      --border: rgba(64, 224, 208, 0.18);
+      --text: #B8C8DC;
+      --muted: #6A7A92;
       --dim: #2A3448;
       --accent: #40E0D0;
       --accent-soft: rgba(64, 224, 208, 0.14);
@@ -21,10 +21,15 @@
       --ok: #2DD4A8;
       --warn: #D4A44C;
       --bad: #C07070;
+      --lavender: #d1b3ff;
+      --term: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0 }
     body {
-      background: var(--bg); color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(64,224,208,0.07), transparent 55%),
+        var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, sans-serif;
       min-height: 100vh;
     }
@@ -62,14 +67,53 @@
 
     /* ── landing ── */
     #landing {
-      max-width: 880px; margin: 0 auto; padding: 36px 20px 80px;
+      max-width: 920px; margin: 0 auto; padding: 28px 20px 80px;
     }
+    /* Niodoo terminal chrome */
+    .term-window {
+      border: 1px solid rgba(64,224,208,0.28);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #12151e 0%, #0c0e14 100%);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .term-titlebar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: rgba(20, 24, 34, 0.95);
+      border-bottom: 1px solid rgba(64,224,208,0.12);
+      font-family: var(--term);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .term-dots { display: flex; gap: 6px; margin-right: 8px }
+    .term-dots span {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #3a4254;
+    }
+    .term-dots span:nth-child(1) { background: #ff5f57 }
+    .term-dots span:nth-child(2) { background: #febc2e }
+    .term-dots span:nth-child(3) { background: #28c840 }
+    .term-titlebar .prompt { color: var(--accent); margin-left: 4px }
+    .term-titlebar .path { color: var(--lavender) }
+    .term-body { padding: 18px 18px 8px; font-family: var(--term) }
+    .term-line { font-size: 12px; color: var(--muted); margin-bottom: 6px; line-height: 1.45 }
+    .term-line .cmd { color: #9EEDE4 }
+    .term-line .ok { color: var(--ok) }
     #landing h1 {
-      font-size: 22px; letter-spacing: 2px; color: var(--text); margin-bottom: 8px;
+      font-size: 20px; letter-spacing: 1.5px; color: #E2EAF4; margin: 4px 0 10px;
+      font-family: var(--term); font-weight: 600;
     }
-    #landing .sub { color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 56ch; margin-bottom: 10px }
-    #landing .one { color: var(--gold); font-size: 13px; line-height: 1.5; max-width: 60ch; margin: 14px 0 22px;
-      padding: 12px 14px; border-left: 3px solid var(--gold); background: rgba(212,164,76,.06) }
+    #landing .credit {
+      font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.45;
+      font-family: var(--term);
+    }
+    #landing .credit strong { color: #C8D4E8; font-weight: 600 }
+    #landing .sub { color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 58ch; margin-bottom: 10px }
+    #landing .one { color: var(--gold); font-size: 13px; line-height: 1.5; max-width: 62ch; margin: 14px 0 22px;
+      padding: 12px 14px; border-left: 3px solid var(--gold); background: rgba(212,164,76,.06);
+      border-radius: 0 8px 8px 0 }
     .legend-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; font-size: 12px; color: var(--muted) }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle }
     .status-line { font-size: 12px; color: var(--muted); margin-bottom: 18px; min-height: 1.2em }
@@ -151,7 +195,20 @@
       width: min(400px, 42vw); max-height: 30vh; overflow: auto;
       background: var(--panel); border: 1px solid var(--border);
       border-radius: 12px; padding: 12px 14px;
-      font-size: 13px; line-height: 1.5; color: #C8D4E8;
+      font-size: 12.5px; line-height: 1.55; color: #C8D4E8;
+      font-family: var(--term);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+    }
+    #gen::before {
+      content: "niodoo · stream";
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(64,224,208,0.12);
     }
     @media (max-width: 720px) {
       #gen { width: calc(100vw - 24px); top: auto; bottom: 72px; max-height: 22vh }
@@ -196,7 +253,22 @@
 <body>
   <!-- LANDING -->
   <div id="landing" class="screen active" role="main">
+    <div class="term-window" aria-hidden="true">
+      <div class="term-titlebar">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="prompt">niodoo@hydro</span>
+        <span>·</span>
+        <span class="path">~/museum</span>
+        <span style="margin-left:auto;opacity:.7">SplatLens</span>
+      </div>
+      <div class="term-body">
+        <p class="term-line">$ <span class="cmd">./splat-lens museum</span></p>
+        <p class="term-line"><span class="ok">✓</span> recordings online · no GPU required to watch</p>
+        <p class="term-line">$ <span class="cmd">open continuity card</span>  →  reload + soft bridge</p>
+      </div>
+    </div>
     <h1>SPLATLENS MUSEUM</h1>
+    <p class="credit"><strong>Built by Jason Van Pham</strong> in collaboration with Grok, Claude, ChatGPT, Gemini, and Codex · Niodoo / Hydrodynamic Swarm</p>
     <p class="sub" id="subtitle">Watch a physics-steered model walk through its own memory. No GPU needed to look.</p>
     <p class="one" id="one_liner">Trail = tokens so far. Gold = prompt goal. Teal scars = pleasure memory. Rust = pain. Bright dots = big steering pushes.</p>
     <div class="legend-row">
