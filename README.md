@@ -1,15 +1,31 @@
 # Hydrodynamic Swarm
 
+**Local residual-stream physics** for frozen LLMs — per-token vector-field steering + Gaussian **splat memory** that reloads across process restarts.
+
+**Lead:** Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L))  
+**Built with:** Grok · Claude · ChatGPT / Codex · Gemini — [`AUTHORSHIP.md`](AUTHORSHIP.md)  
+**Built with Llama / Gemma** — weights terms: [`NOTICE`](NOTICE)
+
+> **Not** a product chat app · **not** weight fine-tuning · **not** a consciousness claim.  
+> Active research harness (v0.2). Sibling with a tighter correction claim:  
+> [niodoo-hidden-state-steering](https://github.com/Ruffian-L/niodoo-hidden-state-steering).
+
 <p align="center">
   <img src="docs/assets/niodoo-terminal.svg" alt="Niodoo terminal mock: niodoo@hydro — SplatLens museum" width="720" />
 </p>
 
-**Niodoo physics layer** — online, per-token vector-field steering of a frozen LLM residual stream, with splat memory that reloads across runs.
+## Best face of this repo
 
-**Built by Jason Van Pham in collaboration with Grok, Claude, ChatGPT, Gemini, and Codex.**  
-See [`AUTHORSHIP.md`](AUTHORSHIP.md).
+| Strength | Where |
+|----------|--------|
+| **Runnable loop** | Candle + GGUF residual intervention, TOML knobs, per-token JSONL |
+| **Memory past death** | Splat / safetensors continuity — [`docs/CONTINUITY.md`](docs/CONTINUITY.md) |
+| **Museum without GPU** | `./splat-lens museum` — real run recordings, not fake demos |
+| **Tests** | `cargo test --no-default-features --features with-candle` |
+| **Honest research logs** | `research_logs/` + ablation scripts (incl. negative / mixed) |
+| **Epistemic style** | Config-driven, telemetry-first; losses and slow runs stay in the record |
 
-**Built with Llama** — [Meta Llama 3.1](https://llama.meta.com/llama-downloads) / [Google Gemma 3](https://ai.google.dev/gemma). Weights terms: [`NOTICE`](NOTICE).
+**Splat language:** deposits are **signed memory / reflex marks** in residual space (high- vs low-surprise), not “the model feels pain.” See project notes; older code may still say pleasure/pain as ± labels.
 
 ## Start here
 
@@ -46,7 +62,7 @@ For every generated token, the loop in [`src/main.rs`](src/main.rs) and [`src/ni
    - **Goal attractor** $a_t = e_{\text{prompt}} - h_t$, with the prompt's mean embedding as a fixed point.
 3. Sum these with a momentum term and small Langevin noise; apply a per-step manifold pullback that subtracts the component of the steering update that has accumulated off the empirical Llama representation manifold. See [`niodoo::steer`](src/niodoo.rs).
 4. Project the corrected hidden state $h_t' = h_t + \Delta t \cdot F_t$ through `lm_head`, apply a repetition penalty, and sample.
-5. Optionally deposit new splats — a "pleasure" splat for low-surprise tokens, a "pain" splat for high-surprise tokens — with a minimum-distance guard so splats can't stack at one location.
+5. Optionally deposit new splats — **low-surprise** (attract / +) or **high-surprise** (repel / −) Gaussian marks — with a minimum-distance guard so splats can't stack at one location. (Code may still use legacy pleasure/pain field names for ±.)
 
 Between sessions, splats are written to `safetensors` and reloaded on the next run, so the generator carries spatial memory of its own past output forward in time. This persistence is the actual experimental novelty — everything else in the loop is a re-implementation of well-known ideas (see *Related work*).
 
