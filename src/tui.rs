@@ -258,15 +258,23 @@ pub fn run_chat(
         transcript.push('\n');
 
         // Keep the prompt bounded so long chats do not overflow the RoPE/cache window.
-        let max_transcript_chars = 12_000;
-        if transcript.len() > max_transcript_chars {
-            let keep_from = transcript.len() - max_transcript_chars;
-            if let Some(boundary) = transcript[keep_from..].find("\nUser:") {
+        // Byte-trim must land on UTF-8 char boundaries (multi-byte tokens panic otherwise).
+        let max_transcript_bytes = 12_000;
+        if transcript.len() > max_transcript_bytes {
+            let mut keep_from = transcript.len() - max_transcript_bytes;
+            while keep_from > 0 && !transcript.is_char_boundary(keep_from) {
+                keep_from -= 1;
+            }
+            if let Some(rel) = transcript[keep_from..].find("\nUser:") {
+                let cut = keep_from + rel;
+                // cut is start of "\nUser:" — always char-aligned
                 transcript = format!(
                     "You are Hydrodynamic Swarm, a physics-steered Llama 3.1 system. \
                      Answer conversationally and keep continuity with the user.\n{}",
-                    &transcript[keep_from + boundary..]
+                    &transcript[cut..]
                 );
+            } else {
+                transcript = transcript[keep_from..].to_string();
             }
         }
 

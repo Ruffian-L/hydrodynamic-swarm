@@ -1,12 +1,12 @@
-# Stable Gemma 4 chat config — breaks greedy loop with noise + rep_penalty.
-# Usage:
+# Stable Gemma 4 chat — generation stabilizers (not residual physics).
+# Default for ./scripts/chat_gemma4.sh
+#
+#   ./scripts/chat_gemma4.sh
 #   ./target/release/hydrodynamic-swarm --config configs/gemma4/config.gemma4_stable.toml \
-#     --model /home/ruffianl/Downloads/unsloth_gemma-4-31B-it-Q4_K_M.gguf \
-#     --tokenizer /home/ruffianl/Downloads/tokenizer.json \
-#     --chat --tokens 200
+#     --model … --tokenizer … --chat --tokens 80
 
 [physics]
-force_cap = 0.01
+force_cap = 0.0
 steer_hidden = true
 splat_force_scale = 0.0
 goal_force_scale = 0.0
@@ -16,8 +16,11 @@ force_ramp_tokens = 0
 prefill_bridge_scar = false
 
 [generation]
-max_tokens = 200
+max_tokens = 80
 temperature = 0.7
 top_k = 64
 top_p = 0.9
 rep_penalty = 1.3
+consecutive_repeat_break = 10
+no_repeat_ngram = 3
+drop_collapsed_history = true

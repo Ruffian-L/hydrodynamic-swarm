@@ -210,8 +210,157 @@ fn format_multiturn_prompt(turns: &[(bool, String)], variant: &str) -> String {
     }
 }
 
+/// Sample next token id from logits (after any penalties). Supports greedy, top-k, top-p.
+fn sample_from_logits(
+    logits: &[f32],
+    temperature: f64,
+    top_k: usize,
+    top_p: f32,
+) -> u32 {
+    if logits.is_empty() {
+        return 0;
+    }
+    if temperature < 1e-5 {
+        return logits
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i as u32)
+            .unwrap_or(0);
+    }
+
+    // Rank by logit (pre-softmax) for nucleus / top-k
+    let mut idxs: Vec<usize> = (0..logits.len()).collect();
+    idxs.sort_by(|&a, &b| {
+        logits[b]
+            .partial_cmp(&logits[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    if top_k > 0 && top_k < idxs.len() {
+        idxs.truncate(top_k);
+    }
+
+    let t = temperature.max(1e-5) as f32;
+    let mut scored: Vec<(usize, f32)> = idxs
+        .iter()
+        .map(|&i| (i, (logits[i] / t).exp()))
+        .collect();
+    let sum: f32 = scored.iter().map(|(_, w)| *w).sum::<f32>().max(1e-12);
+    for s in scored.iter_mut() {
+        s.1 /= sum;
+    }
+
+    // top-p on the remaining mass
+    if top_p > 0.0 && top_p < 1.0 {
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let mut cum = 0.0f32;
+        let mut cut = scored.len();
+        for (i, (_, p)) in scored.iter().enumerate() {
+            cum += *p;
+            if cum >= top_p {
+                cut = i + 1;
+                break;
+            }
+        }
+        scored.truncate(cut.max(1));
+        let renorm: f32 = scored.iter().map(|(_, p)| *p).sum::<f32>().max(1e-12);
+        for s in scored.iter_mut() {
+            s.1 /= renorm;
+        }
+    }
+
+    let mut rng = rand::rng();
+    let roll: f32 = rng.random();
+    let mut cumsum = 0.0f32;
+    for (i, p) in &scored {
+        cumsum += *p;
+        if roll < cumsum {
+            return *i as u32;
+        }
+    }
+    scored.last().map(|(i, _)| *i as u32).unwrap_or(0)
+}
+
+/// True if choosing `candidate` would complete an n-gram already present in `generated`.
+fn would_repeat_ngram(generated: &[u32], candidate: u32, n: usize) -> bool {
+    if n < 2 || generated.len() + 1 < n {
+        return false;
+    }
+    let mut seq = generated.to_vec();
+    seq.push(candidate);
+    let gram = &seq[seq.len() - n..];
+    let limit = seq.len() - n;
+    for i in 0..limit {
+        if &seq[i..i + n] == gram {
+            return true;
+        }
+    }
+    false
+}
+
+/// Floor a byte index to a UTF-8 char boundary (never panic on multi-byte tokens).
+fn floor_char_boundary(s: &str, mut i: usize) -> usize {
+    if i >= s.len() {
+        return s.len();
+    }
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
+}
+
+/// Safe byte-window slice; empty if range collapses after boundary adjust.
+fn safe_byte_slice(s: &str, start: usize, end: usize) -> &str {
+    let start = floor_char_boundary(s, start.min(s.len()));
+    let end = floor_char_boundary(s, end.min(s.len())).max(start);
+    &s[start..end]
+}
+
+/// Heuristic: reply looks like a degeneration basin (not consciousness — decode trash).
+fn reply_looks_collapsed(text: &str) -> bool {
+    let t = text.trim();
+    if t.len() < 40 {
+        return false;
+    }
+    let chars: Vec<char> = t.chars().collect();
+    let n = chars.len().max(1);
+    // high ratio of non-ascii letters/symbols after a collapse
+    let non_ascii = chars.iter().filter(|c| !c.is_ascii()).count();
+    if non_ascii as f32 / n as f32 > 0.25 {
+        return true;
+    }
+    // long run of same char
+    let mut run = 1usize;
+    let mut max_run = 1usize;
+    for w in chars.windows(2) {
+        if w[0] == w[1] {
+            run += 1;
+            max_run = max_run.max(run);
+        } else {
+            run = 1;
+        }
+    }
+    if max_run >= 16 {
+        return true;
+    }
+    // repeated short phrase (e.g. THECOT / STOPIT) — char-safe windows only
+    let lower = t.to_lowercase();
+    for size in [4usize, 6, 8] {
+        if lower.len() < size * 4 {
+            continue;
+        }
+        let end = floor_char_boundary(&lower, lower.len().saturating_sub(size));
+        let start = floor_char_boundary(&lower, lower.len().saturating_sub(size * 3));
+        let needle = safe_byte_slice(&lower, start, end);
+        if needle.chars().count() >= size && lower.matches(needle).count() >= 4 {
+            return true;
+        }
+    }
+    false
+}
+
 /// Interactive multi-turn chat (stdin). Load once, talk many times.
-/// Quit: empty line, `quit`, `exit`, or Ctrl-D.
+/// Quit: empty line, `quit`, `exit`, or Ctrl-D. `reset` clears history.
 /// Transcripts land in `private/chats/` (gitignored) — generation diagnostics,
 /// not public logs.
 fn run_simple_chat(
@@ -231,6 +380,11 @@ fn run_simple_chat(
     };
     let temperature = cfg.generation.temperature;
     let rep_penalty = cfg.generation.rep_penalty;
+    let top_k = cfg.generation.top_k;
+    let top_p = cfg.generation.top_p;
+    let consec_break = cfg.generation.consecutive_repeat_break;
+    let ngram_n = cfg.generation.no_repeat_ngram;
+    let drop_collapsed = cfg.generation.drop_collapsed_history;
 
     // Private transcript (never for public git)
     let chat_dir = std::path::Path::new("private/chats");
@@ -245,15 +399,26 @@ fn run_simple_chat(
     if let Some(ref mut f) = transcript {
         let _ = writeln!(
             f,
-            "# private chat — do not publish\n# variant={variant} force_cap={} T={} max_tokens={max_tokens}\n",
-            cfg.physics.force_cap, temperature
+            "# private chat — do not publish\n# variant={variant} force_cap={} T={} max_tokens={max_tokens} rep={} top_k={} top_p={} consec_break={} ngram={}\n",
+            cfg.physics.force_cap, temperature, rep_penalty, top_k, top_p, consec_break, ngram_n
         );
     }
 
     println!("\n=== Chat mode ({variant}) ===");
-    println!("Type messages. Empty line / quit / exit to stop.");
-    println!("Physics: force_cap={} T={} max_tokens={max_tokens}", cfg.physics.force_cap, temperature);
-    println!("(History kept in-process; model re-prefills each turn.)");
+    println!("Type messages. Empty line / quit / exit to stop. `reset` clears history.");
+    println!(
+        "Physics: force_cap={} T={} max_tokens={} | gen: rep={} top_k={} top_p={} loop_break={} ngram={} drop_collapsed={}",
+        cfg.physics.force_cap,
+        temperature,
+        max_tokens,
+        rep_penalty,
+        top_k,
+        top_p,
+        consec_break,
+        ngram_n,
+        drop_collapsed
+    );
+    println!("(History re-prefills each turn; collapsed replies are not kept when drop_collapsed=true.)");
     println!("Transcript (private/gitignored): {}\n", transcript_path.display());
 
     let mut history: Vec<(bool, String)> = Vec::new();
@@ -271,6 +436,14 @@ fn run_simple_chat(
         if line.is_empty() || line.eq_ignore_ascii_case("quit") || line.eq_ignore_ascii_case("exit")
         {
             break;
+        }
+        if line.eq_ignore_ascii_case("reset") || line.eq_ignore_ascii_case("clear") {
+            history.clear();
+            println!("(history cleared)");
+            if let Some(ref mut f) = transcript {
+                let _ = writeln!(f, "# history reset");
+            }
+            continue;
         }
 
         if let Some(ref mut f) = transcript {
@@ -293,13 +466,16 @@ fn run_simple_chat(
         let mut index_pos = prompt_ids.len();
         let mut generated: Vec<u32> = Vec::new();
         let mut pieces = String::new();
+        let mut consec_same = 0usize;
+        let mut last_tok: Option<u32> = None;
+        let mut stopped_early = false;
 
-        print!("gemma> ");
+        print!("{variant}> ");
         let _ = std::io::stdout().flush();
 
         for _step in 0..max_tokens {
             let mut logits_vec: Vec<f32> = logits.squeeze(0)?.to_vec1()?;
-            // light rep penalty
+            // rep penalty (same sign convention as one-shot path)
             for &tid in prompt_ids.iter().chain(generated.iter()) {
                 if (tid as usize) < logits_vec.len() {
                     let l = &mut logits_vec[tid as usize];
@@ -310,35 +486,34 @@ fn run_simple_chat(
                     }
                 }
             }
-            let next = if temperature < 1e-5 {
-                logits_vec
-                    .iter()
-                    .enumerate()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .map(|(i, _)| i as u32)
-                    .unwrap_or(0)
-            } else {
-                let t = Tensor::from_vec(logits_vec.clone(), logits_vec.len(), device)?;
-                let scaled = (&t / temperature)?;
-                let probs = candle_nn::ops::softmax(&scaled, 0)?;
-                let probs_vec: Vec<f32> = probs.to_vec1()?;
-                let mut rng = rand::rng();
-                let roll: f32 = rng.random();
-                let mut cumsum = 0.0f32;
-                let mut tok = 0u32;
-                for (i, p) in probs_vec.iter().enumerate() {
-                    cumsum += p;
-                    if roll < cumsum {
-                        tok = i as u32;
-                        break;
+            // no-repeat n-gram: heavily mask completing tokens
+            if ngram_n >= 2 {
+                for tid in 0..logits_vec.len() {
+                    if would_repeat_ngram(&generated, tid as u32, ngram_n) {
+                        logits_vec[tid] = f32::NEG_INFINITY;
                     }
                 }
-                tok
-            };
+            }
+
+            let next = sample_from_logits(&logits_vec, temperature, top_k, top_p);
 
             if eos_token_ids.contains(&next) {
                 break;
             }
+
+            // consecutive identical token → loop brake
+            if Some(next) == last_tok {
+                consec_same += 1;
+            } else {
+                consec_same = 1;
+                last_tok = Some(next);
+            }
+            if consec_break > 0 && consec_same >= consec_break {
+                stopped_early = true;
+                print!(" ⏎[loop-break]");
+                break;
+            }
+
             generated.push(next);
             let piece = tokenizer
                 .decode(&[next], false)
@@ -357,16 +532,32 @@ fn run_simple_chat(
         }
         println!();
         let reply = pieces.trim().to_string();
+        let collapsed = reply_looks_collapsed(&reply) || stopped_early;
         if let Some(ref mut f) = transcript {
-            let _ = writeln!(f, "gemma> {reply}\n");
+            if collapsed {
+                let _ = writeln!(
+                    f,
+                    "{variant}> {reply}\n# note: collapsed/loop — not added to history\n"
+                );
+            } else {
+                let _ = writeln!(f, "{variant}> {reply}\n");
+            }
             let _ = f.flush();
         }
         if !reply.is_empty() {
-            history.push((false, reply));
+            if drop_collapsed && collapsed {
+                println!("(dropped collapsed turn from history — type `reset` if context is dirty)");
+                // remove the user turn we just pushed so a retry is clean
+                if history.last().map(|(u, _)| *u) == Some(true) {
+                    history.pop();
+                }
+            } else {
+                history.push((false, reply));
+            }
         }
     }
     println!(
-        "Chat ended ({} turns). Saved private: {}",
+        "Chat ended ({} messages). Saved private: {}",
         history.len(),
         transcript_path.display()
     );
@@ -1016,6 +1207,11 @@ async fn main() -> Result<()> {
     }
 
     #[allow(clippy::explicit_counter_loop)]
+    let mut consec_same = 0usize;
+    let mut last_tok: Option<u32> = None;
+    let consec_break = cfg.generation.consecutive_repeat_break;
+    let ngram_n = cfg.generation.no_repeat_ngram;
+
     for step in 0..max_tokens {
         // Steer: hidden state (steer_hidden=true) or logit slice (fallback)
         let (steer_input, is_hidden_steer) = if cfg.physics.steer_hidden {
@@ -1212,45 +1408,50 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+            if ngram_n >= 2 {
+                for tid in 0..logits_vec.len() {
+                    if would_repeat_ngram(&generated_tokens, tid as u32, ngram_n) {
+                        logits_vec[tid] = f32::NEG_INFINITY;
+                    }
+                }
+            }
             Tensor::from_vec(logits_vec, steered_logits.dim(1)?, steered_logits.device())?
                 .unsqueeze(0)?
         };
 
-        // Temperature sampling. T≈0 → greedy argmax (do not divide by zero).
+        // Temperature + optional top-k / top-p. T≈0 → greedy.
         let temperature: f64 = cfg.generation.temperature;
-        let (next_token, probs_vec): (u32, Vec<f32>) = if temperature < 1e-5 {
-            let logits_vec: Vec<f32> = steered_logits.squeeze(0)?.to_vec1()?;
-            let mut best_i = 0usize;
-            let mut best_v = f32::NEG_INFINITY;
-            for (i, &v) in logits_vec.iter().enumerate() {
-                if v > best_v {
-                    best_v = v;
-                    best_i = i;
-                }
+        let logits_vec: Vec<f32> = steered_logits.squeeze(0)?.to_vec1()?;
+        let next_token = sample_from_logits(
+            &logits_vec,
+            temperature,
+            cfg.generation.top_k,
+            cfg.generation.top_p,
+        );
+        // Probs for quality scoring (approx: softmax over full vec at T, or one-hot if greedy)
+        let probs_vec: Vec<f32> = if temperature < 1e-5 {
+            let mut p = vec![0.0f32; logits_vec.len()];
+            if (next_token as usize) < p.len() {
+                p[next_token as usize] = 1.0;
             }
-            // One-hot-ish probs for quality scoring downstream
-            let mut probs_vec = vec![0.0f32; logits_vec.len()];
-            if !probs_vec.is_empty() {
-                probs_vec[best_i] = 1.0;
-            }
-            (best_i as u32, probs_vec)
+            p
         } else {
-            let scaled_logits = (&steered_logits / temperature)?;
-            let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
-            let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
-            let mut rng = rand::rng();
-            let roll: f32 = rng.random();
-            let mut cumsum = 0.0f32;
-            let mut next_token: u32 = 0;
-            for (i, p) in probs_vec.iter().enumerate() {
-                cumsum += p;
-                if roll < cumsum {
-                    next_token = i as u32;
-                    break;
-                }
-            }
-            (next_token, probs_vec)
+            let t = Tensor::from_vec(logits_vec.clone(), logits_vec.len(), steered_logits.device())?;
+            let scaled = (&t / temperature)?;
+            let probs = candle_nn::ops::softmax(&scaled, 0)?;
+            probs.to_vec1()?
         };
+
+        if Some(next_token) == last_tok {
+            consec_same += 1;
+        } else {
+            consec_same = 1;
+            last_tok = Some(next_token);
+        }
+        if consec_break > 0 && consec_same >= consec_break {
+            println!("\n    [loop-break] consecutive token x{consec_same} — stopping early");
+            break;
+        }
 
         // Steering delta (telemetry / multi-scale only — NOT the definition of "good")
         let delta = (&steered_logits - &raw_logits)?;

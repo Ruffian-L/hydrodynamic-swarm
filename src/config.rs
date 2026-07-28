@@ -106,6 +106,16 @@ pub struct GenerationConfig {
     pub default_prompt: String,
     pub eos_token_ids: Vec<u32>,
     pub rep_penalty: f32,
+    /// Top-k sampling; 0 = disabled (full vocab after temperature).
+    pub top_k: usize,
+    /// Nucleus sampling threshold in (0, 1]; 1.0 = disabled.
+    pub top_p: f32,
+    /// Stop generation after this many identical tokens in a row (chat + one-shot). 0 = off.
+    pub consecutive_repeat_break: usize,
+    /// Block tokens that would complete a repeated n-gram already in the reply. 0 = off.
+    pub no_repeat_ngram: usize,
+    /// If true, multi-turn chat does not append collapsed/looped assistant turns to history.
+    pub drop_collapsed_history: bool,
     pub min_success_tokens: usize,
     pub pleasure_alpha: f32,
     pub pain_alpha: f32,
@@ -212,6 +222,11 @@ impl Default for GenerationConfig {
             default_prompt: "Explain the Physics of Friendship in one paragraph.".to_string(),
             eos_token_ids: vec![128009, 128001],
             rep_penalty: 1.25,
+            top_k: 0,
+            top_p: 1.0,
+            consecutive_repeat_break: 12,
+            no_repeat_ngram: 0,
+            drop_collapsed_history: true,
             min_success_tokens: 15,
             pleasure_alpha: 1.2,
             pain_alpha: -0.6,
@@ -326,6 +341,12 @@ impl Config {
         // T≈0 is greedy argmax in main.rs (no divide-by-zero). Negative is invalid.
         if g.temperature < 0.0 {
             return Err("generation.temperature must be >= 0".into());
+        }
+        if g.rep_penalty < 1.0 {
+            return Err("generation.rep_penalty must be >= 1.0".into());
+        }
+        if g.top_p <= 0.0 || g.top_p > 1.0 {
+            return Err("generation.top_p must be in (0, 1]".into());
         }
 
         let m = &self.memory;
