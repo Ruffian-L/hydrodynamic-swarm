@@ -1,7 +1,4 @@
-# FORCE-OFF ablation profile for Memory Coupling Run D
-# Does NOT replace B4d-q. Use: cp config.force_off.toml config.toml  (then restore)
-# Or: keep as side file when harness supports --config (if not, copy carefully).
-# B4d-q local default
+# Mini-sweep: decay_rate variation
 [physics]
 dt = 0.035
 viscosity_scale = 0.25
@@ -15,19 +12,19 @@ steer_hidden = true
 manifold_pullback = 0.28
 splat_lambda_default = 0.03
 pain_decay_factor = 0.7
-splat_force_scale = 0.0
-splat_force_max = 0.0
-goal_force_scale = 0.0
-goal_force_max = 0.0
+splat_force_scale = 0.14
+splat_force_max = 16.0
+goal_force_scale = 0.10
+goal_force_max = 32.0
 goal_late_start = 48
 goal_late_span = 30
 goal_late_end = 0.35
 online_splat_interval = 8
 field_wake_mode = "dist_weighted"
 field_wake_k = 1
-field_wake_scale = 0.0
-field_wake_max = 0.0
-field_grad_blend = 0.0
+field_wake_scale = 0.187
+field_wake_max = 25.0
+field_grad_blend = 0.10
 field_wake_dist_tau = 80.0
 field_logit_alpha = 0.0
 force_ramp_tokens = 15
@@ -35,6 +32,11 @@ force_ramp_start = 0.15
 targeted_splat_only = true
 prefill_micro_dream = false
 pain_recovery_ocean = false
+prefill_bridge_scar = true
+prefill_bridge_sigma = 90.0
+prefill_bridge_alpha = 0.75
+prefill_bridge_lambda = 0.005
+prefill_bridge_offset_frac = 0.35
 [generation]
 max_tokens = 65
 temperature = 0.88
@@ -46,9 +48,10 @@ default_prompt = "Explain the Physics of Friendship in one short paragraph."
 [memory]
 max_splats = 48
 consolidation_dist = 18.0
-decay_rate = 0.96
+decay_rate = 0.99
 prune_threshold = 0.03
 online_decay_rate = 0.975
+max_prefill_bridges = 24
 [micro_dream]
 entropy_threshold = 3.0
 fixed_interval = 25

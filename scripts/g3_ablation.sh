@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# G3 Pain/Dissipation Ablations
+# Tests: decay_rate, consolidation_threshold, dream_replay_bonus
+# Run from repo root
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+MODEL="${MODEL:-data/google/gemma-3-4b-it-Q4_K_M.gguf}"
+TOKENIZER="${TOKENIZER:-data/google/tokenizer.json}"
+BIN="${BIN:-$ROOT/target/release/hydrodynamic-swarm}"
+PROMPT="${PROMPT:-Explain the Physics of Friendship in one short paragraph.}"
+TOKENS="${TOKENS:-65}"
+STAMP="$(date -u +%Y%m%d_%H%M%S)"
+OUT="logs/g3_ablation_${STAMP}"
+mkdir -p "$OUT"
+
+source "$ROOT/scripts/cuda_env.sh"
+
+if [[ ! -x "$BIN" ]]; then
+  echo "[*] Building release..."
+  cargo build --release --bin hydrodynamic-swarm
+fi
+[[ -f "$MODEL" ]] || { echo "ERROR: model missing: $MODEL" >&2; exit 1; }
+
+run_one() {
+  local id="$1"; shift
+  local config="$1"; shift
+  echo
+  echo "========== RUN $id (config=$config) =========="
+  echo "  args: $*"
+  # shellcheck disable=SC2
+  set +e
+  "$BIN" \
+    --model "$MODEL" \
+    --tokenizer "$TOKENIZER" \
+    --prompt "$PROMPT" \
+    --tokens "$TOKENS" \
+    --config "$config" \
+    "$@" 2>&1 | tee "$OUT/${id}.stdout"
+  local ec=${PIPESTATUS[0]}
+  set -e
+  # newest session log
+  local jl
+  jl="$(ls -t logs/*.jsonl 2>/dev/null | head -1 || true)"
+  if [[ -n "$jl" ]]; then
+    cp -f "$jl" "$OUT/${id}.jsonl"
+  fi
+  if [[ -f data/splat_memory.tct.json ]]; then
+    cp -f data/splat_memory.tct.json "$OUT/${id}.tct.json" 2>/dev/null || true
+  fi
+  echo "  exit=$ec → $OUT/${id}.*"
+  return 0
+}
+
+echo "Output dir: $OUT"
+echo "Prompt: $PROMPT ($TOKENS tok)"
+
+# Arm IDs are descriptive slugs (not GA/GB/…/GF — GF reads as "girlfriend" in plain English).
+# Format: g3_<knob> and g3_<knob>_reload for the persistence pass.
+
+# === Baseline (decay=0.99, consol=5, dream=1.25) ===
+echo ""
+echo "=== g3_baseline: mint + store ==="
+cp config.toml config.toml.bak
+run_one g3_baseline --clear-memory config.toml
+echo "  Saved splats: $(ls -la data/splat_memory.safetensors 2>/dev/null | awk '{print $5}') bytes"
+
+# === Low decay (0.999) — memory should last longer ===
+echo ""
+echo "=== g3_lowdecay (0.999) ==="
+cp configs/gates/config.g3_lowdecay.toml config.toml
+run_one g3_lowdecay --clear-memory configs/gates/config.g3_lowdecay.toml
+
+# === High consolidation (threshold=10) ===
+echo ""
+echo "=== g3_highconsol (threshold=10) ==="
+cp configs/gates/config.g3_highconsol.toml config.toml
+run_one g3_highconsol --clear-memory configs/gates/config.g3_highconsol.toml
+
+# === Low dream bonus (0.5) ===
+echo ""
+echo "=== g3_lowdream (0.5) ==="
+cp configs/gates/config.g3_lowdream.toml config.toml
+run_one g3_lowdream --clear-memory configs/gates/config.g3_lowdream.toml
+
+# === High dream bonus (2.0) ===
+echo ""
+echo "=== g3_highdream (2.0) ==="
+cat > configs/gates/config.g3_highdream.toml <<'EOF'
+[model]
+path = "data/google/gemma-3-4b-it-Q4_K_M.gguf"
+variant = "gemma3"
+
+[physics]
+sigma = 7.59
+field_wake_scale = 3.0
+goal_force_scale = 0.5
+splat_force_scale = 1.0
+field_logit_bias_alpha = 0.15
+
+[steering]
+force_scale = 0.5
+attractor_scale = 0.3
+force_ramp_tokens = 6
+
+[memory]
+splat_memory_path = "data/splat_memory.safetensors"
+tct_path = "data/splat_memory.tct"
+consolidation_threshold = 5
+dream_replay_bonus = 2.0
+decay_rate = 0.99
+
+[ocean]
+enabled = true
+dim = 2560
+deposit_every = 4
+force_scale = 0.12
+
+[generation]
+max_tokens = 150
+temperature = 0.9
+top_k = 1024
+
+[logging]
+log_dir = "logs/g3_ablation"
+taco_db = "logs/g3_ablation/taco_highdream.db"
+EOF
+run_one g3_highdream --clear-memory configs/gates/config.g3_highdream.toml
+
+# === Force-off + low decay (isolate geometry with long memory) ===
+echo ""
+echo "=== g3_forceoff_lowdecay ==="
+cat > configs/gates/config.g3_forceoff_lowdecay.toml <<'EOF'
+[model]
+path = "data/google/gemma-3-4b-it-Q4_K_M.gguf"
+variant = "gemma3"
+
+[physics]
+sigma = 7.59
+field_wake_scale = 0.0
+goal_force_scale = 0.0
+splat_force_scale = 0.0
+field_logit_bias_alpha = 0.15
+
+[steering]
+force_scale = 0.0
+attractor_scale = 0.0
+force_ramp_tokens = 6
+
+[memory]
+splat_memory_path = "data/splat_memory.safetensors"
+tct_path = "data/splat_memory.tct"
+consolidation_threshold = 5
+dream_replay_bonus = 1.25
+decay_rate = 0.999
+
+[ocean]
+enabled = true
+dim = 2560
+deposit_every = 4
+force_scale = 0.12
+
+[generation]
+max_tokens = 150
+temperature = 0.9
+top_k = 1024
+
+[logging]
+log_dir = "logs/g3_ablation"
+taco_db = "logs/g3_ablation/taco_forceoff_lowdecay.db"
+EOF
+run_one g3_forceoff_lowdecay --clear-memory configs/gates/config.g3_forceoff_lowdecay.toml
+
+# === Reload phase: test each config's memory persistence ===
+echo ""
+echo "=== RELOAD PHASE: Test memory persistence ==="
+
+# Descriptive arm id → config path (no letter codes)
+declare -A ARM_CONFIG=(
+  [g3_baseline]="config.toml"
+  [g3_lowdecay]="configs/gates/config.g3_lowdecay.toml"
+  [g3_highconsol]="configs/gates/config.g3_highconsol.toml"
+  [g3_lowdream]="configs/gates/config.g3_lowdream.toml"
+  [g3_highdream]="configs/gates/config.g3_highdream.toml"
+  [g3_forceoff_lowdecay]="configs/gates/config.g3_forceoff_lowdecay.toml"
+)
+
+for run_id in g3_baseline g3_lowdecay g3_highconsol g3_lowdream g3_highdream g3_forceoff_lowdecay; do
+  echo ""
+  echo "=== RELOAD $run_id ==="
+  config_file="${ARM_CONFIG[$run_id]:-config.toml}"
+  [[ -f "$config_file" ]] || config_file="config.toml"
+  run_one "${run_id}_reload" "$config_file"
+done
+
+# Restore baseline config
+cp config.toml.bak config.toml
+
+echo ""
+echo "=== ALL RUNS COMPLETE ==="
+echo "Output dir: $OUT"
+ls -la "$OUT/"

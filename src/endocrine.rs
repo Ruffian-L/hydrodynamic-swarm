@@ -220,7 +220,7 @@ impl TextEnzyme {
 }
 
 /// Project a native (D,) embedding vector into 4-D physics telemetry space.
-/// Fixed random projection (seed 42) — same spirit as SplatLens viz, not TinyEmbed hash-of-text.
+/// Fixed random projection (seed 42) — same approach as SplatLens viz, not TinyEmbed hash-of-text.
 pub fn project_native_to_4d(native: &[f32]) -> [f32; 4] {
     if native.is_empty() {
         return [0.0; 4];

@@ -38,6 +38,9 @@ logs/**
 logs/taco.db
 *.db
 
+# Local multi-turn diagnostic chats — NEVER commit (identity/bond/existence talks stay private)
+private/
+
 # Temporary files and directories
 *.tmp
 *.temp
@@ -100,3 +103,16 @@ AGENTS(jules).md
 *.bak
 *.old
 Untitled
+
+# local noise / machine state
+.qdrant-initialized
+smoke_stderr.log
+tuning_results.log
+taco.db
+[FACT *
+
+# experiment scratch configs sometimes recreated at root — prefer configs/
+/config.toml.bak*
+
+# script runtime noise
+scripts/logs/

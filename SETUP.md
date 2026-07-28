@@ -72,7 +72,7 @@ GGUF files are **gitignored** (~GB each). Place under `data/google/`:
 |------|------|
 | `data/google/gemma-3-4b-it-Q4_K_M.gguf` | **Recommended starter** (~2–3 GB) |
 | `data/google/tokenizer.json` | Matching tokenizer |
-| `data/google/gemma-3-27b-it-Q4_K_M.gguf` | Larger / slower (use `config.27b.toml`) |
+| `data/google/gemma-3-27b-it-Q4_K_M.gguf` | Larger / slower (use `configs/profiles/config.27b.toml`) |
 
 Checksums for committed hashes: `data/google/SHA256SUMS`.
 
@@ -93,7 +93,7 @@ Or run `./splat-lens check` and follow the model-help prompts.
 
 ```bash
 cp config.example.toml config.toml   # local only; config.toml is gitignored
-# optional profiles: config.27b.toml, config.force_off.toml, config.ramp_off.toml
+# optional profiles: configs/profiles/config.27b.toml, configs/profiles/config.force_off.toml, configs/profiles/config.ramp_off.toml
 ```
 
 ### Run

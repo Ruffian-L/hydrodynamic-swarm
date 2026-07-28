@@ -1,0 +1,23 @@
+# Stable Gemma 4 chat config — breaks greedy loop with noise + rep_penalty.
+# Usage:
+#   ./target/release/hydrodynamic-swarm --config configs/gemma4/config.gemma4_stable.toml \
+#     --model /home/ruffianl/Downloads/unsloth_gemma-4-31B-it-Q4_K_M.gguf \
+#     --tokenizer /home/ruffianl/Downloads/tokenizer.json \
+#     --chat --tokens 200
+
+[physics]
+force_cap = 0.01
+steer_hidden = true
+splat_force_scale = 0.0
+goal_force_scale = 0.0
+field_wake_scale = 0.0
+field_logit_alpha = 0.0
+force_ramp_tokens = 0
+prefill_bridge_scar = false
+
+[generation]
+max_tokens = 200
+temperature = 0.7
+top_k = 64
+top_p = 0.9
+rep_penalty = 1.3

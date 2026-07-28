@@ -126,23 +126,26 @@ src/gemma.rs, src/concourse/embed/quantized_gemma.rs
   Underlying Candle / candle-transformers components: Apache-2.0 OR MIT.
 
 
-llama.cpp (reference / influence — not a bulk code import)
-----------------------------------------------------------
-GGUF loading and model metadata handling in this project were developed with
-reference to llama.cpp’s open-source implementation (GGUF ecosystem, header and
-metadata conventions). We maintain a custom Rust path (Candle + our loaders);
-we do not claim to redistribute llama.cpp as our own, and we do not treat this
-as a wholesale copy of large llama.cpp sources into this tree.
+llama.cpp — credit carefully (do not over-credit)
+-------------------------------------------------
+**Our Llama and Gemma 3 loaders were earned here** — Jason with AI co-engineers
+(Grok, Claude, Gemini, and others on the lineage), trial-and-error on real
+runs, not a copy of llama.cpp and not “they did it for us.” That work stays
+attributed to this collaboration. We did not steal or paste their C++ into
+hydro.
 
-  https://github.com/ggerganov/llama.cpp
-  License: MIT (llama.cpp project)
+The GGUF *format* and ecosystem exist because of open work including llama.cpp;
+a light format nod is fair. That is **not** the same as saying our Llama/Gemma3
+forward passes were taken from them.
 
-Safe short attribution line for docs:
+**Gemma 4 (2026-07-28 onward) — hard path:** Derive 3→4 from **our** `gemma.rs`,
+real GGUF metadata/tensors, local HF assets (`data/google/gemma4_assets/`), and
+garbage→English smokes. Jason removed the foreign C++ tree so we stop peeking
+maps. Early session notes that mentioned a map are historical; the port is
+Rust/Candle in **this** tree. GGUF *format* ecosystem credit still includes
+llama.cpp as format history only — not as the author of our G4 forward.
 
-  “GGUF loading and model metadata handling were developed with reference to
-   llama.cpp’s open-source implementation.”
-
-See also docs/FUTURE_DIRECTION.md.
+See CREDITS.md and research_logs/2026-07-28_gemma4-loader-attribution-and-map.md.
 
 
 Compliance checklist (this repo, 2026-07-11)

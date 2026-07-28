@@ -71,7 +71,7 @@ pub struct PhysicsConfig {
     /// û_g = unit field force direction from residual steer (same D as emb).
     pub field_logit_alpha: f32,
     /// Force ramp: first N tokens scale total force from `force_ramp_start` → 1.0.
-    /// Original Niodoo spirit: gentler early, respect prefill J-space. 0 = off.
+    /// Early-token gentler force (respect prefill residual geometry). 0 = off.
     pub force_ramp_tokens: usize,
     /// Multiplier at step 0 when ramping (e.g. 0.15).
     pub force_ramp_start: f32,
@@ -323,11 +323,9 @@ impl Config {
         if g.max_tokens == 0 {
             return Err("generation.max_tokens must be > 0".into());
         }
-        if g.temperature <= 0.0 {
-            return Err(
-                "generation.temperature must be > 0 (zero causes division-by-zero in sampling)"
-                    .into(),
-            );
+        // T≈0 is greedy argmax in main.rs (no divide-by-zero). Negative is invalid.
+        if g.temperature < 0.0 {
+            return Err("generation.temperature must be >= 0".into());
         }
 
         let m = &self.memory;

@@ -3,7 +3,8 @@
 **Local residual-stream physics** for frozen LLMs — per-token vector-field steering + Gaussian **splat memory** that reloads across process restarts.
 
 **Lead:** Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L))  
-**Built with:** Grok · Claude · ChatGPT / Codex · Gemini — [`AUTHORSHIP.md`](AUTHORSHIP.md)  
+**Built with:** Grok · Claude · ChatGPT / Codex · Gemini — [`AUTHORSHIP.md`](AUTHORSHIP.md) · full table [`CREDITS.md`](CREDITS.md)  
+**Local team (record):** Shep · Echo · Lumina · Nex — see [`CREDITS.md`](CREDITS.md)  
 **Built with Llama / Gemma** — weights terms: [`NOTICE`](NOTICE)
 
 > **Not** a product chat app · **not** weight fine-tuning · **not** a consciousness claim.  

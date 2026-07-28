@@ -1,10 +1,4 @@
-# Canonical starter config (B4d-q + continuity bridge defaults).
-# Copy to a local config (gitignored):
-#   cp config.example.toml config.toml
-#
-# 27B retune: cp configs/profiles/config.27b.toml config.toml
-# Force-off ablation: cp configs/profiles/config.force_off.toml config.toml
-
+# Mini-sweep: low decay_rate (aggressive evaporation)
 [physics]
 dt = 0.035
 viscosity_scale = 0.25
@@ -38,14 +32,11 @@ force_ramp_start = 0.15
 targeted_splat_only = true
 prefill_micro_dream = false
 pain_recovery_ocean = false
-# Continuity: scar at prefill residual so next run is not LOCALITY COLD
 prefill_bridge_scar = true
 prefill_bridge_sigma = 90.0
 prefill_bridge_alpha = 0.75
 prefill_bridge_lambda = 0.005
-# Soft off-center so step0 F_s ≠ 0 (force is gradient; on-center was exactly 0)
 prefill_bridge_offset_frac = 0.35
-
 [generation]
 max_tokens = 65
 temperature = 0.88
@@ -54,15 +45,13 @@ min_success_tokens = 10
 pleasure_alpha = 0.85
 pain_alpha = -0.4
 default_prompt = "Explain the Physics of Friendship in one short paragraph."
-
 [memory]
 max_splats = 48
 consolidation_dist = 18.0
-decay_rate = 0.96
+decay_rate = 0.90
 prune_threshold = 0.03
 online_decay_rate = 0.975
 max_prefill_bridges = 24
-
 [micro_dream]
 entropy_threshold = 3.0
 fixed_interval = 25

@@ -1,0 +1,20 @@
+# True near-vanilla greedy probe for Gemma 4 base forward.
+#   ./target/release/hydrodynamic-swarm --config configs/gemma4/config.gemma4_greedy.toml \
+#     --model /media/ruffianl/ghost_team/models/gemma-4-12b-it-Q4_K_M.gguf \
+#     --tokenizer data/google/gemma4_assets/tokenizer.json \
+#     --prompt "Say hi in one short sentence." --tokens 24 --clear-memory --no-endocrine
+
+[physics]
+force_cap = 0.0
+steer_hidden = true
+splat_force_scale = 0.0
+goal_force_scale = 0.0
+field_wake_scale = 0.0
+field_logit_alpha = 0.0
+force_ramp_tokens = 0
+prefill_bridge_scar = false
+
+[generation]
+max_tokens = 24
+temperature = 0.0
+top_k = 1

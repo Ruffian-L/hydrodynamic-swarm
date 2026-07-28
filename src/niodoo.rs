@@ -184,7 +184,7 @@ impl NiodooEngine {
         monolith: &crate::endocrine::Monolith,
         native_target: Option<Tensor>,
     ) {
-        // Cap impulse so one bloom cannot sledgehammer residual (same spirit as F_s/F_a caps).
+        // Cap impulse so one bloom cannot sledgehammer residual (same policy as F_s/F_a caps).
         self.eureka_impulse = (monolith.mass * 0.001).clamp(0.5, 8.0);
         self.viscosity = (self.viscosity * 0.3).max(0.05);
         self.noise_sigma = 0.05;

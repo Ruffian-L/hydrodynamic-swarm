@@ -85,7 +85,7 @@ impl InstructGemmaModel {
             .map_err(|e| SwarmError::Embedding(format!("GGUF read: {e}")))?;
         let device = Device::Cpu;
         let model =
-            ModelWeights::from_gguf(ct, &mut reader, &device).map_err(|e| SwarmError::Candle(e))?;
+            ModelWeights::from_gguf(ct, &mut reader, &device).map_err(SwarmError::Candle)?;
         info!("InstructGemma loaded. Hidden dim: {}", model.hidden_dim);
 
         let tokenizer = Self::load_tokenizer()?;

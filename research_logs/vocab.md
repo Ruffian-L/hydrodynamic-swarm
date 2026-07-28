@@ -42,7 +42,7 @@
 |------|-------------------|-------------|
 | **Diderot Field (ρ)** | Gaussian mixture density built from all token embeddings | The "map" of the model's vocabulary in high-dimensional space. Field audit showed a thin shell with huge dead zones outside it. |
 | **σ (sigma)** | Width of each Gaussian in the Diderot Field | Currently ~11. Controls how far field influence reaches. Too small = dead outside the cloud. Too big = blurry attractors. |
-| **Field wake (k=1)** | Nearest-embedding wake mode | Instead of pure math gradient (which was dead), pull toward the single closest token embedding. This is what made F_g come alive. |
+| **Field wake (k=1)** | Nearest-embedding wake mode | Instead of pure math gradient (which was near-zero outside the embedding shell), pull toward the single closest token embedding. This is what made F_g non-zero and usable. |
 | **field_wake_max** | Hard cap on how strong the wake force can get | Currently 40. If too high it can yank the hidden state too violently → late-run instability. |
 
 ---

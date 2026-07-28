@@ -81,13 +81,13 @@ impl GemmaModel {
             config.model_path, config.size_b, config.quantization
         );
 
-        let mut file = std::fs::File::open(&config.model_path).map_err(|e| SwarmError::Io(e))?;
+        let mut file = std::fs::File::open(&config.model_path).map_err(SwarmError::Io)?;
         let mut reader = BufReader::new(&mut file);
         let ct = gguf_file::Content::read(&mut reader)
             .map_err(|e| SwarmError::Embedding(format!("GGUF read error: {e}")))?;
 
         let model =
-            ModelWeights::from_gguf(ct, &mut reader, &device).map_err(|e| SwarmError::Candle(e))?;
+            ModelWeights::from_gguf(ct, &mut reader, &device).map_err(SwarmError::Candle)?;
 
         info!("Model loaded. Hidden dim: {}", model.hidden_dim);
 
@@ -167,9 +167,9 @@ impl GemmaModel {
         let ids = enc.get_ids();
 
         let tokens = Tensor::new(ids, &self.device)
-            .map_err(|e| SwarmError::Candle(e))?
+            .map_err(SwarmError::Candle)?
             .unsqueeze(0)
-            .map_err(|e| SwarmError::Candle(e))?;
+            .map_err(SwarmError::Candle)?;
 
         let mut model = self.model.lock().unwrap();
         model.clear_kv_cache();
@@ -181,7 +181,7 @@ impl GemmaModel {
 
         // L2 normalize for cosine similarity
         let normed = Self::l2_norm(&hidden)?;
-        normed.to_vec1::<f32>().map_err(|e| SwarmError::Candle(e))
+        normed.to_vec1::<f32>().map_err(SwarmError::Candle)
     }
 
     /// Forward all tokens, collect per-token hiddens, return mean-pooled [hidden_dim].
@@ -190,37 +190,37 @@ impl GemmaModel {
         tokens: &Tensor, // [1, seq_len]
         device: &Device,
     ) -> SwarmResult<Tensor> {
-        let (_b, seq_len) = tokens.dims2().map_err(|e| SwarmError::Candle(e))?;
+        let (_b, seq_len) = tokens.dims2().map_err(SwarmError::Candle)?;
 
         let mut hiddens: Vec<Tensor> = Vec::with_capacity(seq_len);
 
         for i in 0..seq_len {
-            let tok = tokens.narrow(1, i, 1).map_err(|e| SwarmError::Candle(e))?;
+            let tok = tokens.narrow(1, i, 1).map_err(SwarmError::Candle)?;
             // forward_hidden returns [1, hidden_dim] (last/only position)
             let h = model
                 .forward_hidden(&tok, i)
-                .map_err(|e| SwarmError::Candle(e))?;
+                .map_err(SwarmError::Candle)?;
             hiddens.push(h);
         }
 
         // Stack to [seq_len, hidden_dim] then mean over seq dim
-        let stacked = Tensor::cat(&hiddens, 0).map_err(|e| SwarmError::Candle(e))?;
-        stacked.mean(0).map_err(|e| SwarmError::Candle(e))
+        let stacked = Tensor::cat(&hiddens, 0).map_err(SwarmError::Candle)?;
+        stacked.mean(0).map_err(SwarmError::Candle)
     }
 
     /// L2 normalize: x / ||x||₂
     fn l2_norm(x: &Tensor) -> SwarmResult<Tensor> {
-        let x_f32 = x.to_dtype(DType::F32).map_err(|e| SwarmError::Candle(e))?;
+        let x_f32 = x.to_dtype(DType::F32).map_err(SwarmError::Candle)?;
         let norm = x_f32
             .sqr()
-            .map_err(|e| SwarmError::Candle(e))?
+            .map_err(SwarmError::Candle)?
             .sum_all()
-            .map_err(|e| SwarmError::Candle(e))?
+            .map_err(SwarmError::Candle)?
             .sqrt()
-            .map_err(|e| SwarmError::Candle(e))?;
+            .map_err(SwarmError::Candle)?;
         let normed = x_f32
             .broadcast_div(&norm)
-            .map_err(|e| SwarmError::Candle(e))?;
+            .map_err(SwarmError::Candle)?;
         Ok(normed)
     }
 
@@ -247,12 +247,12 @@ impl GemmaModel {
         // Feed prompt tokens into KV cache
         for &tok in &prompt_ids {
             let t = Tensor::new(&[tok], &self.device)
-                .map_err(|e| SwarmError::Candle(e))?
+                .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
-                .map_err(|e| SwarmError::Candle(e))?;
+                .map_err(SwarmError::Candle)?;
             model
                 .forward(&t, offset)
-                .map_err(|e| SwarmError::Candle(e))?;
+                .map_err(SwarmError::Candle)?;
             offset += 1;
         }
 
@@ -261,15 +261,15 @@ impl GemmaModel {
 
         for _ in 0..max_tokens {
             let t = Tensor::new(&[next], &self.device)
-                .map_err(|e| SwarmError::Candle(e))?
+                .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
-                .map_err(|e| SwarmError::Candle(e))?;
+                .map_err(SwarmError::Candle)?;
             let logits = model
                 .forward(&t, offset)
-                .map_err(|e| SwarmError::Candle(e))?;
+                .map_err(SwarmError::Candle)?;
 
             let token_id = logits_proc
-                .sample(&logits.squeeze(0).map_err(|e| SwarmError::Candle(e))?)
+                .sample(&logits.squeeze(0).map_err(SwarmError::Candle)?)
                 .map_err(|e| SwarmError::Embedding(format!("Sample: {e}")))?;
 
             generated.push(token_id);

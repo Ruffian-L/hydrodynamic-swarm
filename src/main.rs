@@ -1,6 +1,6 @@
 //! SplatRAG v1 — Hydrodynamic Swarm
 //!
-//! Physics-steered generation over Llama 3.1 / Gemma 3 with shared-ocean multi-mind forces.
+//! Physics-steered generation over Llama 3.1 / Gemma 3 / Gemma 4 with shared-ocean multi-mind forces.
 //! Type a prompt → physics steers generation → decoded text output.
 //!
 //! ## Licenses & attributions
@@ -20,6 +20,7 @@ mod dream;
 mod endocrine;
 mod field;
 mod gemma;
+mod gemma4;
 mod gpu;
 mod llama;
 mod logger;
@@ -61,6 +62,7 @@ use viz::VizCollector;
 enum Model {
     Llama(llama::ModelWeights),
     Gemma(gemma::ModelWeights),
+    Gemma4(gemma4::ModelWeights),
 }
 
 impl Model {
@@ -68,6 +70,7 @@ impl Model {
         match self {
             Model::Llama(m) => m.forward(tokens, index_pos),
             Model::Gemma(m) => m.forward(tokens, index_pos),
+            Model::Gemma4(m) => m.forward(tokens, index_pos),
         }
     }
 
@@ -79,6 +82,7 @@ impl Model {
         match self {
             Model::Llama(m) => m.forward_with_hidden(tokens, index_pos),
             Model::Gemma(m) => m.forward_with_hidden(tokens, index_pos),
+            Model::Gemma4(m) => m.forward_with_hidden(tokens, index_pos),
         }
     }
 
@@ -86,6 +90,7 @@ impl Model {
         match self {
             Model::Llama(m) => m.project_to_logits(hidden),
             Model::Gemma(m) => m.project_to_logits(hidden),
+            Model::Gemma4(m) => m.project_to_logits(hidden),
         }
     }
 
@@ -93,14 +98,16 @@ impl Model {
         match self {
             Model::Llama(m) => m.token_embeddings(),
             Model::Gemma(m) => m.token_embeddings(),
+            Model::Gemma4(m) => m.token_embeddings(),
         }
     }
 
     /// Pre-layer embedding scale applied in forward (Gemma: √hidden_dim; Llama: 1).
-    /// Same factor as `gemma.rs` run_layers — raw matrix rows are *not* residual-space.
+    /// Same factor as `gemma.rs` / `gemma4.rs` run_layers — raw matrix rows are *not* residual-space.
     fn embedding_input_scale(&self) -> f64 {
         match self {
             Model::Gemma(m) => (m.hidden_dim as f64).sqrt(),
+            Model::Gemma4(m) => (m.hidden_dim as f64).sqrt(),
             Model::Llama(_) => 1.0,
         }
     }
@@ -109,11 +116,12 @@ impl Model {
         match self {
             Model::Llama(_) => "llama3.1",
             Model::Gemma(_) => "gemma3",
+            Model::Gemma4(_) => "gemma4",
         }
     }
 
     fn is_gemma(&self) -> bool {
-        matches!(self, Model::Gemma(_))
+        matches!(self, Model::Gemma(_) | Model::Gemma4(_))
     }
 }
 
@@ -134,27 +142,247 @@ fn path_looks_like_gemma(path: &str) -> bool {
 
 /// Wrap a raw user prompt in Gemma 3 IT chat turns when needed.
 ///
-/// Answer-only framing cuts the common IT failure mode of restating/rephrasing
-/// the user request ("explain friendship from a physics perspective…") instead
-/// of producing the paragraph. Raw prompts that already contain turn markers
-/// are left unchanged.
-fn format_prompt_for_model(raw: &str, is_gemma: bool) -> String {
-    if !is_gemma {
-        return raw.to_string();
+/// Wrap free text into the model’s IT turn format. Raw prompts that already
+/// contain turn markers are left unchanged.
+///
+/// Gemma 3 IT: `<start_of_turn>user` / `model` (historical hydro path).
+/// Gemma 4 IT: match `data/google/gemma4_assets/chat_template.jinja` with
+/// `enable_thinking=false`, no tools, `add_generation_prompt=true`:
+///   `<|turn>user\n…\n<turn|>\n` then `<|turn>model\n` + empty thought
+///   channel `<|channel>thought\n<channel|>` so the model starts free content.
+///
+/// Do **not** inject “Answer in one short paragraph / correct answer” framing
+/// for Gemma 4 — that primed exam/list completions even on “Say hi”.
+fn format_prompt_for_model(raw: &str, variant: &str) -> String {
+    // Single-shot = one user turn with empty history.
+    format_multiturn_prompt(&[(true, raw.trim().to_string())], variant)
+}
+
+/// Build IT prompt from (is_user, text) turns. Last turn should be user; we append
+/// the model generation prefix. Minimal wraps — no system / “helpful” framing.
+fn format_multiturn_prompt(turns: &[(bool, String)], variant: &str) -> String {
+    match variant {
+        "gemma4" => {
+            let mut s = String::new();
+            for (is_user, text) in turns {
+                if *is_user {
+                    s.push_str("<|turn>user\n");
+                    s.push_str(text.trim());
+                    s.push_str("\n<turn|>\n");
+                } else {
+                    s.push_str("<|turn>model\n");
+                    s.push_str("<|channel>thought\n<channel|>");
+                    s.push_str(text.trim());
+                    s.push_str("\n<turn|>\n");
+                }
+            }
+            // Generation prompt (thinking off): open model + empty thought.
+            s.push_str("<|turn>model\n<|channel>thought\n<channel|>");
+            s
+        }
+        "gemma3" => {
+            let mut s = String::new();
+            for (is_user, text) in turns {
+                if *is_user {
+                    s.push_str("<start_of_turn>user\n");
+                    s.push_str(text.trim());
+                    s.push_str("\n<end_of_turn>\n");
+                } else {
+                    s.push_str("<start_of_turn>model\n");
+                    s.push_str(text.trim());
+                    s.push_str("\n<end_of_turn>\n");
+                }
+            }
+            s.push_str("<start_of_turn>model\n");
+            s
+        }
+        _ => turns
+            .iter()
+            .map(|(u, t)| {
+                if *u {
+                    format!("User: {}\n", t.trim())
+                } else {
+                    format!("Assistant: {}\n", t.trim())
+                }
+            })
+            .collect::<String>()
+            + "Assistant: ",
     }
-    if raw.contains("<start_of_turn>") {
-        return raw.to_string();
+}
+
+/// Interactive multi-turn chat (stdin). Load once, talk many times.
+/// Quit: empty line, `quit`, `exit`, or Ctrl-D.
+/// Transcripts land in `private/chats/` (gitignored) — generation diagnostics,
+/// not public logs.
+fn run_simple_chat(
+    model: &mut Model,
+    tokenizer: &tokenizers::Tokenizer,
+    device: &Device,
+    cfg: &Config,
+    max_tokens: usize,
+) -> Result<()> {
+    use std::io::Write;
+    let variant = model.variant_name();
+    let is_gemma = model.is_gemma();
+    let eos_token_ids: Vec<u32> = if is_gemma {
+        vec![1, 106] // <eos>, <turn|> / end_of_turn
+    } else {
+        cfg.generation.eos_token_ids.clone()
+    };
+    let temperature = cfg.generation.temperature;
+    let rep_penalty = cfg.generation.rep_penalty;
+
+    // Private transcript (never for public git)
+    let chat_dir = std::path::Path::new("private/chats");
+    let _ = std::fs::create_dir_all(chat_dir);
+    let stamp = chrono_like_stamp();
+    let transcript_path = chat_dir.join(format!("{stamp}_{variant}_chat.txt"));
+    let mut transcript = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&transcript_path)
+        .ok();
+    if let Some(ref mut f) = transcript {
+        let _ = writeln!(
+            f,
+            "# private chat — do not publish\n# variant={variant} force_cap={} T={} max_tokens={max_tokens}\n",
+            cfg.physics.force_cap, temperature
+        );
     }
-    // Keep the user turn short — long “do not restate” preambles were not
-    // helping 27B and bloated the J-space prefill (goal norm collapsed).
-    format!(
-        "<start_of_turn>user\n\
-         Answer in one short paragraph only.\n\n\
-         {}\n\
-         <end_of_turn>\n\
-         <start_of_turn>model\n",
-        raw.trim()
-    )
+
+    println!("\n=== Chat mode ({variant}) ===");
+    println!("Type messages. Empty line / quit / exit to stop.");
+    println!("Physics: force_cap={} T={} max_tokens={max_tokens}", cfg.physics.force_cap, temperature);
+    println!("(History kept in-process; model re-prefills each turn.)");
+    println!("Transcript (private/gitignored): {}\n", transcript_path.display());
+
+    let mut history: Vec<(bool, String)> = Vec::new();
+    let stdin = std::io::stdin();
+    loop {
+        print!("you> ");
+        let _ = std::io::stdout().flush();
+        let mut line = String::new();
+        let n = stdin.read_line(&mut line)?;
+        if n == 0 {
+            println!();
+            break;
+        }
+        let line = line.trim().to_string();
+        if line.is_empty() || line.eq_ignore_ascii_case("quit") || line.eq_ignore_ascii_case("exit")
+        {
+            break;
+        }
+
+        if let Some(ref mut f) = transcript {
+            let _ = writeln!(f, "you> {line}");
+        }
+        history.push((true, line));
+        let prompt = format_multiturn_prompt(&history, variant);
+        let encoded = tokenizer
+            .encode(prompt.as_str(), true)
+            .map_err(|e| anyhow::anyhow!("encode: {e}"))?;
+        let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
+        let prompt_tensor = Tensor::new(prompt_ids.as_slice(), device)?.unsqueeze(0)?;
+
+        // Prefill (index_pos=0 resets KV use)
+        let (mut logits, _) = if cfg.physics.steer_hidden {
+            model.forward_with_hidden(&prompt_tensor, 0)?
+        } else {
+            (model.forward(&prompt_tensor, 0)?, Tensor::zeros((1, 1), candle_core::DType::F32, device)?)
+        };
+        let mut index_pos = prompt_ids.len();
+        let mut generated: Vec<u32> = Vec::new();
+        let mut pieces = String::new();
+
+        print!("gemma> ");
+        let _ = std::io::stdout().flush();
+
+        for _step in 0..max_tokens {
+            let mut logits_vec: Vec<f32> = logits.squeeze(0)?.to_vec1()?;
+            // light rep penalty
+            for &tid in prompt_ids.iter().chain(generated.iter()) {
+                if (tid as usize) < logits_vec.len() {
+                    let l = &mut logits_vec[tid as usize];
+                    if *l > 0.0 {
+                        *l /= rep_penalty;
+                    } else {
+                        *l *= rep_penalty;
+                    }
+                }
+            }
+            let next = if temperature < 1e-5 {
+                logits_vec
+                    .iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(i, _)| i as u32)
+                    .unwrap_or(0)
+            } else {
+                let t = Tensor::from_vec(logits_vec.clone(), logits_vec.len(), device)?;
+                let scaled = (&t / temperature)?;
+                let probs = candle_nn::ops::softmax(&scaled, 0)?;
+                let probs_vec: Vec<f32> = probs.to_vec1()?;
+                let mut rng = rand::rng();
+                let roll: f32 = rng.random();
+                let mut cumsum = 0.0f32;
+                let mut tok = 0u32;
+                for (i, p) in probs_vec.iter().enumerate() {
+                    cumsum += p;
+                    if roll < cumsum {
+                        tok = i as u32;
+                        break;
+                    }
+                }
+                tok
+            };
+
+            if eos_token_ids.contains(&next) {
+                break;
+            }
+            generated.push(next);
+            let piece = tokenizer
+                .decode(&[next], false)
+                .unwrap_or_else(|_| format!("[{next}]"));
+            print!("{piece}");
+            let _ = std::io::stdout().flush();
+            pieces.push_str(&piece);
+
+            let token_tensor = Tensor::new(&[next], device)?.unsqueeze(0)?;
+            logits = if cfg.physics.steer_hidden {
+                model.forward_with_hidden(&token_tensor, index_pos)?.0
+            } else {
+                model.forward(&token_tensor, index_pos)?
+            };
+            index_pos += 1;
+        }
+        println!();
+        let reply = pieces.trim().to_string();
+        if let Some(ref mut f) = transcript {
+            let _ = writeln!(f, "gemma> {reply}\n");
+            let _ = f.flush();
+        }
+        if !reply.is_empty() {
+            history.push((false, reply));
+        }
+    }
+    println!(
+        "Chat ended ({} turns). Saved private: {}",
+        history.len(),
+        transcript_path.display()
+    );
+    Ok(())
+}
+
+/// Local wall-clock stamp for private chat filenames (no extra crate).
+fn chrono_like_stamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // YYYYMMDD_HHMMSS approx via UTC epoch formatting is awkward without chrono;
+    // use unix + local-ish: still unique and sort-friendly.
+    format!("chat_{secs}")
 }
 
 #[tokio::main]
@@ -176,6 +404,8 @@ async fn main() -> Result<()> {
 
     let clear_memory = args.iter().any(|a| a == "--clear-memory");
     let no_save_memory = args.iter().any(|a| a == "--no-save-memory");
+    // Ablation: skip IT chat wrap (raw user string only).
+    let no_chat_template = args.iter().any(|a| a == "--no-chat-template");
     let cli_prompt = args
         .iter()
         .position(|a| a == "--prompt")
@@ -261,25 +491,31 @@ async fn main() -> Result<()> {
     let mut reader = BufReader::new(&mut file);
     let ct = gguf_file::Content::read(&mut reader)?;
     let arch = gguf_architecture(&ct);
-    let load_gemma = arch.contains("gemma3")
-        || (arch.is_empty() && path_looks_like_gemma(&model_path))
-        || (arch.contains("gemma") && !arch.contains("gemma4"));
-
-    if arch.contains("gemma4") {
-        anyhow::bail!(
-            "GGUF architecture is '{arch}' (Gemma 4). This harness loads Gemma 3 via gemma.rs. \
-             Use data/google/gemma-3-27b-it-Q4_K_M.gguf (fast) or Q8_0, or Llama 3.1."
-        );
-    }
     if arch.contains("gemma3n") {
         anyhow::bail!(
             "GGUF architecture is '{arch}' (Gemma 3n E2B/E4B). Needs a dedicated loader \
              (AltUp + Laurel + per-layer emb). File is fine at data/google/google_gemma-3n-E4B-it-Q5_K_M.gguf \
-             — not wired yet. Use gemma-3-27b-it-Q4_K_M.gguf for fast iteration today."
+             — not wired yet. Use gemma-3-4b-it-Q4_K_M.gguf or a gemma4 IT GGUF for today."
         );
     }
 
-    let mut model = if load_gemma {
+    let load_gemma4 = arch.contains("gemma4");
+    let load_gemma3 = !load_gemma4
+        && (arch.contains("gemma3")
+            || (arch.is_empty() && path_looks_like_gemma(&model_path))
+            || (arch.contains("gemma") && !arch.contains("gemma4")));
+
+    let mut model = if load_gemma4 {
+        println!(
+            "    Architecture: {} → Gemma 4 loader (our Rust path; see gemma4.rs + NOTICE)",
+            if arch.is_empty() {
+                "path-heuristic".into()
+            } else {
+                arch.clone()
+            }
+        );
+        Model::Gemma4(gemma4::ModelWeights::from_gguf(ct, &mut reader, &device)?)
+    } else if load_gemma3 {
         println!("    Architecture: {} → Gemma 3 loader", if arch.is_empty() { "path-heuristic".into() } else { arch.clone() });
         let m = gemma::ModelWeights::from_gguf(ct, &mut reader, &device)?;
         println!("    Gemma 3 loaded (hidden_dim={})", m.hidden_dim);
@@ -439,6 +675,22 @@ async fn main() -> Result<()> {
         );
     }
 
+    // --- TCT import BEFORE clear, so --import-tct files survive --clear-memory ---
+    let mut tct_import_count = 0usize;
+    if let Some(ref tct_in) = import_tct {
+        match engine.memory_mut().import_tct(Path::new(tct_in)) {
+            Ok(n) => {
+                tct_import_count = n;
+                println!(
+                    "    Imported {} TCT records (total scars={})",
+                    n,
+                    engine.memory().len()
+                );
+            }
+            Err(e) => eprintln!("    [TCT] import failed: {e}"),
+        }
+    }
+
     // Load persistent splat memory if it exists
     let splat_file = Path::new("data/splat_memory.safetensors");
     if clear_memory && splat_file.exists() {
@@ -454,20 +706,6 @@ async fn main() -> Result<()> {
     } else if loaded_count > 0 {
         println!("    Loaded {} splats from {}", loaded_count, splat_file.display());
     }
-    let mut tct_import_count = 0usize;
-    if let Some(ref tct_in) = import_tct {
-        match engine.memory_mut().import_tct(Path::new(tct_in)) {
-            Ok(n) => {
-                tct_import_count = n;
-                println!(
-                    "    Imported {} TCT records (total scars={})",
-                    n,
-                    engine.memory().len()
-                );
-            }
-            Err(e) => eprintln!("    [TCT] import failed: {e}"),
-        }
-    }
     // Continuity: drop legacy pain prefill-bridges (failed-gen deposits).
     let pain_dropped = engine.memory_mut().drop_pain_prefill_bridges();
     if pain_dropped > 0 {
@@ -481,24 +719,13 @@ async fn main() -> Result<()> {
     let n_prefill_bridges_start = engine.memory().count_prefill_bridges();
 
     // =========================================================
-    // Chat TUI mode (--chat)
+    // Chat mode (--chat): multi-turn stdin for Gemma 3/4 (and Llama via simple path)
     // =========================================================
     if chat_mode {
-        // TUI is stub — extract inner Llama for now
-        if let Model::Llama(ref mut llama) = model {
-            return tui::run_chat(
-                llama,
-                &tokenizer,
-                &mut engine,
-                &device,
-                dim,
-                max_tokens,
-                &cfg,
-            );
-        } else {
-            eprintln!("    [TUI] Chat mode not yet supported for Gemma — use --prompt instead");
-            return Ok(());
-        }
+        // Prefer simple multi-turn for all variants so Jason can talk to Gemma now.
+        // (Old Llama TUI still available if we re-special-case later.)
+        let _ = engine; // loaded; chat path is light — no per-token ocean dump
+        return run_simple_chat(&mut model, &tokenizer, &device, &cfg, max_tokens);
     }
 
     // Initialize telemetry logger
@@ -507,8 +734,12 @@ async fn main() -> Result<()> {
     let raw_prompt = cli_prompt
         .as_deref()
         .unwrap_or(cfg.generation.default_prompt.as_str());
-    let prompt = format_prompt_for_model(raw_prompt, is_gemma);
-    // Gemma IT: <eos>=1, <end_of_turn>=106. Llama 3: 128009/128001.
+    let prompt = if no_chat_template {
+        raw_prompt.to_string()
+    } else {
+        format_prompt_for_model(raw_prompt, model_variant)
+    };
+    // Gemma 3/4 IT: <eos>=1, turn-end often 106 (<end_of_turn> / <turn|>). Llama: cfg.
     let eos_token_ids: Vec<u32> = if is_gemma {
         vec![1, 106]
     } else {
@@ -557,8 +788,14 @@ async fn main() -> Result<()> {
     // =========================================================
     println!("\n--- Phase 4: Physics-Steered Generation ---");
     println!("    Prompt: \"{}\"", raw_prompt);
-    if is_gemma {
-        println!("    Chat template: Gemma 3 IT turns applied");
+    if no_chat_template {
+        println!("    Chat template: OFF (--no-chat-template, raw prompt)");
+    } else {
+        match model_variant {
+            "gemma4" => println!("    Chat template: Gemma 4 IT turns (<|turn>… from gemma4_assets)"),
+            "gemma3" => println!("    Chat template: Gemma 3 IT turns (<start_of_turn>…)"),
+            _ => {}
+        }
     }
 
     // Encode prompt
@@ -979,22 +1216,41 @@ async fn main() -> Result<()> {
                 .unsqueeze(0)?
         };
 
-        // Temperature sampling -- softmax over scaled logits, then sample
+        // Temperature sampling. T≈0 → greedy argmax (do not divide by zero).
         let temperature: f64 = cfg.generation.temperature;
-        let scaled_logits = (&steered_logits / temperature)?;
-        let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
-        let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
-        let mut rng = rand::rng();
-        let roll: f32 = rng.random();
-        let mut cumsum = 0.0f32;
-        let mut next_token: u32 = 0;
-        for (i, p) in probs_vec.iter().enumerate() {
-            cumsum += p;
-            if roll < cumsum {
-                next_token = i as u32;
-                break;
+        let (next_token, probs_vec): (u32, Vec<f32>) = if temperature < 1e-5 {
+            let logits_vec: Vec<f32> = steered_logits.squeeze(0)?.to_vec1()?;
+            let mut best_i = 0usize;
+            let mut best_v = f32::NEG_INFINITY;
+            for (i, &v) in logits_vec.iter().enumerate() {
+                if v > best_v {
+                    best_v = v;
+                    best_i = i;
+                }
             }
-        }
+            // One-hot-ish probs for quality scoring downstream
+            let mut probs_vec = vec![0.0f32; logits_vec.len()];
+            if !probs_vec.is_empty() {
+                probs_vec[best_i] = 1.0;
+            }
+            (best_i as u32, probs_vec)
+        } else {
+            let scaled_logits = (&steered_logits / temperature)?;
+            let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
+            let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
+            let mut rng = rand::rng();
+            let roll: f32 = rng.random();
+            let mut cumsum = 0.0f32;
+            let mut next_token: u32 = 0;
+            for (i, p) in probs_vec.iter().enumerate() {
+                cumsum += p;
+                if roll < cumsum {
+                    next_token = i as u32;
+                    break;
+                }
+            }
+            (next_token, probs_vec)
+        };
 
         // Steering delta (telemetry / multi-scale only — NOT the definition of "good")
         let delta = (&steered_logits - &raw_logits)?;

@@ -46,7 +46,7 @@ impl ActiveGraph {
         let mut distances: Vec<(f64, Node)> = Vec::new();
 
         if let Some(target_node) = self.nodes.get(node_id) {
-            for (_, node) in &self.nodes {
+            for node in self.nodes.values() {
                 if node.id != node_id {
                     // Simplified distance calculation
                     let distance = calculate_semantic_distance(
@@ -64,7 +64,7 @@ impl ActiveGraph {
             distances.truncate(take);
             distances.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
         } else {
-            distances.truncate(0);
+            distances.clear();
         }
 
         distances.into_iter().map(|(_, node)| node).collect()
@@ -330,12 +330,12 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 
     let mut dp = vec![vec![0; b_len + 1]; a_len + 1];
 
-    for i in 0..=a_len {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate().take(a_len + 1) {
+        row[0] = i;
     }
 
-    for j in 0..=b_len {
-        dp[0][j] = j;
+    for (j, cell) in dp[0].iter_mut().enumerate().take(b_len + 1) {
+        *cell = j;
     }
 
     for i in 1..=a_len {

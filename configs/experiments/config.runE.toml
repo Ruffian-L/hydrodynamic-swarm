@@ -1,0 +1,37 @@
+[model]
+path = "data/google/gemma-3-4b-it-Q4_K_M.gguf"
+variant = "gemma3"
+
+[physics]
+sigma = 7.59
+field_wake_scale = 0.0
+goal_force_scale = 5.0
+splat_force_scale = 0.0
+field_logit_bias_alpha = 0.10
+
+[steering]
+force_scale = 0.3
+attractor_scale = 0.3
+force_ramp_tokens = 6
+
+[memory]
+splat_memory_path = "data/splat_memory.safetensors"
+tct_path = "data/splat_memory.tct"
+consolidation_threshold = 5
+dream_replay_bonus = 1.25
+decay_rate = 0.99
+
+[ocean]
+enabled = true
+dim = 2560
+deposit_every = 4
+force_scale = 0.5
+
+[generation]
+max_tokens = 65
+temperature = 0.9
+top_k = 1024
+
+[logging]
+log_dir = "logs/memory_coupling_test"
+taco_db = "logs/memory_coupling_test/taco_runE.db"
