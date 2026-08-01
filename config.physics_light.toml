@@ -1,0 +1,105 @@
+# Light physics config for 12B/4B Instruct models
+# Further reduced force magnitudes to prevent token loops
+
+[physics]
+dt = 0.035
+viscosity_scale = 0.15
+force_cap = 0.2
+splat_sigma = 20.0
+splat_alpha = 0.5
+min_splat_dist = 18.0
+splat_delta_threshold = 85.0
+gradient_topk = 1024
+steer_hidden = true
+manifold_pullback = 0.35
+splat_lambda_default = 0.02
+pain_decay_factor = 0.7
+splat_force_scale = 0.005
+splat_force_max = 2.0
+
+# Goal Attractor: further reduced
+goal_force_scale = 0.005
+goal_force_max = 2.0
+goal_late_start = 48
+goal_late_span = 30
+goal_late_end = 0.10
+
+online_splat_interval = 8
+field_wake_mode = "dist_weighted"
+field_wake_k = 1
+field_wake_scale = 0.04
+field_wake_max = 4.0
+field_grad_blend = 0.05
+field_wake_dist_tau = 80.0
+force_ramp_tokens = 12
+force_ramp_start = 0.10
+targeted_splat_only = true
+prefill_micro_dream = false
+pain_recovery_ocean = false
+prefill_bridge_scar = true
+prefill_bridge_sigma = 90.0
+prefill_bridge_alpha = 0.5
+prefill_bridge_lambda = 0.005
+prefill_bridge_offset_frac = 0.35
+
+[logit_physics]
+field_alpha = 0.005
+splat_scale = 0.002
+splat_top_m = 3
+splat_top_k = 24
+governor_enabled = true
+governor_velocity_threshold = 0.95
+governor_brake = 10.0
+governor_window = 6
+governor_viscosity_threshold = 0.92
+governor_viscosity_gain = 4.0
+governor_max_bias = 0.5
+
+[hooks]
+enabled = true
+site = "post_mlp"
+start_frac = 0.5
+end_frac = 1.0
+norm_fraction = 0.0001
+trace_out = ""
+
+[generation]
+max_tokens = 100
+temperature = 0.75
+rep_penalty = 1.10
+min_success_tokens = 10
+pleasure_alpha = 0.85
+pain_alpha = -0.4
+default_prompt = "Explain the Physics of Friendship in one short paragraph."
+
+[memory]
+max_splats = 48
+consolidation_dist = 18.0
+decay_rate = 0.96
+prune_threshold = 0.03
+online_decay_rate = 0.975
+max_prefill_bridges = 24
+memory_force_mode = "soft"
+memory_pick_k = 8
+memory_pick_selective = true
+memory_pick_entropy_min = 2.5
+memory_pick_margin_max = 0.15
+memory_pick_residual_l2_min = 0.0
+memory_pick_quality_weight = 1.0
+memory_pick_fp_weight = 1.0
+
+[micro_dream]
+entropy_threshold = 3.0
+fixed_interval = 25
+adaptive_interval = 8
+blend_normal = 0.06
+blend_high_entropy = 0.10
+topocot_threshold = 12.0
+
+[jacobian]
+epsilon = 0.0001
+sites = "final_norm"
+top_k = 16
+max_dims = 0
+interval = 5
+trace_path = ""
