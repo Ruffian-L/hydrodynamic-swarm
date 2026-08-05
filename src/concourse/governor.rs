@@ -259,22 +259,20 @@ impl PrimeGovernor {
         );
         info!("EXECUTING SPLAT PROTOCOL...");
 
-        // 1. SEVER: Capture current cell state
-        let _cell_snapshot = {
+        // 1. SEVER: Capture current cell state and required fields (batched to reduce lock contention)
+        let (cell_snapshot, edge_count) = {
             let cell = self.active_cell.read().await;
-            serde_json::to_string(&*cell).map_err(|e| SwarmError::Serialization(e))?
+            (
+                serde_json::to_string(&*cell).map_err(|e| SwarmError::Serialization(e))?,
+                cell.edges.len(),
+            )
         };
+        let _cell_snapshot = cell_snapshot;
 
         // 2. IGNITE & ENCAPSULATE: Create macro-node representation
         let _macro_node = format!(
             "CELL_SNAPSHOT: nodes={}, edges={}, phi={:.2}, delta_c={:.2}",
-            node_count,
-            {
-                let cell = self.active_cell.read().await;
-                cell.edges.len()
-            },
-            phi,
-            delta_c
+            node_count, edge_count, phi, delta_c
         );
 
         // 3. COMMIT: Write to TACO.md (if writer available)
@@ -284,10 +282,7 @@ impl PrimeGovernor {
                 trigger_type,
                 std::time::SystemTime::now(),
                 node_count,
-                {
-                    let cell = self.active_cell.read().await;
-                    cell.edges.len()
-                },
+                edge_count,
                 phi,
                 delta_c
             );
@@ -312,11 +307,7 @@ impl PrimeGovernor {
 
         info!(
             "  1_SEVER: Cell captured ({} nodes, {} edges)",
-            node_count,
-            {
-                let cell = self.active_cell.read().await;
-                cell.edges.len()
-            }
+            node_count, edge_count
         );
         info!("  2_ENCAPSULATE: Macro-node created");
         info!("  3_COMMIT: Diamond written to TACO.md");
