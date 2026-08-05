@@ -72,6 +72,19 @@
     let cx = 0, cy = 0, cz = 0, maxDist = 1;
     let tC = [], fC = [], spC = [], gC = [0, 0, 0];
     let vis = 0, playing = false, lastPlay = 0, speed = 180;
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'BUTTON') return;
+        e.preventDefault();
+        if (playing) {
+          document.getElementById('pause').click();
+        } else {
+          document.getElementById('play').click();
+        }
+      }
+    });
+
     let camTheta = 0.55, camPhi = 0.35, camDist = 8, panX = 0, panY = 0;
     let drag = false, pan = false, lx = 0, ly = 0;
 

@@ -513,6 +513,17 @@
     speedSlider.addEventListener('input', () => { replaySpeed = parseInt(speedSlider.value); speedLabel.textContent = replaySpeed + 'ms' });
     btnPlay.addEventListener('click', () => { playing = true; visibleSteps = 1; updateBtns(); updateGenText() });
     btnPause.addEventListener('click', () => { playing = false; visibleSteps = T.length; scrubber.value = T.length - 1; updateBtns(); updateGenText() });
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'BUTTON') return;
+        e.preventDefault();
+        if (playing) {
+          playing = false; visibleSteps = T.length; scrubber.value = T.length - 1; updateBtns(); updateGenText();
+        } else {
+          playing = true; visibleSteps = 1; updateBtns(); updateGenText();
+        }
+      }
+    });
     // Prompt bar -- Replay triggers Play replay
     const promptInput = document.getElementById('prompt-input');
     const replayBtn = document.getElementById('replay-btn');
