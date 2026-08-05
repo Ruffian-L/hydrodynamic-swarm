@@ -5,3 +5,7 @@
 ## 2026-03-15 - Redundant RwLock reads in async concurrency sequences
 **Learning:** Found an anti-pattern in asynchronous Tokio tasks (`src/concourse/governor.rs`) where `RwLock::read().await` was repeatedly acquired on the same resource within a single concurrent sequence, causing severe lock contention and context-switching overhead.
 **Action:** Batch state reads into a single `.read().await` lock acquisition and capture the required fields to optimize asynchronous performance.
+
+## 2026-08-05 - Base-e Exponential Optimization
+**Learning:** In Rust, `std::f64::consts::E.powf(x)` is less efficient for computing base-e exponentials because it calculates a generalized arbitrary-base power. It's much faster to use the dedicated `(x).exp()` method.
+**Action:** Always use `(x).exp()` for base-e exponentials instead of `E.powf(x)`.
