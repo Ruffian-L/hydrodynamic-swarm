@@ -525,6 +525,17 @@
     }
     replayBtn.addEventListener('click', triggerReplay);
     promptInput.addEventListener('keydown', e => { if (e.key === 'Enter') triggerReplay() });
+    document.addEventListener('keydown', e => {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'BUTTON')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps >= T.length) visibleSteps = 1;
+        updateBtns();
+        updateGenText();
+      }
+    });
     function toggleLayer(id, get, set) { const b = document.getElementById(id); b.addEventListener('click', () => { set(!get()); b.classList.toggle('active'); b.classList.toggle('off'); b.setAttribute('aria-pressed', b.classList.contains('active')); }) }
     toggleLayer('btn-field', () => showField, v => showField = v);
     toggleLayer('btn-trail', () => showTrail, v => showTrail = v);
