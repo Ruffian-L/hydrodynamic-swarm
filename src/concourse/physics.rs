@@ -104,6 +104,7 @@ impl VolumetricGovernor {
             .map(|(edge, count)| edge.weight() * count)
             .sum();
         let v_nodes = std::cmp::max(1, node_count) as f64;
-        (net_heat as f64 / v_nodes) * std::f64::consts::E.powf(self.k_constant * delta_c)
+        // Use native .exp() for faster e^x computation instead of E.powf()
+        (net_heat as f64 / v_nodes) * (self.k_constant * delta_c).exp()
     }
 }
