@@ -251,14 +251,15 @@ impl CacheManager {
 
         // Check TTL cache
         if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache
-            let embedding: Vec<f32> = bincode::deserialize(&entry.value)
+            // Promote to LRU cache. Use existing serialized value to avoid re-serialization overhead.
+            let val = entry.value.clone();
+            let embedding: Vec<f32> = bincode::deserialize(&val)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, entry.value.clone(), entry.ttl_seconds);
+                .put(cache_key, val, entry.ttl_seconds);
 
             return Ok(Some(embedding));
         }
