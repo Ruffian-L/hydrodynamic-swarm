@@ -243,14 +243,14 @@ impl CacheManager {
         let cache_key = Self::generate_cache_key(text, "embedding");
 
         // Check LRU cache first
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).get(&cache_key) {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
             return Ok(Some(embedding));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).get(&cache_key) {
             // Promote to LRU cache
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
@@ -273,13 +273,13 @@ impl CacheManager {
             .map_err(|e| anyhow!("Failed to serialize embedding: {}", e))?;
 
         // Store in both caches
-        self.lru_cache.write().unwrap().put(
+        self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).put(
             cache_key.clone(),
             serialized.clone(),
             Some(300), // 5 minute TTL for LRU
         );
 
-        self.ttl_cache.write().unwrap().put(
+        self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).put(
             cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             serialized,
             Some(3600), // 1 hour TTL for TTL cache
@@ -293,12 +293,12 @@ impl CacheManager {
         let cache_key = Self::generate_edge_key(text_a, text_b);
 
         // Check LRU cache
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).get(&cache_key) {
             return Ok(Some(entry.value.clone()));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).get(&cache_key) {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
             let val = entry.value.clone();
@@ -317,13 +317,13 @@ impl CacheManager {
         let cache_key = Self::generate_edge_key(text_a, text_b);
         let val = result.to_vec();
 
-        self.lru_cache.write().unwrap().put(
+        self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).put(
             cache_key.clone(),
             val.clone(),
             Some(600), // 10 minute TTL for edges
         );
 
-        self.ttl_cache.write().unwrap().put(
+        self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).put(
             cache_key,
             val,
             Some(1800), // 30 minute TTL for edges
@@ -334,8 +334,8 @@ impl CacheManager {
 
     /// Cleanup expired entries
     pub fn cleanup(&self) -> Result<()> {
-        self.lru_cache.write().unwrap().cleanup();
-        self.ttl_cache.write().unwrap().cleanup();
+        self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).cleanup();
+        self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).cleanup();
         Ok(())
     }
 
@@ -344,19 +344,19 @@ impl CacheManager {
         let mut stats = HashMap::new();
         stats.insert(
             "lru_cache".to_string(),
-            self.lru_cache.read().unwrap().stats(),
+            self.lru_cache.read().unwrap_or_else(|e| e.into_inner()).stats(),
         );
         stats.insert(
             "ttl_cache".to_string(),
-            self.ttl_cache.read().unwrap().stats(),
+            self.ttl_cache.read().unwrap_or_else(|e| e.into_inner()).stats(),
         );
         Ok(stats)
     }
 
     /// Clear all caches
     pub fn clear_all(&self) -> Result<()> {
-        self.lru_cache.write().unwrap().clear();
-        self.ttl_cache.write().unwrap().clear();
+        self.lru_cache.write().unwrap_or_else(|e| e.into_inner()).clear();
+        self.ttl_cache.write().unwrap_or_else(|e| e.into_inner()).clear();
         Ok(())
     }
 
