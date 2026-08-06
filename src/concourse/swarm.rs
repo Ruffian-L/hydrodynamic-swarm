@@ -129,19 +129,24 @@ impl SwarmMatrix {
 
     /// Get current Swarm metrics
     pub async fn get_metrics(&self) -> SwarmMetrics {
-        let cell = self.active_cell.read().await;
+        let (node_count, edge_count, viscosity) = {
+            let cell = self.active_cell.read().await;
+            let edge_counts = cell.get_edge_counts_vec();
+            let node_count = cell.node_count();
+            let delta_c = cell.calculate_delta_c();
+            let viscosity = VolumetricGovernor::default().calculate_viscosity(
+                &edge_counts,
+                node_count,
+                delta_c,
+            );
+            (node_count, cell.edges.len(), viscosity)
+        };
+
         let state = self.cognitive_state.read().await;
 
-        let edge_counts = cell.get_edge_counts_vec();
-        let viscosity = VolumetricGovernor::default().calculate_viscosity(
-            &edge_counts,
-            cell.node_count(),
-            cell.calculate_delta_c(),
-        );
-
         SwarmMetrics {
-            node_count: cell.node_count(),
-            edge_count: cell.edges.len(),
+            node_count,
+            edge_count,
             viscosity,
             omega: state.omega,
             k_coupling: state.k_coupling,
