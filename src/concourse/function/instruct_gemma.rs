@@ -131,7 +131,7 @@ impl InstructGemmaModel {
             .or_else(|| self.tokenizer.token_to_id("</s>"))
             .unwrap_or(1);
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.model.lock().unwrap_or_else(|e| e.into_inner());
         model.clear_kv_cache();
 
         // Temperature 0.2 for deterministic classification
