@@ -281,21 +281,23 @@ fn sample_from_logits(
     scored.last().map(|(i, _)| *i as u32).unwrap_or(0)
 }
 
-/// True if choosing `candidate` would complete an n-gram already present in `generated`.
-fn would_repeat_ngram(generated: &[u32], candidate: u32, n: usize) -> bool {
+/// Applies an n-gram penalty by setting the logit of any token that would complete
+/// an already seen n-gram to NEG_INFINITY.
+fn apply_ngram_penalty(logits: &mut [f32], generated: &[u32], n: usize) {
     if n < 2 || generated.len() + 1 < n {
-        return false;
+        return;
     }
-    let mut seq = generated.to_vec();
-    seq.push(candidate);
-    let gram = &seq[seq.len() - n..];
-    let limit = seq.len() - n;
+    let prefix_len = n - 1;
+    let prefix = &generated[generated.len() - prefix_len..];
+    let limit = generated.len() - prefix_len;
     for i in 0..limit {
-        if &seq[i..i + n] == gram {
-            return true;
+        if &generated[i..i + prefix_len] == prefix {
+            let next_token = generated[i + prefix_len];
+            if (next_token as usize) < logits.len() {
+                logits[next_token as usize] = f32::NEG_INFINITY;
+            }
         }
     }
-    false
 }
 
 /// Floor a byte index to a UTF-8 char boundary (never panic on multi-byte tokens).
@@ -487,13 +489,7 @@ fn run_simple_chat(
                 }
             }
             // no-repeat n-gram: heavily mask completing tokens
-            if ngram_n >= 2 {
-                for tid in 0..logits_vec.len() {
-                    if would_repeat_ngram(&generated, tid as u32, ngram_n) {
-                        logits_vec[tid] = f32::NEG_INFINITY;
-                    }
-                }
-            }
+            apply_ngram_penalty(&mut logits_vec, &generated, ngram_n);
 
             let next = sample_from_logits(&logits_vec, temperature, top_k, top_p);
 
@@ -1408,13 +1404,7 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-            if ngram_n >= 2 {
-                for tid in 0..logits_vec.len() {
-                    if would_repeat_ngram(&generated_tokens, tid as u32, ngram_n) {
-                        logits_vec[tid] = f32::NEG_INFINITY;
-                    }
-                }
-            }
+            apply_ngram_penalty(&mut logits_vec, &generated_tokens, ngram_n);
             Tensor::from_vec(logits_vec, steered_logits.dim(1)?, steered_logits.device())?
                 .unsqueeze(0)?
         };
