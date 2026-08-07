@@ -379,7 +379,7 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play/pause</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
@@ -554,7 +554,19 @@
       const isOpen = settingsPanel.classList.toggle('open');
       settingsBtn.setAttribute('aria-expanded', isOpen);
     });
+
     document.addEventListener('keydown', (e) => {
+      // Toggle play/pause with Spacebar, but ignore if typing in the prompt input or focused on a button
+      if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing && visibleSteps >= T.length) {
+            visibleSteps = 1;
+        }
+        updateBtns();
+        updateGenText();
+      }
+
       if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
