@@ -198,8 +198,10 @@ impl PrimeGovernor {
             .volumetric_governor
             .calculate_viscosity(&edge_counts, node_count, delta_c);
 
-        // Update cognitive state
-        {
+        // Update cognitive state and check Lyapunov stability
+        // BOLT: Optimize by auto-dereferencing the existing write guard for the immutable check
+        // instead of dropping it and unnecessarily awaiting a new read lock.
+        let is_stable = {
             let mut state = self.cognitive_state.write().await;
             let contradiction_count = edge_counts
                 .iter()
@@ -213,11 +215,6 @@ impl PrimeGovernor {
                 .unwrap_or(0);
 
             state.update_from_edges(contradiction_count, synthesis_count, node_count);
-        }
-
-        // Check Lyapunov stability
-        let is_stable = {
-            let state = self.cognitive_state.read().await;
             state.is_lyapunov_stable()
         };
         if !is_stable {
