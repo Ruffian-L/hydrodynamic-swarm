@@ -171,7 +171,7 @@ impl GemmaModel {
             .unsqueeze(0)
             .map_err(SwarmError::Candle)?;
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.model.lock().unwrap_or_else(|e| e.into_inner());
         model.clear_kv_cache();
 
         // Process all tokens in one pass to get full sequence hidden states
@@ -197,9 +197,7 @@ impl GemmaModel {
         for i in 0..seq_len {
             let tok = tokens.narrow(1, i, 1).map_err(SwarmError::Candle)?;
             // forward_hidden returns [1, hidden_dim] (last/only position)
-            let h = model
-                .forward_hidden(&tok, i)
-                .map_err(SwarmError::Candle)?;
+            let h = model.forward_hidden(&tok, i).map_err(SwarmError::Candle)?;
             hiddens.push(h);
         }
 
@@ -218,9 +216,7 @@ impl GemmaModel {
             .map_err(SwarmError::Candle)?
             .sqrt()
             .map_err(SwarmError::Candle)?;
-        let normed = x_f32
-            .broadcast_div(&norm)
-            .map_err(SwarmError::Candle)?;
+        let normed = x_f32.broadcast_div(&norm).map_err(SwarmError::Candle)?;
         Ok(normed)
     }
 
@@ -238,7 +234,7 @@ impl GemmaModel {
             .or_else(|| self.tokenizer.token_to_id("</s>"))
             .unwrap_or(1);
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.model.lock().unwrap_or_else(|e| e.into_inner());
         model.clear_kv_cache();
 
         let mut logits_proc = LogitsProcessor::new(299792458, Some(0.7), None);
@@ -250,9 +246,7 @@ impl GemmaModel {
                 .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
                 .map_err(SwarmError::Candle)?;
-            model
-                .forward(&t, offset)
-                .map_err(SwarmError::Candle)?;
+            model.forward(&t, offset).map_err(SwarmError::Candle)?;
             offset += 1;
         }
 
@@ -264,9 +258,7 @@ impl GemmaModel {
                 .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
                 .map_err(SwarmError::Candle)?;
-            let logits = model
-                .forward(&t, offset)
-                .map_err(SwarmError::Candle)?;
+            let logits = model.forward(&t, offset).map_err(SwarmError::Candle)?;
 
             let token_id = logits_proc
                 .sample(&logits.squeeze(0).map_err(SwarmError::Candle)?)
@@ -291,7 +283,10 @@ impl GemmaModel {
     }
 
     pub fn clear_kv_cache(&self) {
-        self.model.lock().unwrap().clear_kv_cache();
+        self.model
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear_kv_cache();
     }
 }
 
