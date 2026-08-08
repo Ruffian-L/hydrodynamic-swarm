@@ -54,7 +54,7 @@
       <span class="dot" style="background:#2DD4A8"></span>Pleasure
       <span class="dot" style="background:#8B3A3A"></span>Pain
     </p>
-    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · B4d-q short paragraph demo</p>
+    <p style="margin-top:6px;color:#2A3448">Space play/pause · Drag orbit · Scroll zoom · B4d-q short paragraph demo</p>
   </div>
   <div id="gen">Load a session to see tokens…</div>
   <div id="bar">
@@ -158,6 +158,15 @@
     document.getElementById('play').onclick = () => { playing = true; if (vis >= snaps.length) vis = 1; lastPlay = performance.now(); };
     document.getElementById('pause').onclick = () => { playing = false; };
     document.getElementById('scrub').oninput = e => { playing = false; vis = +e.target.value + 1; updateText(); updateStep(); };
+
+    addEventListener('keydown', e => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (playing) document.getElementById('pause').click();
+        else document.getElementById('play').click();
+      }
+    });
 
     // camera
     canvas.addEventListener('mousedown', e => { drag = true; pan = e.shiftKey; lx = e.clientX; ly = e.clientY; });

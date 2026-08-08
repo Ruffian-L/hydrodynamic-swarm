@@ -662,7 +662,7 @@
 
     addEventListener('keydown', e => {
       if (document.getElementById('exhibit').classList.contains('active') === false) return;
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')) return;
       if (e.code === 'Space') {
         e.preventDefault();
         if (playing) document.getElementById('btn-pause').click();
