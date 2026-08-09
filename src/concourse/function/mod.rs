@@ -328,31 +328,27 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
         return a_len;
     }
 
-    let mut dp = vec![vec![0; b_len + 1]; a_len + 1];
-
-    for (i, row) in dp.iter_mut().enumerate().take(a_len + 1) {
-        row[0] = i;
-    }
-
-    for (j, cell) in dp[0].iter_mut().enumerate().take(b_len + 1) {
-        *cell = j;
-    }
+    // ⚡ Bolt: Optimize Levenshtein memory from O(N*M) to O(M) by only storing the previous row
+    let mut prev_row: Vec<usize> = (0..=b_len).collect();
+    let mut curr_row = vec![0; b_len + 1];
 
     for i in 1..=a_len {
+        curr_row[0] = i;
         for j in 1..=b_len {
             let cost = if a_chars[i - 1] == b_chars[j - 1] {
                 0
             } else {
                 1
             };
-            dp[i][j] = std::cmp::min(
-                dp[i - 1][j] + 1,
-                std::cmp::min(dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost),
+            curr_row[j] = std::cmp::min(
+                prev_row[j] + 1,
+                std::cmp::min(curr_row[j - 1] + 1, prev_row[j - 1] + cost),
             );
         }
+        prev_row.copy_from_slice(&curr_row);
     }
 
-    dp[a_len][b_len]
+    prev_row[b_len]
 }
 
 #[cfg(test)]
