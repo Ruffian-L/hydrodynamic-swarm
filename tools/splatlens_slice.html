@@ -54,7 +54,7 @@
       <span class="dot" style="background:#2DD4A8"></span>Pleasure
       <span class="dot" style="background:#8B3A3A"></span>Pain
     </p>
-    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · B4d-q short paragraph demo</p>
+    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · Space play/pause · B4d-q short paragraph demo</p>
   </div>
   <div id="gen">Load a session to see tokens…</div>
   <div id="bar">
@@ -160,6 +160,20 @@
     document.getElementById('scrub').oninput = e => { playing = false; vis = +e.target.value + 1; updateText(); updateStep(); };
 
     // camera
+    addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        const tag = e.target.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON' && tag !== 'SELECT' && e.target.getAttribute('role') !== 'button' && !e.target.isContentEditable) {
+          e.preventDefault();
+          if (playing) {
+            document.getElementById('pause').click();
+          } else {
+            document.getElementById('play').click();
+          }
+        }
+      }
+    });
+
     canvas.addEventListener('mousedown', e => { drag = true; pan = e.shiftKey; lx = e.clientX; ly = e.clientY; });
     addEventListener('mouseup', () => { drag = false; });
     addEventListener('mousemove', e => {
