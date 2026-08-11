@@ -117,7 +117,8 @@ impl TextEnzyme {
         let http_base = std::env::var("ENDOCRINE_URL")
             .ok()
             .map(|s| s.trim().trim_end_matches('/').to_string())
-            .filter(|s| !s.is_empty());
+            .filter(|s| !s.is_empty())
+            .filter(|s| s.starts_with("http://") || s.starts_with("https://"));
         let model = std::env::var("ENDOCRINE_MODEL").unwrap_or_else(|_| "local".into());
         if let Some(ref u) = http_base {
             println!("[ENDOCRINE] text enzyme HTTP → {u} model={model}");
