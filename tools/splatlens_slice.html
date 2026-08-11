@@ -159,6 +159,29 @@
     document.getElementById('pause').onclick = () => { playing = false; };
     document.getElementById('scrub').oninput = e => { playing = false; vis = +e.target.value + 1; updateText(); updateStep(); };
 
+    // keyboard
+    addEventListener('keydown', e => {
+      if (e.key === ' ' || e.code === 'Space') {
+        const activeElement = document.activeElement;
+        const isInteractive = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'BUTTON' ||
+          activeElement.tagName === 'SELECT' ||
+          activeElement.getAttribute('role') === 'button' ||
+          activeElement.isContentEditable
+        );
+        if (!isInteractive) {
+          e.preventDefault();
+          playing = !playing;
+          if (playing) {
+            if (vis >= snaps.length) vis = 1;
+            lastPlay = performance.now();
+          }
+        }
+      }
+    });
+
     // camera
     canvas.addEventListener('mousedown', e => { drag = true; pan = e.shiftKey; lx = e.clientX; ly = e.clientY; });
     addEventListener('mouseup', () => { drag = false; });

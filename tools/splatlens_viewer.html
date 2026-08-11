@@ -555,6 +555,27 @@
       settingsBtn.setAttribute('aria-expanded', isOpen);
     });
     document.addEventListener('keydown', (e) => {
+      // Spacebar for play/pause
+      if (e.key === ' ' || e.code === 'Space') {
+        const activeElement = document.activeElement;
+        const isInteractive = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'BUTTON' ||
+          activeElement.tagName === 'SELECT' ||
+          activeElement.getAttribute('role') === 'button' ||
+          activeElement.isContentEditable
+        );
+        if (!isInteractive) {
+          e.preventDefault();
+          playing = !playing;
+          if (playing) {
+            visibleSteps = Math.max(1, visibleSteps === T.length ? 1 : visibleSteps);
+          }
+          updateBtns();
+          updateGenText();
+        }
+      }
       if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
         settingsPanel.classList.remove('open');
         settingsBtn.setAttribute('aria-expanded', 'false');
