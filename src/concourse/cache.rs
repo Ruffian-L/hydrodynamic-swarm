@@ -243,22 +243,29 @@ impl CacheManager {
         let cache_key = Self::generate_cache_key(text, "embedding");
 
         // Check LRU cache first
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        // ⚡ Bolt: Use a read lock for the initial check instead of a write lock to reduce contention
+        if let Some(entry) = self.lru_cache.read().unwrap().get(&cache_key) {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
             return Ok(Some(embedding));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        // ⚡ Bolt: Use a read lock for the initial check instead of a write lock to reduce contention
+        let mut entry_to_promote = None;
+        if let Some(entry) = self.ttl_cache.read().unwrap().get(&cache_key) {
+            entry_to_promote = Some((entry.value.clone(), entry.ttl_seconds));
+        }
+
+        if let Some((value, ttl_seconds)) = entry_to_promote {
             // Promote to LRU cache
-            let embedding: Vec<f32> = bincode::deserialize(&entry.value)
+            let embedding: Vec<f32> = bincode::deserialize(&value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, entry.value.clone(), entry.ttl_seconds);
+                .put(cache_key, value, ttl_seconds);
 
             return Ok(Some(embedding));
         }
@@ -293,20 +300,26 @@ impl CacheManager {
         let cache_key = Self::generate_edge_key(text_a, text_b);
 
         // Check LRU cache
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        // ⚡ Bolt: Use a read lock for the initial check instead of a write lock to reduce contention
+        if let Some(entry) = self.lru_cache.read().unwrap().get(&cache_key) {
             return Ok(Some(entry.value.clone()));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        // ⚡ Bolt: Use a read lock for the initial check instead of a write lock to reduce contention
+        let mut entry_to_promote = None;
+        if let Some(entry) = self.ttl_cache.read().unwrap().get(&cache_key) {
+            entry_to_promote = Some((entry.value.clone(), entry.ttl_seconds));
+        }
+
+        if let Some((value, ttl_seconds)) = entry_to_promote {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
-            let val = entry.value.clone();
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, val.clone(), entry.ttl_seconds);
-            return Ok(Some(val));
+                .put(cache_key, value.clone(), ttl_seconds);
+            return Ok(Some(value));
         }
 
         Ok(None)
