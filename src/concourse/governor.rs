@@ -185,12 +185,14 @@ impl PrimeGovernor {
 
     /// Poll current viscosity and trigger Splat if needed
     async fn poll_viscosity(&mut self) -> SwarmResult<()> {
+        // ⚡ Bolt: Batch state reads into a single .read().await lock acquisition to avoid redundant lock contention and context-switching overhead
         let (edge_counts, node_count, delta_c) = {
             let cell = self.active_cell.read().await;
-            let edge_counts = cell.get_edge_counts_vec();
-            let node_count = cell.node_count();
-            let delta_c = cell.calculate_delta_c();
-            (edge_counts, node_count, delta_c)
+            (
+                cell.get_edge_counts_vec(),
+                cell.node_count(),
+                cell.calculate_delta_c(),
+            )
         };
 
         // Calculate viscosity
@@ -198,8 +200,8 @@ impl PrimeGovernor {
             .volumetric_governor
             .calculate_viscosity(&edge_counts, node_count, delta_c);
 
-        // Update cognitive state
-        {
+        // ⚡ Bolt: Use a single .write().await lock to update and check stability
+        let is_stable = {
             let mut state = self.cognitive_state.write().await;
             let contradiction_count = edge_counts
                 .iter()
@@ -213,11 +215,6 @@ impl PrimeGovernor {
                 .unwrap_or(0);
 
             state.update_from_edges(contradiction_count, synthesis_count, node_count);
-        }
-
-        // Check Lyapunov stability
-        let is_stable = {
-            let state = self.cognitive_state.read().await;
             state.is_lyapunov_stable()
         };
         if !is_stable {
