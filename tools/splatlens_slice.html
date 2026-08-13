@@ -34,6 +34,7 @@
     }
     button:hover, label.file:hover { background: rgba(64,224,208,.22) }
     button.active { background: rgba(64,224,208,.3) }
+    *:focus-visible { outline: 2px solid #40E0D0; outline-offset: 2px; }
     input[type=range] { width: 160px; accent-color: #40E0D0 }
     input[type=file] { display: none }
     .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px }
@@ -61,7 +62,7 @@
     <label class="file">Load .viz.json<input type="file" id="file" accept=".json,.viz.json,application/json"></label>
     <button id="play">Play</button>
     <button id="pause">Pause</button>
-    <input type="range" id="scrub" min="0" max="0" value="0">
+    <input type="range" id="scrub" aria-label="Step scrubber" min="0" max="0" value="0">
     <span id="step">0/0</span>
   </div>
   <div id="drop">Drop .viz.json here</div>
@@ -157,6 +158,16 @@
     // controls
     document.getElementById('play').onclick = () => { playing = true; if (vis >= snaps.length) vis = 1; lastPlay = performance.now(); };
     document.getElementById('pause').onclick = () => { playing = false; };
+
+    // keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if (e.key === ' ' && !['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT'].includes(e.target.tagName) && !e.target.isContentEditable && e.target.getAttribute('role') !== 'button') {
+        e.preventDefault();
+        playing = !playing;
+        if (playing) { if (vis >= snaps.length) vis = 1; lastPlay = performance.now(); }
+      }
+    });
+
     document.getElementById('scrub').oninput = e => { playing = false; vis = +e.target.value + 1; updateText(); updateStep(); };
 
     // camera
