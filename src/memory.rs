@@ -329,9 +329,8 @@ impl SplatMemory {
     /// Returns the number of splats culled.
     pub fn cull(&mut self, threshold: f32) -> usize {
         let before = self.splats.len();
-        self.splats.retain(|s| {
-            s.is_anchor || Self::is_prefill_bridge(s) || s.alpha.abs() >= threshold
-        });
+        self.splats
+            .retain(|s| s.is_anchor || Self::is_prefill_bridge(s) || s.alpha.abs() >= threshold);
         before - self.splats.len()
     }
 
@@ -670,9 +669,7 @@ impl SplatMemory {
                         if total_w > 0.0 {
                             cluster_mu = (&cluster_mu
                                 .affine((cluster_weight / total_w) as f64, 0.0)?
-                                + &self.splats[j]
-                                    .mu
-                                    .affine((w_j / total_w) as f64, 0.0)?)?;
+                                + &self.splats[j].mu.affine((w_j / total_w) as f64, 0.0)?)?;
                         }
                         cluster_weight = total_w;
                         cluster_alpha += self.splats[j].alpha;
@@ -799,7 +796,9 @@ impl SplatMemory {
             "    [PRUNE] Capped to {} ({} bridges reserved + {} trail)",
             self.splats.len(),
             self.count_prefill_bridges(),
-            self.splats.len().saturating_sub(self.count_prefill_bridges())
+            self.splats
+                .len()
+                .saturating_sub(self.count_prefill_bridges())
         );
     }
 
@@ -1319,7 +1318,11 @@ mod tests {
             .unwrap();
         assert_eq!(memory.count_prefill_bridges(), 1);
         memory.prune_to_limit(5);
-        assert_eq!(memory.count_prefill_bridges(), 1, "bridge must survive prune");
+        assert_eq!(
+            memory.count_prefill_bridges(),
+            1,
+            "bridge must survive prune"
+        );
         assert_eq!(memory.len(), 5);
     }
 
@@ -1442,7 +1445,11 @@ mod tests {
 
         // Decay should be a no-op for anchors.
         mem.decay_step(0.5);
-        assert_eq!(mem.splats_ref()[0].alpha, 5.0, "anchor alpha must survive decay");
+        assert_eq!(
+            mem.splats_ref()[0].alpha,
+            5.0,
+            "anchor alpha must survive decay"
+        );
     }
 
     #[test]

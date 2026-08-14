@@ -110,10 +110,7 @@ impl TctSplatStore {
         let dim = if model_dim > 0 {
             model_dim as u32
         } else {
-            records
-                .first()
-                .map(|r| r.center.len() as u32)
-                .unwrap_or(0)
+            records.first().map(|r| r.center.len() as u32).unwrap_or(0)
         };
         Ok(Self {
             version: TCT_VERSION,
@@ -216,11 +213,7 @@ impl TctSplatStore {
             let is_anchor = meta[1] != 0;
             let trigger_kind = read_u32(&mut f)?;
             // v3+: prompt_fp; older files stop at trigger_kind (centers follow).
-            let prompt_fp = if version >= 3 {
-                read_u32(&mut f)?
-            } else {
-                0
-            };
+            let prompt_fp = if version >= 3 { read_u32(&mut f)? } else { 0 };
             let mut center = vec![0f32; dim];
             for c in &mut center {
                 *c = read_f32(&mut f)?;
@@ -397,7 +390,8 @@ pub fn upsert_bridge_prompt_registry(
 
     let mut root: serde_json::Value = if registry_path.exists() {
         let raw = std::fs::read_to_string(registry_path)?;
-        serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({ "version": 1, "prompts": {} }))
+        serde_json::from_str(&raw)
+            .unwrap_or_else(|_| serde_json::json!({ "version": 1, "prompts": {} }))
     } else {
         serde_json::json!({ "version": 1, "prompts": {} })
     };
@@ -424,15 +418,14 @@ pub fn upsert_bridge_prompt_registry(
         }),
     );
     root["updated_unix"] = serde_json::json!(now);
-    std::fs::write(
-        registry_path,
-        serde_json::to_string_pretty(&root)? + "\n",
-    )?;
+    std::fs::write(registry_path, serde_json::to_string_pretty(&root)? + "\n")?;
     Ok(())
 }
 
 /// Load fp hex → prompt text for TCT sidecar enrichment.
-pub fn load_bridge_prompt_labels(registry_path: &Path) -> std::collections::BTreeMap<String, String> {
+pub fn load_bridge_prompt_labels(
+    registry_path: &Path,
+) -> std::collections::BTreeMap<String, String> {
     let mut out = std::collections::BTreeMap::new();
     if !registry_path.exists() {
         return out;
@@ -502,7 +495,11 @@ impl SplatMemory {
     pub fn import_tct(&mut self, path: &Path) -> anyhow::Result<usize> {
         let store = TctSplatStore::read_binary(path)?;
         let n = store.into_memory(self)?;
-        println!("    TCT-splat-lite: loaded {} records from {}", n, path.display());
+        println!(
+            "    TCT-splat-lite: loaded {} records from {}",
+            n,
+            path.display()
+        );
         Ok(n)
     }
 }
@@ -549,7 +546,10 @@ mod tests {
         upsert_bridge_prompt_registry(&dir, 0x2222, "cuda tips").unwrap();
         upsert_bridge_prompt_registry(&dir, 0x1111, "hello friendship").unwrap(); // count++
         let labels = load_bridge_prompt_labels(&dir);
-        assert_eq!(labels.get("0x1111").map(|s| s.as_str()), Some("hello friendship"));
+        assert_eq!(
+            labels.get("0x1111").map(|s| s.as_str()),
+            Some("hello friendship")
+        );
         assert_eq!(labels.get("0x2222").map(|s| s.as_str()), Some("cuda tips"));
         let root: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&dir).unwrap()).unwrap();
@@ -572,9 +572,7 @@ mod tests {
         assert_eq!(store.records[0].prompt_fp, 0xabcd);
         let mut mem2 = SplatMemory::new(Device::Cpu);
         mem2.import_tct(&dir).unwrap();
-        assert!(
-            (mem2.splats_ref()[0].flux - SplatMemory::PREFILL_BRIDGE_FLUX).abs() < 1e-4
-        );
+        assert!((mem2.splats_ref()[0].flux - SplatMemory::PREFILL_BRIDGE_FLUX).abs() < 1e-4);
         assert_eq!(SplatMemory::bridge_prompt_fp(&mem2.splats_ref()[0]), 0xabcd);
         let _ = std::fs::remove_file(&dir);
         let _ = std::fs::remove_file(format!("{}.json", dir.display()));
@@ -586,9 +584,6 @@ mod tests {
             model_fp_from_path("data/google/gemma-3-4b-it-Q4_K_M.gguf"),
             model_fp_from_path("data/google/gemma-3-4b-it-Q4_K_M.gguf")
         );
-        assert_ne!(
-            model_fp_from_path("a.gguf"),
-            model_fp_from_path("b.gguf")
-        );
+        assert_ne!(model_fp_from_path("a.gguf"), model_fp_from_path("b.gguf"));
     }
 }

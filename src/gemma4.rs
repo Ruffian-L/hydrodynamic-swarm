@@ -413,7 +413,12 @@ impl ModelWeights {
         let rope_base_swa = meta_f32(&ct, "gemma4.rope.freq_base_swa", 10_000.0);
         let swa_window = meta_u32(&ct, "gemma4.attention.sliding_window").unwrap_or(1024) as usize;
         // Pattern: true = SWA layer (local), false = full attention
-        let is_swa = meta_bool_array(&ct, "gemma4.attention.sliding_window_pattern", block_count, true);
+        let is_swa = meta_bool_array(
+            &ct,
+            "gemma4.attention.sliding_window_pattern",
+            block_count,
+            true,
+        );
         let _kv_heads_meta = meta_u32_array(
             &ct,
             "gemma4.attention.head_count_kv",
@@ -460,8 +465,7 @@ impl ModelWeights {
                 .as_str(),
             "i" | "interleaved" | "rope_i"
         );
-        let final_logit_softcap =
-            meta_f32(&ct, "gemma4.final_logit_softcapping", 30.0) as f64;
+        let final_logit_softcap = meta_f32(&ct, "gemma4.final_logit_softcapping", 30.0) as f64;
 
         println!(
             "    [Gemma4] blocks={} hidden={} heads={} head_dim_full={} head_dim_swa={} n_rot_full={} n_rot_swa={} swa_win={} rope_full={:.0} rope_swa={:.0} logit_softcap={:.1} attn_scale={} rope_style={}",
@@ -508,7 +512,8 @@ impl ModelWeights {
 
         let tok_embd_q = ct.tensor(reader, "token_embd.weight", device)?;
         let tok_embd = tok_embd_q.dequantize(device)?;
-        let norm = RmsNorm::from_qtensor(ct.tensor(reader, "output_norm.weight", device)?, rms_eps)?;
+        let norm =
+            RmsNorm::from_qtensor(ct.tensor(reader, "output_norm.weight", device)?, rms_eps)?;
         let output = match ct.tensor(reader, "output.weight", device) {
             Ok(t) => Some(QMatMul::from_qtensor(t)?),
             Err(_) => None,
