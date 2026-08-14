@@ -14,3 +14,8 @@
 **Vulnerability:** The `crucible` binary executes the project-internal binary using a relative path (`target/release/hydrodynamic-swarm`). If a user runs `crucible` from a different directory where a malicious `target/release/hydrodynamic-swarm` exists, the malicious binary will be executed instead of the intended one.
 **Learning:** Relying on relative paths for executing binaries makes the application vulnerable to command hijacking, as the resolved path depends entirely on the unpredictable current working directory.
 **Prevention:** Construct absolute paths to project-internal binaries at compile time using `env!("CARGO_MANIFEST_DIR")` (e.g., `concat!(env!("CARGO_MANIFEST_DIR"), "/target/release/binary")`) to ensure path resolution is safe and independent of the execution context.
+
+## 2024-05-18 - Prevent Lock Poisoning Denial of Service
+**Vulnerability:** Found multiple instances where `.unwrap()` was called directly on `RwLock` and `Mutex` guard acquisition (e.g., `.write().unwrap()`, `.read().unwrap()`, `.lock().unwrap()`).
+**Learning:** In Rust, if a thread panics while holding a Mutex or RwLock, the lock becomes poisoned. Subsequent calls to acquire the lock will return an `Err`. Calling `.unwrap()` on this `LockResult` causes a cascading panic in the calling thread, turning a single thread failure into a potential application-wide Denial of Service (DoS) vulnerability.
+**Prevention:** Always use `.unwrap_or_else(|e| e.into_inner())` on lock acquisitions to safely recover the lock guard and ignore the poison state, ensuring other threads can continue to operate and preventing application termination.
