@@ -298,14 +298,18 @@ impl CacheManager {
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        // ⚡ Bolt: compute read conditions while holding write guard to prevent redundant lock acquisitions and context switches
+        let ttl_guard = self.ttl_cache.read().unwrap();
+        if let Some(entry) = ttl_guard.get(&cache_key) {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
             let val = entry.value.clone();
+            let ttl = entry.ttl_seconds;
+            drop(ttl_guard);
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, val.clone(), entry.ttl_seconds);
+                .put(cache_key, val.clone(), ttl);
             return Ok(Some(val));
         }
 
