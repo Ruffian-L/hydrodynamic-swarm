@@ -379,13 +379,13 @@
       <span><span class="dot" style="background:#8B3A3A"></span>Pain</span>
       <span><span class="dot" style="background:#C49650"></span>Attractors</span>
     </div>
-    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan</p>
+    <p style="margin-top:6px;color:#2A3448">Drag=orbit | Scroll=zoom | Shift+drag=pan | Space=play/pause</p>
   </div>
   <div id="gen-text" aria-live="polite"></div>
   <span id="controls-label" style="display:none">Visualization Controls</span>
   <div id="controls" role="group" aria-labelledby="controls-label">
-    <button id="btn-play" class="active" aria-pressed="true">Play</button>
-    <button id="btn-pause" aria-pressed="false">Pause</button>
+    <button id="btn-play" aria-pressed="false">Play</button>
+    <button id="btn-pause" class="active" aria-pressed="true">Pause</button>
     <div class="slider-group">
       <label for="scrubber">Step</label>
       <input type="range" id="scrubber" class="ctrl-slider" style="width:140px" min="0" max="49" value="49">
@@ -513,6 +513,25 @@
     speedSlider.addEventListener('input', () => { replaySpeed = parseInt(speedSlider.value); speedLabel.textContent = replaySpeed + 'ms' });
     btnPlay.addEventListener('click', () => { playing = true; visibleSteps = 1; updateBtns(); updateGenText() });
     btnPause.addEventListener('click', () => { playing = false; visibleSteps = T.length; scrubber.value = T.length - 1; updateBtns(); updateGenText() });
+    // Spacebar play/pause
+    document.addEventListener('keydown', (e) => {
+      // Exclude interactive elements
+      if (document.activeElement) {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return;
+        if (document.activeElement.getAttribute('role') === 'button' || document.activeElement.isContentEditable) return;
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        if (playing) {
+          btnPause.click();
+        } else {
+          btnPlay.click();
+        }
+      }
+    });
+
     // Prompt bar -- Replay triggers Play replay
     const promptInput = document.getElementById('prompt-input');
     const replayBtn = document.getElementById('replay-btn');

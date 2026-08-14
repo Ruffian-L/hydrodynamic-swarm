@@ -54,7 +54,7 @@
       <span class="dot" style="background:#2DD4A8"></span>Pleasure
       <span class="dot" style="background:#8B3A3A"></span>Pain
     </p>
-    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · B4d-q short paragraph demo</p>
+    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · Space play/pause</p>
   </div>
   <div id="gen">Load a session to see tokens…</div>
   <div id="bar">
@@ -158,6 +158,25 @@
     document.getElementById('play').onclick = () => { playing = true; if (vis >= snaps.length) vis = 1; lastPlay = performance.now(); };
     document.getElementById('pause').onclick = () => { playing = false; };
     document.getElementById('scrub').oninput = e => { playing = false; vis = +e.target.value + 1; updateText(); updateStep(); };
+
+    // Spacebar play/pause
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement) {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return;
+        if (document.activeElement.getAttribute('role') === 'button' || document.activeElement.isContentEditable) return;
+      }
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        if (playing) {
+          playing = false;
+        } else {
+          playing = true;
+          if (vis >= snaps.length) vis = 1;
+          lastPlay = performance.now();
+        }
+      }
+    });
 
     // camera
     canvas.addEventListener('mousedown', e => { drag = true; pan = e.shiftKey; lx = e.clientX; ly = e.clientY; });
