@@ -54,7 +54,7 @@
       <span class="dot" style="background:#2DD4A8"></span>Pleasure
       <span class="dot" style="background:#8B3A3A"></span>Pain
     </p>
-    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · B4d-q short paragraph demo</p>
+    <p style="margin-top:6px;color:#2A3448">Drag orbit · Scroll zoom · Space play/pause · B4d-q short paragraph demo</p>
   </div>
   <div id="gen">Load a session to see tokens…</div>
   <div id="bar">
@@ -154,6 +154,23 @@
       .then(d => { if (d) loadSession(d); })
       .catch(() => {});
 
+    addEventListener('keydown', e => {
+      if (e.key === ' ' || e.code === 'Space') {
+        const tag = e.target.tagName;
+        const role = e.target.getAttribute('role');
+        const isInteractive = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT' || role === 'button' || e.target.isContentEditable;
+        if (!isInteractive) {
+          e.preventDefault();
+          if (playing) {
+            playing = false;
+          } else {
+            playing = true;
+            if (vis >= snaps.length) vis = 1;
+            lastPlay = performance.now();
+          }
+        }
+      }
+    });
     // controls
     document.getElementById('play').onclick = () => { playing = true; if (vis >= snaps.length) vis = 1; lastPlay = performance.now(); };
     document.getElementById('pause').onclick = () => { playing = false; };
