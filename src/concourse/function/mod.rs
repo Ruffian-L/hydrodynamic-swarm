@@ -229,7 +229,8 @@ impl FunctionManager {
                 }
 
                 // Update cognitive state based on node class
-                {
+                // ⚡ Bolt: avoid acquiring multiple RwLock guards simultaneously or lock contention.
+                if matches!(task.node.class, NodeClass::Anomaly | NodeClass::Axiom) {
                     let mut state_write = cognitive_state.write().await;
                     match task.node.class {
                         NodeClass::Anomaly => state_write.omega += 0.1,
