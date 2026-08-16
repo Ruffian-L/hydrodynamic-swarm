@@ -196,27 +196,24 @@ fn format_multiturn_prompt(turns: &[(bool, String)], variant: &str) -> String {
             s.push_str("<start_of_turn>model\n");
             s
         }
-        _ => turns
-            .iter()
-            .map(|(u, t)| {
-                if *u {
-                    format!("User: {}\n", t.trim())
-                } else {
-                    format!("Assistant: {}\n", t.trim())
-                }
-            })
-            .collect::<String>()
-            + "Assistant: ",
+        _ => {
+            turns
+                .iter()
+                .map(|(u, t)| {
+                    if *u {
+                        format!("User: {}\n", t.trim())
+                    } else {
+                        format!("Assistant: {}\n", t.trim())
+                    }
+                })
+                .collect::<String>()
+                + "Assistant: "
+        }
     }
 }
 
 /// Sample next token id from logits (after any penalties). Supports greedy, top-k, top-p.
-fn sample_from_logits(
-    logits: &[f32],
-    temperature: f64,
-    top_k: usize,
-    top_p: f32,
-) -> u32 {
+fn sample_from_logits(logits: &[f32], temperature: f64, top_k: usize, top_p: f32) -> u32 {
     if logits.is_empty() {
         return 0;
     }
@@ -241,10 +238,7 @@ fn sample_from_logits(
     }
 
     let t = temperature.max(1e-5) as f32;
-    let mut scored: Vec<(usize, f32)> = idxs
-        .iter()
-        .map(|&i| (i, (logits[i] / t).exp()))
-        .collect();
+    let mut scored: Vec<(usize, f32)> = idxs.iter().map(|&i| (i, (logits[i] / t).exp())).collect();
     let sum: f32 = scored.iter().map(|(_, w)| *w).sum::<f32>().max(1e-12);
     for s in scored.iter_mut() {
         s.1 /= sum;
@@ -418,8 +412,13 @@ fn run_simple_chat(
         ngram_n,
         drop_collapsed
     );
-    println!("(History re-prefills each turn; collapsed replies are not kept when drop_collapsed=true.)");
-    println!("Transcript (private/gitignored): {}\n", transcript_path.display());
+    println!(
+        "(History re-prefills each turn; collapsed replies are not kept when drop_collapsed=true.)"
+    );
+    println!(
+        "Transcript (private/gitignored): {}\n",
+        transcript_path.display()
+    );
 
     let mut history: Vec<(bool, String)> = Vec::new();
     let stdin = std::io::stdin();
@@ -461,7 +460,10 @@ fn run_simple_chat(
         let (mut logits, _) = if cfg.physics.steer_hidden {
             model.forward_with_hidden(&prompt_tensor, 0)?
         } else {
-            (model.forward(&prompt_tensor, 0)?, Tensor::zeros((1, 1), candle_core::DType::F32, device)?)
+            (
+                model.forward(&prompt_tensor, 0)?,
+                Tensor::zeros((1, 1), candle_core::DType::F32, device)?,
+            )
         };
         let mut index_pos = prompt_ids.len();
         let mut generated: Vec<u32> = Vec::new();
@@ -546,7 +548,9 @@ fn run_simple_chat(
         }
         if !reply.is_empty() {
             if drop_collapsed && collapsed {
-                println!("(dropped collapsed turn from history — type `reset` if context is dirty)");
+                println!(
+                    "(dropped collapsed turn from history — type `reset` if context is dirty)"
+                );
                 // remove the user turn we just pushed so a retry is clean
                 if history.last().map(|(u, _)| *u) == Some(true) {
                     history.pop();
@@ -707,12 +711,26 @@ async fn main() -> Result<()> {
         );
         Model::Gemma4(gemma4::ModelWeights::from_gguf(ct, &mut reader, &device)?)
     } else if load_gemma3 {
-        println!("    Architecture: {} → Gemma 3 loader", if arch.is_empty() { "path-heuristic".into() } else { arch.clone() });
+        println!(
+            "    Architecture: {} → Gemma 3 loader",
+            if arch.is_empty() {
+                "path-heuristic".into()
+            } else {
+                arch.clone()
+            }
+        );
         let m = gemma::ModelWeights::from_gguf(ct, &mut reader, &device)?;
         println!("    Gemma 3 loaded (hidden_dim={})", m.hidden_dim);
         Model::Gemma(m)
     } else {
-        println!("    Architecture: {} → Llama loader", if arch.is_empty() { "default".into() } else { arch.clone() });
+        println!(
+            "    Architecture: {} → Llama loader",
+            if arch.is_empty() {
+                "default".into()
+            } else {
+                arch.clone()
+            }
+        );
         let m = llama::ModelWeights::from_gguf(ct, &mut reader, &device)?;
         println!("    Llama loaded");
         Model::Llama(m)
@@ -722,12 +740,7 @@ async fn main() -> Result<()> {
     let tokenizer_path = cli_tokenizer
         .filter(|path| Path::new(path).exists())
         .or_else(|| tokenizer_next_to_model(&model_path))
-        .or_else(|| {
-            find_existing_file(&[
-                "data/google/tokenizer.json",
-                "data/tokenizer.json",
-            ])
-        })
+        .or_else(|| find_existing_file(&["data/google/tokenizer.json", "data/tokenizer.json"]))
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Required tokenizer file not found.\n\
@@ -763,14 +776,8 @@ async fn main() -> Result<()> {
     if cfg.physics.gradient_topk > 0 {
         engine.set_gradient_topk(cfg.physics.gradient_topk);
     }
-    engine.set_splat_force_limits(
-        cfg.physics.splat_force_scale,
-        cfg.physics.splat_force_max,
-    );
-    engine.set_goal_force_limits(
-        cfg.physics.goal_force_scale,
-        cfg.physics.goal_force_max,
-    );
+    engine.set_splat_force_limits(cfg.physics.splat_force_scale, cfg.physics.splat_force_max);
+    engine.set_goal_force_limits(cfg.physics.goal_force_scale, cfg.physics.goal_force_max);
     engine.set_goal_late_attenuate(
         cfg.physics.goal_late_start,
         cfg.physics.goal_late_span,
@@ -790,9 +797,7 @@ async fn main() -> Result<()> {
     // ── Shep endocrine: worker = text enzyme; geometry = native tok_embeddings ──
     let (_shared_universe, endocrine_tx, mut endocrine_rx) = if endocrine_enabled {
         let (universe, tx, rx) = endocrine::create_endocrine_system();
-        println!(
-            "    Endocrine: ON (enzyme idle until signal · native embed · no TinyEmbed)"
-        );
+        println!("    Endocrine: ON (enzyme idle until signal · native embed · no TinyEmbed)");
         (Some(universe), Some(tx), Some(rx))
     } else {
         println!("    Endocrine: OFF (--no-endocrine)");
@@ -818,9 +823,7 @@ async fn main() -> Result<()> {
     if cfg.physics.goal_late_start > 0 {
         println!(
             "    Late F_a attenuate: after step {} → ×{:.2} over {} tok (early goal intact)",
-            cfg.physics.goal_late_start,
-            cfg.physics.goal_late_end,
-            cfg.physics.goal_late_span
+            cfg.physics.goal_late_start, cfg.physics.goal_late_end, cfg.physics.goal_late_span
         );
     }
     if cfg.physics.targeted_splat_only {
@@ -895,7 +898,11 @@ async fn main() -> Result<()> {
     if loaded_count == 0 && !clear_memory {
         println!("    No existing splat memory found (first run)");
     } else if loaded_count > 0 {
-        println!("    Loaded {} splats from {}", loaded_count, splat_file.display());
+        println!(
+            "    Loaded {} splats from {}",
+            loaded_count,
+            splat_file.display()
+        );
     }
     // Continuity: drop legacy pain prefill-bridges (failed-gen deposits).
     let pain_dropped = engine.memory_mut().drop_pain_prefill_bridges();
@@ -983,7 +990,9 @@ async fn main() -> Result<()> {
         println!("    Chat template: OFF (--no-chat-template, raw prompt)");
     } else {
         match model_variant {
-            "gemma4" => println!("    Chat template: Gemma 4 IT turns (<|turn>… from gemma4_assets)"),
+            "gemma4" => {
+                println!("    Chat template: Gemma 4 IT turns (<|turn>… from gemma4_assets)")
+            }
             "gemma3" => println!("    Chat template: Gemma 3 IT turns (<start_of_turn>…)"),
             _ => {}
         }
@@ -1048,10 +1057,7 @@ async fn main() -> Result<()> {
         -1.0
     };
     let scar_potential_at_prefill = if engine.memory().len() > 0 {
-        engine
-            .memory()
-            .query_potential(&goal_pos)
-            .unwrap_or(0.0)
+        engine.memory().query_potential(&goal_pos).unwrap_or(0.0)
     } else {
         0.0
     };
@@ -1260,10 +1266,7 @@ async fn main() -> Result<()> {
                 };
                 engine.apply_monolith_native(&mono, native_opt);
                 let fact_line = bloom.raw_text.chars().take(120).collect::<String>();
-                live_println!(
-                    "    [BLOOM native] {}",
-                    fact_line.replace('\n', " ")
-                );
+                live_println!("    [BLOOM native] {}", fact_line.replace('\n', " "));
             }
         }
         engine.tick_endocrine();
@@ -1353,7 +1356,14 @@ async fn main() -> Result<()> {
             };
             let blend = if entropy > 2.5 { 0.12 } else { 0.07 };
 
-            let result = micro_dream(&mut engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
+            let result = micro_dream(
+                &mut engine,
+                &steered_slice,
+                &goal_pos,
+                step,
+                dream_steps,
+                blend,
+            )?;
             result.consolidated
         } else {
             steered_slice
@@ -1383,11 +1393,7 @@ async fn main() -> Result<()> {
             // scores: (V,) = E @ û_g
             let scores = emb.matmul(&v.unsqueeze(1)?)?.squeeze(1)?;
             // Peak-normalize so α is a comparable logit-scale knob across steps
-            let peak: f32 = scores
-                .abs()?
-                .max_all()?
-                .to_scalar::<f32>()?
-                .max(1e-8);
+            let peak: f32 = scores.abs()?.max_all()?.to_scalar::<f32>()?.max(1e-8);
             let bias = scores
                 .affine((cfg.physics.field_logit_alpha / peak) as f64, 0.0)?
                 .unsqueeze(0)?; // (1, V)
@@ -1436,7 +1442,11 @@ async fn main() -> Result<()> {
             }
             p
         } else {
-            let t = Tensor::from_vec(logits_vec.clone(), logits_vec.len(), steered_logits.device())?;
+            let t = Tensor::from_vec(
+                logits_vec.clone(),
+                logits_vec.len(),
+                steered_logits.device(),
+            )?;
             let scaled = (&t / temperature)?;
             let probs = candle_nn::ops::softmax(&scaled, 0)?;
             probs.to_vec1()?
@@ -1465,17 +1475,10 @@ async fn main() -> Result<()> {
         // ── Semantic splat: "good" = confident non-spam, "bad" = surprise/loop ──
         // Quantified from P(token), top-k entropy, recent repeats — not δ.
         let q_thr = QualityThresholds::default();
-        let quality = score_token(
-            &probs_vec,
-            next_token,
-            &decoded,
-            &generated_tokens,
-            &q_thr,
-        );
+        let quality = score_token(&probs_vec, next_token, &decoded, &generated_tokens, &q_thr);
         let kind = classify(&quality, &q_thr);
         let interval = cfg.physics.online_splat_interval.max(1);
-        let rate_ok = step > 4
-            && (step as isize - last_online_splat_step) >= interval as isize;
+        let rate_ok = step > 4 && (step as isize - last_online_splat_step) >= interval as isize;
         // High-signal: steering event OR pain OR strong pleasure (original Niodoo targeting)
         let high_delta = delta_norm > cfg.physics.splat_delta_threshold;
         let high_signal = high_delta
@@ -1511,9 +1514,7 @@ async fn main() -> Result<()> {
                     // Cap during generation — prune_to_limit used to run only in Phase 5
                     // after the full loop, so 1000-tok runs could grow memory unbounded
                     // and F_s latched even with 1/√n damp + force caps.
-                    engine
-                        .memory_mut()
-                        .prune_to_limit(cfg.memory.max_splats);
+                    engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
                     // Pain snowball brake: scars can log; they must not own the residual.
                     if splat_alpha < 0.0
                         || cfg.memory.max_pain_splats > 0
@@ -1568,8 +1569,7 @@ async fn main() -> Result<()> {
                     }
                     // Endocrine: pain / high-δ → text enzyme (rate-limited).
                     if let Some(ref tx) = endocrine_tx {
-                        let cooldown_ok =
-                            (step as isize - last_endocrine_signal_step) >= 12;
+                        let cooldown_ok = (step as isize - last_endocrine_signal_step) >= 12;
                         if cooldown_ok
                             && (kind == SplatKind::Pain
                                 || (high_delta && quality.topk_entropy > 2.5))
@@ -1577,7 +1577,11 @@ async fn main() -> Result<()> {
                             let intent = format!(
                                 "stabilize generation after {:?} token «{}»",
                                 kind,
-                                decoded.replace('\n', " ").chars().take(40).collect::<String>()
+                                decoded
+                                    .replace('\n', " ")
+                                    .chars()
+                                    .take(40)
+                                    .collect::<String>()
                             );
                             let context = format!(
                                 "prompt_prefix={} step={} p={:.3} H={:.2} delta={:.1}",
@@ -1645,10 +1649,9 @@ async fn main() -> Result<()> {
 
         // Mid-run F_s control: per-token scar alpha decay (not wall-clock decay_step).
         if cfg.memory.online_decay_rate < 1.0 && engine.memory().len() > 0 {
-            engine.memory_mut().decay_per_token(
-                cfg.memory.online_decay_rate,
-                cfg.physics.pain_decay_factor,
-            );
+            engine
+                .memory_mut()
+                .decay_per_token(cfg.memory.online_decay_rate, cfg.physics.pain_decay_factor);
             if step > 0 && step % 25 == 0 {
                 let _ = engine.memory_mut().cull(cfg.memory.prune_threshold);
             }
@@ -1836,7 +1839,10 @@ async fn main() -> Result<()> {
         .consolidate(cfg.memory.consolidation_dist);
     engine.memory_mut().prune_to_limit(cfg.memory.max_splats);
 
-    println!("    Splats in memory: {} (will persist unless --no-save-memory)", engine.memory().len());
+    println!(
+        "    Splats in memory: {} (will persist unless --no-save-memory)",
+        engine.memory().len()
+    );
 
     // =========================================================
     // Phase 6: Dream Replay (REAL — replays actual generation trajectory)
@@ -1902,28 +1908,28 @@ async fn main() -> Result<()> {
         .max(cfg.memory.consolidation_dist);
         let prompt_fp = tct::prompt_fp(raw_prompt);
         if success {
-        match engine.memory_mut().deposit_prefill_bridge(
-            &goal_pos,
-            cfg.physics.prefill_bridge_sigma,
-            bridge_alpha,
-            cfg.physics.prefill_bridge_lambda,
-            replace_dist,
-            cfg.physics.prefill_bridge_offset_frac,
-            prompt_fp,
-        ) {
-            Ok(removed) => {
-                let dropped = engine
-                    .memory_mut()
-                    .enforce_max_prefill_bridges(cfg.memory.max_prefill_bridges);
-                let fps = engine.memory().list_bridge_prompt_fps();
-                if let Err(e) = tct::upsert_bridge_prompt_registry(
-                    &tct::bridge_prompts_path_default(),
-                    prompt_fp,
-                    raw_prompt,
-                ) {
-                    eprintln!("    [BRIDGE] prompt registry update failed: {e}");
-                }
-                println!(
+            match engine.memory_mut().deposit_prefill_bridge(
+                &goal_pos,
+                cfg.physics.prefill_bridge_sigma,
+                bridge_alpha,
+                cfg.physics.prefill_bridge_lambda,
+                replace_dist,
+                cfg.physics.prefill_bridge_offset_frac,
+                prompt_fp,
+            ) {
+                Ok(removed) => {
+                    let dropped = engine
+                        .memory_mut()
+                        .enforce_max_prefill_bridges(cfg.memory.max_prefill_bridges);
+                    let fps = engine.memory().list_bridge_prompt_fps();
+                    if let Err(e) = tct::upsert_bridge_prompt_registry(
+                        &tct::bridge_prompts_path_default(),
+                        prompt_fp,
+                        raw_prompt,
+                    ) {
+                        eprintln!("    [BRIDGE] prompt registry update failed: {e}");
+                    }
+                    println!(
                     "    + Prefill-bridge scar (σ={:.1} α={:.2} λ={:.4} offset={:.2}σ fp={:#x}) replaced={} bridges_now={} cap_drop={} fps={:?} total={}",
                     cfg.physics.prefill_bridge_sigma,
                     bridge_alpha,
@@ -1936,9 +1942,9 @@ async fn main() -> Result<()> {
                     fps.iter().map(|f| format!("{:#x}", f)).collect::<Vec<_>>(),
                     engine.memory().len()
                 );
+                }
+                Err(e) => eprintln!("    [BRIDGE] prefill scar failed: {e}"),
             }
-            Err(e) => eprintln!("    [BRIDGE] prefill scar failed: {e}"),
-        }
         } // success
     }
 
@@ -2020,7 +2026,10 @@ async fn main() -> Result<()> {
     println!("{}", ocean_summary);
     println!("  Log:      {}", logger.path().display());
     println!("  TACO:     {}", logger.taco_stats());
-    println!("  Backend:  {} + Niodoo physics + Shared Ocean", engine.backend_name());
+    println!(
+        "  Backend:  {} + Niodoo physics + Shared Ocean",
+        engine.backend_name()
+    );
     println!("========================================");
 
     // Append to human-readable log
@@ -2034,10 +2043,7 @@ async fn main() -> Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(
-                readable_path,
-                std::fs::Permissions::from_mode(0o664),
-            );
+            let _ = std::fs::set_permissions(readable_path, std::fs::Permissions::from_mode(0o664));
         }
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -2104,11 +2110,7 @@ fn tokenizer_next_to_model(model_path: &str) -> Option<String> {
 /// (see `gemma.rs` run_layers). Without that scale, blooms sit on the raw
 /// matrix shell and miss the geometry the stack actually eats.
 /// Llama: raw rows (scale 1).
-fn native_embed_mean(
-    model: &Model,
-    tokenizer: &Tokenizer,
-    text: &str,
-) -> anyhow::Result<Tensor> {
+fn native_embed_mean(model: &Model, tokenizer: &Tokenizer, text: &str) -> anyhow::Result<Tensor> {
     let emb = model.token_embeddings(); // (V, D) raw weight matrix
     let vocab = emb.dim(0)?;
     let dim = emb.dim(1)?;

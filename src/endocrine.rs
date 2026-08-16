@@ -34,9 +34,16 @@ pub struct Monolith {
 /// Signals sent TO the text enzyme (hormones from the nervous system)
 #[derive(Debug)]
 pub enum EndocrineSignal {
-    ExecuteTool { intent: String, context: String },
-    VerifyLogic { context: String },
-    RAGQuery { query: String },
+    ExecuteTool {
+        intent: String,
+        context: String,
+    },
+    VerifyLogic {
+        context: String,
+    },
+    RAGQuery {
+        query: String,
+    },
     AnalyzeTopology {
         entropy: f32,
         varentropy: f32,
@@ -197,7 +204,11 @@ impl TextEnzyme {
         let text = msg["content"]
             .as_str()
             .filter(|s| !s.trim().is_empty())
-            .or_else(|| msg["reasoning_content"].as_str().filter(|s| !s.trim().is_empty()))
+            .or_else(|| {
+                msg["reasoning_content"]
+                    .as_str()
+                    .filter(|s| !s.trim().is_empty())
+            })
             .or_else(|| v["choices"][0]["text"].as_str())
             .unwrap_or("")
             .trim()
@@ -255,8 +266,11 @@ pub fn project_native_to_4d(native: &[f32]) -> [f32; 4] {
     out
 }
 
-pub fn create_endocrine_system(
-) -> (SharedUniverse, mpsc::Sender<EndocrineSignal>, mpsc::Receiver<BloomEvent>) {
+pub fn create_endocrine_system() -> (
+    SharedUniverse,
+    mpsc::Sender<EndocrineSignal>,
+    mpsc::Receiver<BloomEvent>,
+) {
     let (tx_signal, rx_signal) = mpsc::channel(32);
     let (tx_bloom, rx_bloom) = mpsc::channel(32);
 
@@ -270,9 +284,7 @@ pub fn create_endocrine_system(
         monoliths: Vec::new(),
     };
 
-    println!(
-        "[ENDOCRINE] online — text enzyme + native tok_embeddings on main (stateless)."
-    );
+    println!("[ENDOCRINE] online — text enzyme + native tok_embeddings on main (stateless).");
 
     (universe, tx_signal, rx_bloom)
 }
