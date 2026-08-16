@@ -312,8 +312,8 @@ impl NiodooEngine {
             FieldWakeMode::Wake | FieldWakeMode::Blend | FieldWakeMode::Off => 1.0,
         };
         let mut strength = self.field_wake.scale * 200.0 * falloff; // ~unit·40 when falloff=1, scale=0.2
-        // Map scale 0.2 → typical strength ~40 before cap (historical max_mag range)
-        // strength = scale * 200 * falloff → 0.2*200=40 at falloff=1
+                                                                    // Map scale 0.2 → typical strength ~40 before cap (historical max_mag range)
+                                                                    // strength = scale * 200 * falloff → 0.2*200=40 at falloff=1
         if self.field_wake.max_mag > 0.0 {
             strength = strength.min(self.field_wake.max_mag * falloff.max(0.05));
             // For Wake mode falloff=1 → still capped by max_mag
@@ -489,10 +489,8 @@ impl NiodooEngine {
             if let Some(ref target) = self.eureka_target {
                 // Pull residual toward native mean tok-emb of bloom text (same D as pos).
                 if target.dims() == pos.dims() {
-                    let pull = (target - &pos)?.affine(
-                        (0.04 * self.eureka_impulse.min(5.0)) as f64,
-                        0.0,
-                    )?;
+                    let pull = (target - &pos)?
+                        .affine((0.04 * self.eureka_impulse.min(5.0)) as f64, 0.0)?;
                     total_force = (&total_force + &pull)?;
                 }
             }

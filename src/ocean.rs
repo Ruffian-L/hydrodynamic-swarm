@@ -127,7 +127,9 @@ impl SharedOcean {
         };
         let n = flat.dim(0)?;
         if n == self.dim {
-            return Ok(flat.to_device(&self.device)?.to_dtype(candle_core::DType::F32)?);
+            return Ok(flat
+                .to_device(&self.device)?
+                .to_dtype(candle_core::DType::F32)?);
         }
         let data: Vec<f32> = flat
             .to_dtype(candle_core::DType::F32)?
@@ -163,8 +165,11 @@ impl SharedOcean {
 
         if self.packets.len() > self.config.max_packets {
             // Drop highest-noise packets first (keep crystallized structure).
-            self.packets
-                .sort_by(|a, b| a.residual_noise.partial_cmp(&b.residual_noise).unwrap_or(std::cmp::Ordering::Equal));
+            self.packets.sort_by(|a, b| {
+                a.residual_noise
+                    .partial_cmp(&b.residual_noise)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             self.packets.truncate(self.config.max_packets);
         }
 
@@ -264,9 +269,7 @@ mod tests {
         let dim = 8;
         let mut ocean = SharedOcean::new(dim, device.clone(), OceanConfig::default());
         let target = Tensor::from_vec(vec![1.0f32; dim], dim, &device).unwrap();
-        ocean
-            .deposit(MindId::Gemma, &target, 1.0, 0.0)
-            .unwrap();
+        ocean.deposit(MindId::Gemma, &target, 1.0, 0.0).unwrap();
         let pos = Tensor::zeros(dim, candle_core::DType::F32, &device).unwrap();
         let f = ocean.query_force(&pos).unwrap();
         let fv: Vec<f32> = f.to_vec1().unwrap();
