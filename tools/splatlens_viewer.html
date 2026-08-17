@@ -560,6 +560,14 @@
         settingsBtn.setAttribute('aria-expanded', 'false');
         settingsBtn.focus();
       }
+      if (e.code === 'Space') {
+        const tag = e.target.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON' && tag !== 'SELECT' && e.target.getAttribute('role') !== 'button' && !e.target.isContentEditable) {
+          e.preventDefault();
+          if (playing) btnPause.click();
+          else btnPlay.click();
+        }
+      }
     });
     document.getElementById('btn-dark').addEventListener('click', () => {
       isDark = true; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active');
