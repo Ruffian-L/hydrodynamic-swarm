@@ -5,3 +5,7 @@
 ## 2026-03-15 - Redundant RwLock reads in async concurrency sequences
 **Learning:** Found an anti-pattern in asynchronous Tokio tasks (`src/concourse/governor.rs`) where `RwLock::read().await` was repeatedly acquired on the same resource within a single concurrent sequence, causing severe lock contention and context-switching overhead.
 **Action:** Batch state reads into a single `.read().await` lock acquisition and capture the required fields to optimize asynchronous performance.
+
+## 2023-10-24 - Async RwLock Read/Write Early Dropping
+**Learning:** Sequential `.read().await` or `.write().await` locks inside the same function can block other asynchronous tasks from resolving their states efficiently. Attempting to drop locks and immediately acquire them again on the same resource causes excessive context switching.
+**Action:** Always fetch the necessary inner data into scoped local variables and drop the guard explicitly before doing any downstream computation or subsequent asynchronous locks. Compute read condition checks using the pre-existing write lock when valid.

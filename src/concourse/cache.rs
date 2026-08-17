@@ -250,15 +250,19 @@ impl CacheManager {
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        let ttl_entry = {
+            self.ttl_cache.write().unwrap().get(&cache_key).map(|entry| (entry.value.clone(), entry.ttl_seconds))
+        };
+
+        if let Some((val, ttl_seconds)) = ttl_entry {
             // Promote to LRU cache
-            let embedding: Vec<f32> = bincode::deserialize(&entry.value)
+            let embedding: Vec<f32> = bincode::deserialize(&val)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, entry.value.clone(), entry.ttl_seconds);
+                .put(cache_key, val, ttl_seconds);
 
             return Ok(Some(embedding));
         }
@@ -298,14 +302,16 @@ impl CacheManager {
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
-            // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
-            // and move cache_key directly instead of cloning.
-            let val = entry.value.clone();
+        let ttl_val_and_ttl = {
+            self.ttl_cache.write().unwrap().get(&cache_key).map(|entry| (entry.value.clone(), entry.ttl_seconds))
+        };
+
+        if let Some((val, ttl_seconds)) = ttl_val_and_ttl {
+            // Promote to LRU cache.
             self.lru_cache
                 .write()
                 .unwrap()
-                .put(cache_key, val.clone(), entry.ttl_seconds);
+                .put(cache_key, val.clone(), ttl_seconds);
             return Ok(Some(val));
         }
 
