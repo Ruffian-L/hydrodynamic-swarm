@@ -171,7 +171,7 @@ impl GemmaModel {
             .unsqueeze(0)
             .map_err(SwarmError::Candle)?;
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.model.lock().unwrap_or_else(|e| e.into_inner());
         model.clear_kv_cache();
 
         // Process all tokens in one pass to get full sequence hidden states
@@ -238,7 +238,7 @@ impl GemmaModel {
             .or_else(|| self.tokenizer.token_to_id("</s>"))
             .unwrap_or(1);
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.model.lock().unwrap_or_else(|e| e.into_inner());
         model.clear_kv_cache();
 
         let mut logits_proc = LogitsProcessor::new(299792458, Some(0.7), None);
@@ -291,7 +291,7 @@ impl GemmaModel {
     }
 
     pub fn clear_kv_cache(&self) {
-        self.model.lock().unwrap().clear_kv_cache();
+        self.model.lock().unwrap_or_else(|e| e.into_inner()).clear_kv_cache();
     }
 }
 

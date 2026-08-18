@@ -14,3 +14,7 @@
 **Vulnerability:** The `crucible` binary executes the project-internal binary using a relative path (`target/release/hydrodynamic-swarm`). If a user runs `crucible` from a different directory where a malicious `target/release/hydrodynamic-swarm` exists, the malicious binary will be executed instead of the intended one.
 **Learning:** Relying on relative paths for executing binaries makes the application vulnerable to command hijacking, as the resolved path depends entirely on the unpredictable current working directory.
 **Prevention:** Construct absolute paths to project-internal binaries at compile time using `env!("CARGO_MANIFEST_DIR")` (e.g., `concat!(env!("CARGO_MANIFEST_DIR"), "/target/release/binary")`) to ensure path resolution is safe and independent of the execution context.
+## 2024-05-24 - Lock Poisoning Panic
+**Vulnerability:** Calling `.unwrap()` on lock acquisitions (`Mutex::lock`, `RwLock::read`, `RwLock::write`) causes the application to panic and crash if a thread previously panicked while holding the lock, leading to a Denial of Service (DoS) vulnerability.
+**Learning:** In highly concurrent environments like Tokio or multi-threaded server applications, a failure in one worker thread should not bring down the entire system by permanently poisoning shared state access points.
+**Prevention:** Instead of `.unwrap()`, use `.unwrap_or_else(|e| e.into_inner())` to safely recover the lock guard and ignore the poison state, ensuring the system remains resilient.
