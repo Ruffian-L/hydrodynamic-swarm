@@ -5,3 +5,7 @@
 ## 2026-03-15 - Redundant RwLock reads in async concurrency sequences
 **Learning:** Found an anti-pattern in asynchronous Tokio tasks (`src/concourse/governor.rs`) where `RwLock::read().await` was repeatedly acquired on the same resource within a single concurrent sequence, causing severe lock contention and context-switching overhead.
 **Action:** Batch state reads into a single `.read().await` lock acquisition and capture the required fields to optimize asynchronous performance.
+
+## 2026-03-15 - Redundant RwLock write/read cycles in async concurrency sequences
+**Learning:** Found an anti-pattern in asynchronous Tokio tasks (`src/concourse/governor.rs`) where an `RwLock` was acquired for writing, dropped, and immediately re-acquired for reading, causing unnecessary lock contention and context-switching overhead.
+**Action:** Consolidate subsequent reads into the initial `.write().await` lock guard to ensure atomicity and optimize asynchronous performance.
