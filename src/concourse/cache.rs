@@ -7,8 +7,9 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::time::SystemTime;
+use tracing::warn;
 
 /// Cache entry with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -238,26 +239,77 @@ impl CacheManager {
         }
     }
 
+    /// Acquire the LRU cache, discarding entries if a previous writer panicked.
+    ///
+    /// Cache contents are disposable. Clearing them is safer than continuing
+    /// with a potentially inconsistent `entries` / `access_order` pair.
+    fn lru_cache_write(&self) -> RwLockWriteGuard<'_, LruCache> {
+        match self.lru_cache.write() {
+            Ok(cache) => cache,
+            Err(poisoned) => {
+                warn!("LRU cache lock was poisoned; clearing cached state");
+                let mut cache = poisoned.into_inner();
+                cache.clear();
+                self.lru_cache.clear_poison();
+                cache
+            }
+        }
+    }
+
+    /// Acquire the TTL cache, discarding entries if a previous writer panicked.
+    fn ttl_cache_write(&self) -> RwLockWriteGuard<'_, TtlCache> {
+        match self.ttl_cache.write() {
+            Ok(cache) => cache,
+            Err(poisoned) => {
+                warn!("TTL cache lock was poisoned; clearing cached state");
+                let mut cache = poisoned.into_inner();
+                cache.clear();
+                self.ttl_cache.clear_poison();
+                cache
+            }
+        }
+    }
+
+    fn lru_cache_stats(&self) -> CacheStats {
+        match self.lru_cache.read() {
+            Ok(cache) => cache.stats(),
+            Err(poisoned) => {
+                // Release the poisoned read guard before taking the write lock
+                // that sanitizes the cache.
+                drop(poisoned.into_inner());
+                self.lru_cache_write().stats()
+            }
+        }
+    }
+
+    fn ttl_cache_stats(&self) -> CacheStats {
+        match self.ttl_cache.read() {
+            Ok(cache) => cache.stats(),
+            Err(poisoned) => {
+                drop(poisoned.into_inner());
+                self.ttl_cache_write().stats()
+            }
+        }
+    }
+
     /// Get cached embedding
     pub fn get_embedding(&self, text: &str) -> Result<Option<Vec<f32>>> {
         let cache_key = Self::generate_cache_key(text, "embedding");
 
         // Check LRU cache first
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.lru_cache_write().get(&cache_key) {
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
             return Ok(Some(embedding));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.ttl_cache_write().get(&cache_key) {
             // Promote to LRU cache
             let embedding: Vec<f32> = bincode::deserialize(&entry.value)
                 .map_err(|e| anyhow!("Failed to deserialize embedding: {}", e))?;
 
-            self.lru_cache
-                .write()
-                .unwrap()
+            self.lru_cache_write()
                 .put(cache_key, entry.value.clone(), entry.ttl_seconds);
 
             return Ok(Some(embedding));
@@ -273,13 +325,13 @@ impl CacheManager {
             .map_err(|e| anyhow!("Failed to serialize embedding: {}", e))?;
 
         // Store in both caches
-        self.lru_cache.write().unwrap().put(
+        self.lru_cache_write().put(
             cache_key.clone(),
             serialized.clone(),
             Some(300), // 5 minute TTL for LRU
         );
 
-        self.ttl_cache.write().unwrap().put(
+        self.ttl_cache_write().put(
             cache_key, // ⚡ Bolt: move cache_key into put() without cloning
             serialized,
             Some(3600), // 1 hour TTL for TTL cache
@@ -293,18 +345,16 @@ impl CacheManager {
         let cache_key = Self::generate_edge_key(text_a, text_b);
 
         // Check LRU cache
-        if let Some(entry) = self.lru_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.lru_cache_write().get(&cache_key) {
             return Ok(Some(entry.value.clone()));
         }
 
         // Check TTL cache
-        if let Some(entry) = self.ttl_cache.write().unwrap().get(&cache_key) {
+        if let Some(entry) = self.ttl_cache_write().get(&cache_key) {
             // Promote to LRU cache. Cache entry.value.clone() to avoid redundant cloning
             // and move cache_key directly instead of cloning.
             let val = entry.value.clone();
-            self.lru_cache
-                .write()
-                .unwrap()
+            self.lru_cache_write()
                 .put(cache_key, val.clone(), entry.ttl_seconds);
             return Ok(Some(val));
         }
@@ -317,13 +367,13 @@ impl CacheManager {
         let cache_key = Self::generate_edge_key(text_a, text_b);
         let val = result.to_vec();
 
-        self.lru_cache.write().unwrap().put(
+        self.lru_cache_write().put(
             cache_key.clone(),
             val.clone(),
             Some(600), // 10 minute TTL for edges
         );
 
-        self.ttl_cache.write().unwrap().put(
+        self.ttl_cache_write().put(
             cache_key,
             val,
             Some(1800), // 30 minute TTL for edges
@@ -334,29 +384,23 @@ impl CacheManager {
 
     /// Cleanup expired entries
     pub fn cleanup(&self) -> Result<()> {
-        self.lru_cache.write().unwrap().cleanup();
-        self.ttl_cache.write().unwrap().cleanup();
+        self.lru_cache_write().cleanup();
+        self.ttl_cache_write().cleanup();
         Ok(())
     }
 
     /// Get cache statistics
     pub fn get_stats(&self) -> Result<HashMap<String, CacheStats>> {
         let mut stats = HashMap::new();
-        stats.insert(
-            "lru_cache".to_string(),
-            self.lru_cache.read().unwrap().stats(),
-        );
-        stats.insert(
-            "ttl_cache".to_string(),
-            self.ttl_cache.read().unwrap().stats(),
-        );
+        stats.insert("lru_cache".to_string(), self.lru_cache_stats());
+        stats.insert("ttl_cache".to_string(), self.ttl_cache_stats());
         Ok(stats)
     }
 
     /// Clear all caches
     pub fn clear_all(&self) -> Result<()> {
-        self.lru_cache.write().unwrap().clear();
-        self.ttl_cache.write().unwrap().clear();
+        self.lru_cache_write().clear();
+        self.ttl_cache_write().clear();
         Ok(())
     }
 
@@ -395,6 +439,16 @@ pub struct CacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
+
+    fn poison_cache<T: Send + Sync + 'static>(cache: Arc<RwLock<T>>) {
+        let result = thread::spawn(move || {
+            let _guard = cache.write().unwrap();
+            panic!("intentional cache poison for recovery test");
+        })
+        .join();
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_lru_cache() {
@@ -441,5 +495,33 @@ mod tests {
         let stats = cache_manager.get_stats().unwrap();
         assert!(stats.contains_key("lru_cache"));
         assert!(stats.contains_key("ttl_cache"));
+    }
+
+    #[test]
+    fn test_cache_manager_recovers_poisoned_locks_by_clearing_entries() {
+        let cache_manager = CacheManager::new();
+        cache_manager
+            .cache_embedding("before-poison", &[1.0, 2.0, 3.0])
+            .unwrap();
+
+        poison_cache(Arc::clone(&cache_manager.lru_cache));
+        poison_cache(Arc::clone(&cache_manager.ttl_cache));
+        assert!(cache_manager.lru_cache.is_poisoned());
+        assert!(cache_manager.ttl_cache.is_poisoned());
+
+        let stats = cache_manager.get_stats().unwrap();
+        assert_eq!(stats["lru_cache"].entries, 0);
+        assert_eq!(stats["ttl_cache"].entries, 0);
+        assert!(!cache_manager.lru_cache.is_poisoned());
+        assert!(!cache_manager.ttl_cache.is_poisoned());
+
+        let embedding = vec![4.0, 5.0, 6.0];
+        cache_manager
+            .cache_embedding("after-poison", &embedding)
+            .unwrap();
+        assert_eq!(
+            cache_manager.get_embedding("after-poison").unwrap(),
+            Some(embedding)
+        );
     }
 }

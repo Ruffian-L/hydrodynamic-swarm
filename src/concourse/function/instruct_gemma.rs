@@ -77,6 +77,20 @@ pub struct InstructGemmaModel {
 }
 
 impl InstructGemmaModel {
+    /// Recover a poisoned model lock after resetting its mutable KV state.
+    fn lock_model(&self) -> std::sync::MutexGuard<'_, ModelWeights> {
+        match self.model.lock() {
+            Ok(model) => model,
+            Err(poisoned) => {
+                warn!("InstructGemma model lock was poisoned; resetting KV cache");
+                let mut model = poisoned.into_inner();
+                model.clear_kv_cache();
+                self.model.clear_poison();
+                model
+            }
+        }
+    }
+
     pub fn load(model_path: &str) -> SwarmResult<Self> {
         info!("Loading InstructGemma from: {model_path}");
         let mut file = std::fs::File::open(model_path).map_err(SwarmError::Io)?;
@@ -131,7 +145,7 @@ impl InstructGemmaModel {
             .or_else(|| self.tokenizer.token_to_id("</s>"))
             .unwrap_or(1);
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.lock_model();
         model.clear_kv_cache();
 
         // Temperature 0.2 for deterministic classification
