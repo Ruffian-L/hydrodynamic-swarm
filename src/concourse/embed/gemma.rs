@@ -29,7 +29,7 @@ use std::io::BufReader;
 #[cfg(feature = "with-candle")]
 use tokenizers::Tokenizer;
 #[cfg(feature = "with-candle")]
-use tracing::info;
+use tracing::{info, warn};
 
 #[cfg(feature = "with-candle")]
 use super::quantized_gemma::ModelWeights;
@@ -64,6 +64,22 @@ pub struct GemmaModel {
 
 #[cfg(feature = "with-candle")]
 impl GemmaModel {
+    /// Recover a poisoned model lock after resetting its mutable KV state.
+    /// Model weights are immutable after loading; a failed forward pass can
+    /// leave the sequence-dependent per-layer KV caches partially advanced.
+    fn lock_model(&self) -> std::sync::MutexGuard<'_, ModelWeights> {
+        match self.model.lock() {
+            Ok(model) => model,
+            Err(poisoned) => {
+                warn!("EmbeddingGemma model lock was poisoned; resetting KV cache");
+                let mut model = poisoned.into_inner();
+                model.clear_kv_cache();
+                self.model.clear_poison();
+                model
+            }
+        }
+    }
+
     /// Load a Gemma model from a GGUF file.
     pub fn load(config: GemmaConfig) -> SwarmResult<Self> {
         let device = match config.device.as_str() {
@@ -171,7 +187,7 @@ impl GemmaModel {
             .unsqueeze(0)
             .map_err(SwarmError::Candle)?;
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.lock_model();
         model.clear_kv_cache();
 
         // Process all tokens in one pass to get full sequence hidden states
@@ -238,7 +254,7 @@ impl GemmaModel {
             .or_else(|| self.tokenizer.token_to_id("</s>"))
             .unwrap_or(1);
 
-        let mut model = self.model.lock().unwrap();
+        let mut model = self.lock_model();
         model.clear_kv_cache();
 
         let mut logits_proc = LogitsProcessor::new(299792458, Some(0.7), None);
@@ -291,7 +307,7 @@ impl GemmaModel {
     }
 
     pub fn clear_kv_cache(&self) {
-        self.model.lock().unwrap().clear_kv_cache();
+        self.lock_model().clear_kv_cache();
     }
 }
 
