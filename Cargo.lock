@@ -1339,7 +1339,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
- "cc",
  "crossbeam",
  "futures",
  "hf-hub",

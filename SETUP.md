@@ -53,7 +53,7 @@ Unit tests use `Device::Cpu`. You do not need `nvcc` or a model for this tier.
 ### Hardware / toolchain
 
 - NVIDIA GPU, **≥ ~8 GB** VRAM for Gemma 3 4B Q4 (more for 27B).
-- CUDA **toolkit 12+** on `PATH` (`nvcc` optional if `kernels/decay.ptx` is present; driver + libs required at runtime).
+- CUDA **toolkit 12+** on `PATH` (`nvcc` is required when Candle compiles its CUDA kernels; driver + libs are required at runtime). Only builds with the `with-cuda` feature activate that toolchain.
 - Rust 1.75+ stable.
 - Linux is the well-tested path (developed on aarch64 Ubuntu + Blackwell). Windows/WSL2 with NVIDIA should work if Candle/CUDA do; Metal is **not** wired.
 
@@ -134,7 +134,7 @@ cargo run --release --bin hydrodynamic-swarm -- \
 | Museum blank / CORS | Use `./splat-lens museum`, not `file://` |
 | `CUDA GPU required` | Install driver + toolkit; or stay on Tier 0 |
 | Model not found | Put GGUF under `data/google/` or pass `--model` |
-| `nvcc not found` at build | Checked-in `kernels/decay.ptx` should suffice; install CUDA toolkit if build panics |
+| `nvcc not found` at a CUDA build | Install a CUDA 12+ toolkit and expose its `bin` directory on `PATH` |
 | `gemm-f16` build fails on aarch64 | Upstream issue; CUDA runtime path still works with GPU features |
 | Wrong machine paths in old docs | Prefer `data/google/…` and `SETUP.md`; no `/home/...` fallbacks in code |
 

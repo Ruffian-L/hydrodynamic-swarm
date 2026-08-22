@@ -9,8 +9,8 @@ readme = "README.md"
 [features]
 default = ["with-candle", "with-cuda"]
 with-candle = ["candle-core", "candle-nn", "candle-transformers", "hf-hub"]
-with-cuda = ["candle-core/cuda", "candle-nn/cuda"]
-with-metal = ["candle-core/metal", "candle-nn/metal"]
+with-cuda = ["with-candle", "candle-core/cuda", "candle-nn/cuda"]
+with-metal = ["with-candle", "candle-core/metal", "candle-nn/metal"]
 metal-compute = []
 
 [dependencies]
@@ -43,6 +43,3 @@ candle-transformers = { version = "0.9", optional = true }
 hf-hub = { version = "0.3", optional = true }
 # cudarc is pulled transitively by candle when `with-cuda` is enabled.
 # Do not list it as a direct dep — that forced CUDA headers on every build.
-
-[build-dependencies]
-cc = "1.0"
