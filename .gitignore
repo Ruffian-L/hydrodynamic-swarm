@@ -116,3 +116,16 @@ taco.db
 
 # script runtime noise
 scripts/logs/
+
+# Vendored crates are immutable source snapshots. Broad workspace ignores above
+# must not strip files that their `.cargo-checksum.json` manifests require.
+!vendor/**/target/
+!vendor/**/target/**
+!vendor/**/.cargo/
+!vendor/**/.cargo/**
+!vendor/**/*.bin
+!vendor/**/env/
+!vendor/**/env/**
+!vendor/**/AGENTS*.md
+!vendor/**/.vscode/
+!vendor/**/.vscode/**
