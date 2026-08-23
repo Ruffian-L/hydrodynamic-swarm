@@ -7,9 +7,8 @@
 **Local team (record):** Shep · Echo · Lumina · Nex — see [`CREDITS.md`](CREDITS.md)  
 **Built with Llama / Gemma** — weights terms: [`NOTICE`](NOTICE)
 
-> **Not** a product chat app · **not** weight fine-tuning · **not** a consciousness claim.  
-> Active research harness (v0.2). Sibling with a tighter correction claim:  
-> [niodoo-hidden-state-steering](https://github.com/Ruffian-L/niodoo-hidden-state-steering).
+Active research harness (v0.2). Sibling with a tighter correction claim:
+[niodoo-hidden-state-steering](https://github.com/Ruffian-L/niodoo-hidden-state-steering).
 
 <p align="center">
   <img src="docs/assets/niodoo-terminal.svg" alt="Niodoo terminal mock: niodoo@hydro — SplatLens museum" width="720" />
@@ -157,7 +156,7 @@ This repository borrows ideas from three distinct lines of work and does not inv
 - **Control vectors and steering for LLMs** (Anthropic's "steering Claude" demonstrations; `llama.cpp`'s control-vector tooling) — same family. This work is a Rust implementation that combines on-line, per-token computation with persistent state.
 - **Energy-based / score-matching views of generation** — the language of "field gradient", "manifold pullback", and "Langevin noise" comes from this tradition; the use here is engineering-flavoured, not theoretically derived.
 
-What this repository is **not**: a new architecture, a fine-tune, a RAG system, or a claim about consciousness or emergence. The word "physics" in older notes is shorthand for the update rule above, nothing more.
+What this repository is **not**: a new architecture, a fine-tune, or a RAG system. The word "physics" in older notes is shorthand for the update rule above, nothing more.
 
 ---
 
