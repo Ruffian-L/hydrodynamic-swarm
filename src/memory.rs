@@ -119,11 +119,33 @@ impl PrimeGovernor {
     }
 }
 
+/// Per-topic decode residual trail: hidden at each minted completion token.
+/// Indexed by `prompt_fp` + step. Not a force splat (does not move F_s);
+/// this is the content the chat path writes and reloads after process death.
+struct DecodeTrail {
+    prompt_fp: u32,
+    mus: Vec<Tensor>,
+    /// Token ids emitted with `mus` (0 = unknown; old stores). Trail-owned
+    /// decode picks these so matching generation follows the minted completion.
+    toks: Vec<u32>,
+}
+
+/// Result of the shipped chat keep-or-mint rule for a decode trail.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrailCommit {
+    Minted(usize),
+    Kept(usize),
+    Skipped,
+}
+
 pub struct SplatMemory {
     splats: Vec<Splat>,
     device: candle_core::Device,
+    /// Live residual width (GGUF embedding_length). 0 = unchecked (unit tests).
+    residual_dim: usize,
     /// Wall-clock second of last `decay_step` call (avoids double-counting age).
     last_decay_wall: Option<u64>,
+    decode_trails: Vec<DecodeTrail>,
 }
 
 const BUNDLE_MIN_DIST: f32 = 0.05;
@@ -133,16 +155,142 @@ fn bundle_weight(alpha: f32, dist_sq: f32) -> f32 {
     alpha / effective_dist
 }
 
+/// How scar force is aggregated at query time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryForceMode {
+    /// Legacy soft sum: every scar with non-negligible kernel contributes, then 1/√n.
+    Soft,
+    /// Ranked Top-K picker: only the K highest-scoring scars contribute force.
+    Ranked,
+}
+
+impl MemoryForceMode {
+    pub fn parse(s: &str) -> Self {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "ranked" | "pick" | "topk" | "top-k" | "top_k" => Self::Ranked,
+            _ => Self::Soft,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Soft => "soft",
+            Self::Ranked => "ranked",
+        }
+    }
+}
+
+/// Knobs for the ranked memory picker (feature-gated via `mode`).
+#[derive(Debug, Clone)]
+pub struct MemoryPickConfig {
+    pub mode: MemoryForceMode,
+    /// Max scars allowed to contribute force when ranked.
+    pub k: usize,
+    /// When true, ranked only if residual is unsettled; settled → soft-sum.
+    pub selective: bool,
+    /// Unsettled if top-k entropy (nats) ≥ this.
+    pub entropy_min: f32,
+    /// Unsettled if confidence margin ≤ this (low margin = uncertain).
+    pub margin_max: f32,
+    /// Unsettled if ‖goal − pos‖ ≥ this. 0 = residual-L2 gate off.
+    pub residual_l2_min: f32,
+    /// Weight on quality-history term in pick score.
+    pub quality_weight: f32,
+    /// Weight on prompt_fp match term in pick score.
+    pub fp_weight: f32,
+}
+
+impl Default for MemoryPickConfig {
+    fn default() -> Self {
+        Self {
+            // Soft by default so ablation / baselines stay bit-identical until enabled.
+            mode: MemoryForceMode::Soft,
+            k: 8,
+            selective: true,
+            entropy_min: 2.5,
+            margin_max: 0.15,
+            residual_l2_min: 0.0,
+            quality_weight: 1.0,
+            fp_weight: 1.0,
+        }
+    }
+}
+
+/// Pick score for a scar at residual `pos` (pure geometry + on-scar quality + fp).
+///
+/// `score = geometry + quality_weight * quality_hist + fp_weight * I(prompt_fp match)`
+/// - geometry ∈ (0,1]: Gaussian kernel at residual distance
+/// - quality_hist: surviving |α| plus trail flux (deposit confidence history)
+/// - fp match: 1 when bridge scar's stored prompt_fp equals current prompt
+#[inline]
+pub fn scar_pick_score(
+    splat: &Splat,
+    dist_sq: f32,
+    prompt_fp: u32,
+    quality_weight: f32,
+    fp_weight: f32,
+    is_bridge: bool,
+) -> f32 {
+    let sigma_sq = (splat.sigma * splat.sigma).max(1e-8);
+    let geometry = (-dist_sq / sigma_sq).exp();
+    // |α| survives quality-gated deposit + decay = primary quality history.
+    // Trail flux holds deposit confidence (p_chosen) when set; bridges use flux as marker only.
+    let quality_hist = if is_bridge {
+        splat.alpha.abs()
+    } else {
+        splat.alpha.abs() + splat.flux.clamp(0.0, 2.0)
+    };
+    let fp = if is_bridge {
+        splat.friction.to_bits()
+    } else {
+        0
+    };
+    let fp_match = if prompt_fp != 0 && fp == prompt_fp {
+        1.0
+    } else {
+        0.0
+    };
+    geometry + quality_weight * quality_hist + fp_weight * fp_match
+}
+
 impl SplatMemory {
     pub fn new(device: candle_core::Device) -> Self {
         Self {
             splats: Vec::new(),
             device,
+            residual_dim: 0,
             last_decay_wall: None,
+            decode_trails: Vec::new(),
         }
     }
 
+    /// Pin memory writes to the live GGUF residual width (field.dim / model.hidden_dim).
+    pub fn set_residual_dim(&mut self, d: usize) {
+        self.residual_dim = d;
+    }
+
+    pub fn residual_dim(&self) -> usize {
+        self.residual_dim
+    }
+
     pub fn add_splat(&mut self, splat: Splat) {
+        if self.residual_dim > 0 {
+            crate::dim_assert::require_last_dim(
+                &splat.mu,
+                self.residual_dim,
+                "memory.add_splat.mu",
+            );
+            if splat.current_dim != 0 && splat.current_dim != self.residual_dim {
+                eprintln!(
+                    "[RESIDUAL MISMATCH] expected {} got {} at memory.add_splat.current_dim",
+                    self.residual_dim, splat.current_dim
+                );
+                panic!(
+                    "[RESIDUAL MISMATCH] expected {} got {} at memory.add_splat.current_dim",
+                    self.residual_dim, splat.current_dim
+                );
+            }
+        }
         self.splats.push(splat);
     }
 
@@ -329,13 +477,12 @@ impl SplatMemory {
     /// Returns the number of splats culled.
     pub fn cull(&mut self, threshold: f32) -> usize {
         let before = self.splats.len();
-        self.splats.retain(|s| {
-            s.is_anchor || Self::is_prefill_bridge(s) || s.alpha.abs() >= threshold
-        });
+        self.splats
+            .retain(|s| s.is_anchor || Self::is_prefill_bridge(s) || s.alpha.abs() >= threshold);
         before - self.splats.len()
     }
 
-    /// Core function: summed Gaussian pull/push from all nearby splats.
+    /// Soft-sum path (legacy): summed Gaussian pull/push from **all** nearby splats.
     ///
     /// For each splat: force = alpha * (mu - pos) * exp(-||mu - pos||^2 / sigma^2)
     /// Positive alpha pulls toward the splat (pleasure), negative pushes away (pain).
@@ -343,7 +490,15 @@ impl SplatMemory {
     /// Multi-splat accumulation is **sublinear**: after summing, force is scaled by
     /// `1/sqrt(n_active)` so scar tissue cannot grow as O(N) gravity wells (the
     /// 2026-07-11 Gemma runaway: F_s 14 → 4000 as splat count rose).
+    ///
+    /// Kept as the default / ablation baseline. Ranked Top-K lives in
+    /// [`query_force_ranked`]; `NiodooEngine::steer` chooses via `MemoryPickConfig`.
     pub fn query_force(&self, pos: &Tensor) -> Result<Tensor> {
+        self.query_force_soft(pos)
+    }
+
+    /// Explicit soft-sum alias (same body as historical `query_force`).
+    pub fn query_force_soft(&self, pos: &Tensor) -> Result<Tensor> {
         let dims = pos.dims().to_vec();
         let mut total_force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
         let mut n_active = 0usize;
@@ -368,6 +523,133 @@ impl SplatMemory {
             total_force = total_force.affine(norm, 0.0)?;
         }
         Ok(total_force)
+    }
+
+    /// Ranked Top-K scar force: score scars, keep the best K, soft-sum only those.
+    ///
+    /// Score (geometric, native residual space only):
+    ///   geometry + quality_weight * quality_hist + fp_weight * I(prompt_fp match)
+    ///
+    /// Force law on the winners is identical to soft-sum (α·(μ−pos)·kernel, 1/√n).
+    /// No side embedders; selection remains entirely in native residual space.
+    ///
+    /// The index selection lives in [`ranked_splat_indices`] so residual and logit
+    /// surfaces cannot silently disagree about which scars won the ranked picker.
+    pub fn query_force_ranked(
+        &self,
+        pos: &Tensor,
+        k: usize,
+        prompt_fp: u32,
+        quality_weight: f32,
+        fp_weight: f32,
+    ) -> Result<Tensor> {
+        let dims = pos.dims().to_vec();
+        if self.splats.is_empty() || k == 0 {
+            return Tensor::zeros(&dims[..], DType::F32, &self.device);
+        }
+
+        let picked = self.ranked_splat_indices(pos, k, prompt_fp, quality_weight, fp_weight)?;
+        if picked.is_empty() {
+            return Tensor::zeros(&dims[..], DType::F32, &self.device);
+        }
+
+        // Force only from the picked set (same kernel as soft-sum).
+        let mut total_force = Tensor::zeros(&dims[..], DType::F32, &self.device)?;
+        let mut n_active = 0usize;
+        for &idx in &picked {
+            let splat = &self.splats[idx];
+            let diff = (&splat.mu - pos)?;
+            let dist_sq: f32 = diff.sqr()?.sum_all()?.to_scalar()?;
+            let sigma_sq = (splat.sigma * splat.sigma).max(1e-8);
+            let kernel = (-dist_sq / sigma_sq).exp();
+            let scale = (splat.alpha * kernel) as f64;
+            if scale.abs() < 1e-7 {
+                continue;
+            }
+            let signed_force = diff.affine(scale, 0.0)?;
+            total_force = (&total_force + &signed_force)?;
+            n_active += 1;
+        }
+
+        if n_active > 1 {
+            let norm = 1.0 / (n_active as f64).sqrt();
+            total_force = total_force.affine(norm, 0.0)?;
+        }
+        Ok(total_force)
+    }
+
+    /// Indices selected by the ranked scar picker.
+    ///
+    /// `pub(crate)` intentionally exposes only the selected identities, not mutable
+    /// memory internals. The logit surface uses these same winners when residual
+    /// steering reports `memory_ranked = true`.
+    pub(crate) fn ranked_splat_indices(
+        &self,
+        pos: &Tensor,
+        k: usize,
+        prompt_fp: u32,
+        quality_weight: f32,
+        fp_weight: f32,
+    ) -> Result<Vec<usize>> {
+        if self.splats.is_empty() || k == 0 {
+            return Ok(Vec::new());
+        }
+
+        // (index, score)
+        let mut scored: Vec<(usize, f32)> = Vec::with_capacity(self.splats.len());
+        for (i, splat) in self.splats.iter().enumerate() {
+            let dist_sq: f32 = (&splat.mu - pos)?.sqr()?.sum_all()?.to_scalar()?;
+            let is_bridge = Self::is_prefill_bridge(splat);
+            let score = scar_pick_score(
+                splat,
+                dist_sq,
+                prompt_fp,
+                quality_weight,
+                fp_weight,
+                is_bridge,
+            );
+            // Drop pure noise: negligible force contribution and no fp boost.
+            let sigma_sq = (splat.sigma * splat.sigma).max(1e-8);
+            let kernel = (-dist_sq / sigma_sq).exp();
+            if (splat.alpha * kernel).abs() < 1e-7 && score < 1e-6 {
+                continue;
+            }
+            scored.push((i, score));
+        }
+
+        if scored.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let take = k.min(scored.len());
+        if take < scored.len() {
+            scored.select_nth_unstable_by(take - 1, |a, b| {
+                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            scored.truncate(take);
+        }
+        Ok(scored.into_iter().map(|(idx, _)| idx).collect())
+    }
+
+    /// Dispatch soft vs ranked from a pick config + current prompt fingerprint.
+    pub fn query_force_with_pick(
+        &self,
+        pos: &Tensor,
+        pick: &MemoryPickConfig,
+        prompt_fp: u32,
+        use_ranked: bool,
+    ) -> Result<Tensor> {
+        if use_ranked && pick.mode == MemoryForceMode::Ranked {
+            self.query_force_ranked(
+                pos,
+                pick.k.max(1),
+                prompt_fp,
+                pick.quality_weight,
+                pick.fp_weight,
+            )
+        } else {
+            self.query_force_soft(pos)
+        }
     }
 
     /// Scalar scar **potential** at `pos`: Σ α · exp(−d²/σ²).
@@ -489,6 +771,135 @@ impl SplatMemory {
         }
     }
 
+    /// True when a prefill-bridge stores this prompt/topic fingerprint.
+    pub fn has_matching_bridge(&self, prompt_fp: u32) -> bool {
+        prompt_fp != 0
+            && self
+                .splats
+                .iter()
+                .any(|s| Self::is_prefill_bridge(s) && Self::bridge_prompt_fp(s) == prompt_fp)
+    }
+
+    /// Center of the first prefill-bridge whose stored fp matches (related-prompt pull).
+    pub fn matched_bridge_mu(&self, prompt_fp: u32) -> Result<Option<Tensor>> {
+        if prompt_fp == 0 {
+            return Ok(None);
+        }
+        for s in &self.splats {
+            if Self::is_prefill_bridge(s) && Self::bridge_prompt_fp(s) == prompt_fp {
+                return Ok(Some(s.mu.clone()));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Cap on stored decode-trail steps per topic (first tokens of the mint completion).
+    pub const DECODE_TRAIL_MAX: usize = 24;
+
+    /// True when a decode trail is stored for this prompt/topic fingerprint.
+    pub fn has_decode_trail(&self, prompt_fp: u32) -> bool {
+        prompt_fp != 0 && self.decode_trails.iter().any(|t| t.prompt_fp == prompt_fp)
+    }
+
+    /// Number of residual steps stored for this fp (0 if none).
+    pub fn decode_trail_len(&self, prompt_fp: u32) -> usize {
+        self.decode_trails
+            .iter()
+            .find(|t| t.prompt_fp == prompt_fp)
+            .map(|t| t.mus.len())
+            .unwrap_or(0)
+    }
+
+    /// Residual hidden at minted decode `step` for a matching topic fp.
+    pub fn matched_trail_mu(&self, prompt_fp: u32, step: usize) -> Result<Option<Tensor>> {
+        if prompt_fp == 0 {
+            return Ok(None);
+        }
+        for t in &self.decode_trails {
+            if t.prompt_fp == prompt_fp {
+                return Ok(t.mus.get(step).cloned());
+            }
+        }
+        Ok(None)
+    }
+
+    /// Minted token at decode `step` for a matching topic fp (None if unknown).
+    pub fn matched_trail_token(&self, prompt_fp: u32, step: usize) -> Option<u32> {
+        if prompt_fp == 0 {
+            return None;
+        }
+        for t in &self.decode_trails {
+            if t.prompt_fp == prompt_fp {
+                let tok = *t.toks.get(step)?;
+                return if tok == 0 { None } else { Some(tok) };
+            }
+        }
+        None
+    }
+
+    /// Replace the decode trail for `prompt_fp` (first `DECODE_TRAIL_MAX` mus).
+    pub fn deposit_decode_trail(&mut self, prompt_fp: u32, mus: Vec<Tensor>) -> Result<usize> {
+        self.deposit_decode_trail_owned(prompt_fp, mus, Vec::new())
+    }
+
+    /// Replace trail residual + minted token ids (trail-owned decode).
+    pub fn deposit_decode_trail_owned(
+        &mut self,
+        prompt_fp: u32,
+        mus: Vec<Tensor>,
+        toks: Vec<u32>,
+    ) -> Result<usize> {
+        if prompt_fp == 0 || mus.is_empty() {
+            return Ok(0);
+        }
+        for mu in &mus {
+            if self.residual_dim > 0 {
+                crate::dim_assert::require_last_dim(
+                    mu,
+                    self.residual_dim,
+                    "memory.deposit_decode_trail.mu",
+                );
+            }
+        }
+        self.decode_trails.retain(|t| t.prompt_fp != prompt_fp);
+        let mut mus = mus;
+        if mus.len() > Self::DECODE_TRAIL_MAX {
+            mus.truncate(Self::DECODE_TRAIL_MAX);
+        }
+        let mut toks = toks;
+        toks.truncate(mus.len());
+        let n = mus.len();
+        self.decode_trails.push(DecodeTrail {
+            prompt_fp,
+            mus,
+            toks,
+        });
+        Ok(n)
+    }
+
+    /// Shipped chat keep-or-mint: a later unmatched/failed write must not
+    /// replace an existing matching trail.
+    pub fn commit_decode_trail(
+        &mut self,
+        prompt_fp: u32,
+        mus: Vec<Tensor>,
+        toks: Vec<u32>,
+    ) -> Result<TrailCommit> {
+        if prompt_fp == 0 || mus.is_empty() {
+            return Ok(TrailCommit::Skipped);
+        }
+        if self.has_decode_trail(prompt_fp) {
+            return Ok(TrailCommit::Kept(self.decode_trail_len(prompt_fp)));
+        }
+        let n = self.deposit_decode_trail_owned(prompt_fp, mus, toks)?;
+        Ok(TrailCommit::Minted(n))
+    }
+
+    fn retain_decode_trails_for_bridges(&mut self) {
+        let fps = self.list_bridge_prompt_fps();
+        self.decode_trails.retain(|t| fps.contains(&t.prompt_fp));
+    }
+
     /// Distinct prompt fingerprints among prefill-bridges (order: first seen).
     pub fn list_bridge_prompt_fps(&self) -> Vec<u32> {
         let mut out = Vec::new();
@@ -529,8 +940,11 @@ impl SplatMemory {
                 let dist_sq: f32 = (&s.mu - goal)?.sqr()?.sum_all()?.to_scalar()?;
                 let same_sign = s.alpha.signum() == alpha.signum() || s.alpha.abs() < 1e-8;
                 // Replace same-basin bridge: near this goal, or same prompt fingerprint.
-                let same_fp = prompt_fp != 0 && Self::bridge_prompt_fp(&s) == prompt_fp;
-                if same_sign && (dist_sq <= replace_dist_sq || same_fp) {
+                let other_fp = Self::bridge_prompt_fp(&s);
+                let same_fp = prompt_fp != 0 && other_fp == prompt_fp;
+                // Distinct topic fps are different scars — do not eat them by L2.
+                let unlabeled_near = prompt_fp == 0 && other_fp == 0 && dist_sq <= replace_dist_sq;
+                if same_sign && (same_fp || unlabeled_near) {
                     removed += 1;
                     continue;
                 }
@@ -670,9 +1084,7 @@ impl SplatMemory {
                         if total_w > 0.0 {
                             cluster_mu = (&cluster_mu
                                 .affine((cluster_weight / total_w) as f64, 0.0)?
-                                + &self.splats[j]
-                                    .mu
-                                    .affine((w_j / total_w) as f64, 0.0)?)?;
+                                + &self.splats[j].mu.affine((w_j / total_w) as f64, 0.0)?)?;
                         }
                         cluster_weight = total_w;
                         cluster_alpha += self.splats[j].alpha;
@@ -776,6 +1188,7 @@ impl SplatMemory {
             bridges.sort_by(|a, b| b.created_at.cmp(&a.created_at));
             bridges.truncate(max_count);
             self.splats = bridges;
+            self.retain_decode_trails_for_bridges();
             println!(
                 "    [PRUNE] Cap {} — bridges only (trail dropped to protect continuity)",
                 max_count
@@ -795,11 +1208,14 @@ impl SplatMemory {
 
         self.splats = bridges;
         self.splats.append(&mut trail);
+        self.retain_decode_trails_for_bridges();
         println!(
             "    [PRUNE] Capped to {} ({} bridges reserved + {} trail)",
             self.splats.len(),
             self.count_prefill_bridges(),
-            self.splats.len().saturating_sub(self.count_prefill_bridges())
+            self.splats
+                .len()
+                .saturating_sub(self.count_prefill_bridges())
         );
     }
 
@@ -828,6 +1244,7 @@ impl SplatMemory {
         for i in drop_idx {
             self.splats.remove(i);
         }
+        self.retain_decode_trails_for_bridges();
         println!(
             "    [BRIDGE CAP] kept {} newest prefill-bridges (dropped {})",
             max_bridges, drop_n
@@ -844,6 +1261,22 @@ impl SplatMemory {
         }
 
         let n = self.splats.len();
+        // Refuse mixed-width scar bags before they hit disk.
+        if self.residual_dim > 0 {
+            for (i, s) in self.splats.iter().enumerate() {
+                let d = s.mu.dims().last().copied().unwrap_or(0);
+                if d != self.residual_dim {
+                    eprintln!(
+                        "[RESIDUAL MISMATCH] expected {} got {d} at memory.save.mu[{i}]",
+                        self.residual_dim
+                    );
+                    return Err(anyhow::anyhow!(
+                        "[RESIDUAL MISMATCH] expected {} got {d} at memory.save.mu[{i}]",
+                        self.residual_dim
+                    ));
+                }
+            }
+        }
 
         // Stack mu tensors into one (N, D) tensor
         let mu_rows: Vec<Tensor> = self
@@ -902,6 +1335,35 @@ impl SplatMemory {
         let friction_bytes = to_bytes(&friction_data);
         let dim_bytes = to_bytes(&dim_data);
 
+        let mut trail_mu_data: Vec<f32> = Vec::new();
+        let mut trail_fp_data: Vec<f32> = Vec::new();
+        let mut trail_step_data: Vec<f32> = Vec::new();
+        let mut trail_tok_data: Vec<f32> = Vec::new();
+        let mut trail_d = 0usize;
+        for tr in &self.decode_trails {
+            for (step, mu) in tr.mus.iter().enumerate() {
+                let v: Vec<f32> = mu.flatten_all()?.to_vec1()?;
+                if trail_d == 0 {
+                    trail_d = v.len();
+                } else if v.len() != trail_d {
+                    return Err(anyhow::anyhow!(
+                        "[RESIDUAL MISMATCH] decode trail width {} vs {trail_d}",
+                        v.len()
+                    ));
+                }
+                trail_mu_data.extend_from_slice(&v);
+                trail_fp_data.push(f32::from_bits(tr.prompt_fp));
+                trail_step_data.push(step as f32);
+                let tok = tr.toks.get(step).copied().unwrap_or(0);
+                trail_tok_data.push(f32::from_bits(tok));
+            }
+        }
+        let t_count = trail_step_data.len();
+        let trail_mu_bytes = to_bytes(&trail_mu_data);
+        let trail_fp_bytes = to_bytes(&trail_fp_data);
+        let trail_step_bytes = to_bytes(&trail_step_data);
+        let trail_tok_bytes = to_bytes(&trail_tok_data);
+
         let mu_shape = mu_stack.dims().to_vec();
         let n_shape = vec![n];
 
@@ -950,7 +1412,7 @@ impl SplatMemory {
         let dim_view =
             safetensors::tensor::TensorView::new(safetensors::Dtype::F32, n_shape, &dim_bytes)?;
 
-        let tensors: Vec<(String, safetensors::tensor::TensorView)> = vec![
+        let mut tensors: Vec<(String, safetensors::tensor::TensorView)> = vec![
             ("mu".to_string(), mu_view),
             ("sigma".to_string(), sigma_view),
             ("alpha".to_string(), alpha_view),
@@ -962,6 +1424,32 @@ impl SplatMemory {
             ("friction".to_string(), friction_view),
             ("current_dim".to_string(), dim_view),
         ];
+        if t_count > 0 && trail_d > 0 {
+            let trail_mu_view = safetensors::tensor::TensorView::new(
+                safetensors::Dtype::F32,
+                vec![t_count, trail_d],
+                &trail_mu_bytes,
+            )?;
+            let trail_fp_view = safetensors::tensor::TensorView::new(
+                safetensors::Dtype::F32,
+                vec![t_count],
+                &trail_fp_bytes,
+            )?;
+            let trail_step_view = safetensors::tensor::TensorView::new(
+                safetensors::Dtype::F32,
+                vec![t_count],
+                &trail_step_bytes,
+            )?;
+            let trail_tok_view = safetensors::tensor::TensorView::new(
+                safetensors::Dtype::F32,
+                vec![t_count],
+                &trail_tok_bytes,
+            )?;
+            tensors.push(("decode_trail_mu".to_string(), trail_mu_view));
+            tensors.push(("decode_trail_fp".to_string(), trail_fp_view));
+            tensors.push(("decode_trail_step".to_string(), trail_step_view));
+            tensors.push(("decode_trail_tok".to_string(), trail_tok_view));
+        }
 
         safetensors::tensor::serialize_to_file(
             tensors.iter().map(|(k, v)| (k.as_str(), v)),
@@ -971,9 +1459,10 @@ impl SplatMemory {
 
         let anchor_count = self.splats.iter().filter(|s| s.is_anchor).count();
         println!(
-            "    Saved {} splats ({} anchors) to {}",
+            "    Saved {} splats ({} anchors, {} trail steps) to {}",
             n,
             anchor_count,
+            t_count,
             path.display()
         );
         Ok(())
@@ -996,6 +1485,18 @@ impl SplatMemory {
         let mu_shape = mu_view.shape().to_vec();
         let n = mu_shape[0];
         let d = mu_shape[1];
+        // Refuse scars from a different model width (12B 3840 ≠ 31B 5376 ≠ Llama 4096).
+        if self.residual_dim > 0 && d != self.residual_dim {
+            eprintln!(
+                "[RESIDUAL MISMATCH] expected {} got {d} at memory.load.mu shape=[{n},{d}] path={}",
+                self.residual_dim,
+                path.display()
+            );
+            return Err(anyhow::anyhow!(
+                "[RESIDUAL MISMATCH] expected {} got {d} at memory.load.mu — clear memory or re-scar on this model",
+                self.residual_dim
+            ));
+        }
 
         // Parse raw bytes to f32
         let parse_f32 = |data: &[u8]| -> Vec<f32> {
@@ -1064,11 +1565,73 @@ impl SplatMemory {
             });
         }
 
+        if let (Ok(mu_v), Ok(fp_v), Ok(st_v)) = (
+            tensors.tensor("decode_trail_mu"),
+            tensors.tensor("decode_trail_fp"),
+            tensors.tensor("decode_trail_step"),
+        ) {
+            let trail_shape = mu_v.shape().to_vec();
+            if trail_shape.len() == 2 {
+                let t = trail_shape[0];
+                let td = trail_shape[1];
+                if self.residual_dim > 0 && td != self.residual_dim {
+                    eprintln!(
+                        "[RESIDUAL MISMATCH] expected {} got {td} at memory.load.decode_trail_mu path={}",
+                        self.residual_dim,
+                        path.display()
+                    );
+                    return Err(anyhow::anyhow!(
+                        "[RESIDUAL MISMATCH] expected {} got {td} at memory.load.decode_trail_mu",
+                        self.residual_dim
+                    ));
+                }
+                let t_mu = parse_f32(mu_v.data());
+                let t_fp = parse_f32(fp_v.data());
+                let t_st = parse_f32(st_v.data());
+                let t_tok = tensors
+                    .tensor("decode_trail_tok")
+                    .ok()
+                    .map(|v| parse_f32(v.data()))
+                    .unwrap_or_default();
+                let mut grouped: Vec<(u32, Vec<(usize, Tensor, u32)>)> = Vec::new();
+                for i in 0..t.min(t_fp.len()).min(t_st.len()) {
+                    let fp = t_fp[i].to_bits();
+                    let step = t_st[i] as usize;
+                    let tok = t_tok.get(i).copied().unwrap_or(0.0).to_bits();
+                    let row = &t_mu[i * td..(i + 1) * td];
+                    let mu_tensor = Tensor::from_vec(row.to_vec(), td, &self.device)?;
+                    match grouped.last_mut() {
+                        Some(last) if last.0 == fp => last.1.push((step, mu_tensor, tok)),
+                        _ => grouped.push((fp, vec![(step, mu_tensor, tok)])),
+                    }
+                }
+                for (fp, mut steps) in grouped {
+                    steps.sort_by_key(|(s, _, _)| *s);
+                    let mut mus = Vec::with_capacity(steps.len());
+                    let mut toks = Vec::with_capacity(steps.len());
+                    for (_, m, tok) in steps {
+                        mus.push(m);
+                        toks.push(tok);
+                    }
+                    self.decode_trails.retain(|tr| tr.prompt_fp != fp);
+                    if fp != 0 && !mus.is_empty() {
+                        self.decode_trails.push(DecodeTrail {
+                            prompt_fp: fp,
+                            mus,
+                            toks,
+                        });
+                    }
+                }
+            }
+        }
+
         let anchor_count = self.splats.iter().filter(|s| s.is_anchor).count();
+        let trail_n: usize = self.decode_trails.iter().map(|tr| tr.mus.len()).sum();
         println!(
-            "    Loaded {} splats ({} anchors) from {} (total: {})",
+            "    Loaded {} splats ({} anchors, {} trail steps) from {} (total: {})",
             n,
             anchor_count,
+            trail_n,
             path.display(),
             self.splats.len()
         );
@@ -1189,6 +1752,98 @@ mod tests {
             .unwrap()
             .sqrt();
         assert!(mag < 1e-10, "empty force should be 0, got {}", mag);
+    }
+
+    #[test]
+    fn ranked_picker_prefers_nearby_high_quality_over_far_noise() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+
+        // Strong pleasure at origin.
+        let mut near = Splat::new(Tensor::zeros(&[4], DType::F32, &device).unwrap(), 1.5, 2.0);
+        near.flux = 0.9;
+        memory.add_splat(near);
+
+        // Weaker second scar still inside the kernel so soft-sum mixes it;
+        // Top-1 ranked keeps only the stronger origin scar.
+        let other_mu = Tensor::new(&[1.2f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let mut other = Splat::new(other_mu, 1.5, 0.4);
+        other.flux = 0.1;
+        memory.add_splat(other);
+
+        let pos = Tensor::new(&[0.4f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let soft = memory.query_force_soft(&pos).unwrap();
+        let ranked = memory.query_force_ranked(&pos, 1, 0, 1.0, 1.0).unwrap();
+        let soft_x: f32 = soft.to_vec1().unwrap()[0];
+        let ranked_x: f32 = ranked.to_vec1().unwrap()[0];
+        // Origin pleasure pulls left (negative x).
+        assert!(
+            ranked_x < 0.0,
+            "ranked Top-1 should attract, got {ranked_x}"
+        );
+        // Soft sums both scars (with 1/√2 damp) → differs from pure Top-1.
+        assert!(
+            (soft_x - ranked_x).abs() > 1e-5,
+            "soft-sum must mix second scar; soft_x={soft_x} ranked_x={ranked_x}"
+        );
+    }
+
+    #[test]
+    fn ranked_picker_boosts_prompt_fp_match() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        let fp = 0xdead_beef_u32;
+
+        // Matching bridge at origin (wide σ so kernel is alive).
+        let mut match_s = Splat::new(Tensor::zeros(&[4], DType::F32, &device).unwrap(), 2.0, 1.0);
+        match_s.flux = SplatMemory::PREFILL_BRIDGE_FLUX;
+        match_s.friction = f32::from_bits(fp);
+        memory.add_splat(match_s);
+
+        // Stronger α but wrong fp, slightly farther.
+        let other_mu = Tensor::new(&[0.3f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let mut other = Splat::new(other_mu, 2.0, 1.5);
+        other.flux = SplatMemory::PREFILL_BRIDGE_FLUX;
+        other.friction = f32::from_bits(0x1111_1111);
+        memory.add_splat(other);
+
+        let pos = Tensor::new(&[0.1f32, 0.0, 0.0, 0.0], &device).unwrap();
+        // With fp match weight, Top-1 should be the matching bridge (μ=0 → force x < 0).
+        let ranked = memory.query_force_ranked(&pos, 1, fp, 0.1, 5.0).unwrap();
+        let fx: f32 = ranked.to_vec1().unwrap()[0];
+        assert!(
+            fx < 0.0,
+            "fp-matched bridge at origin should win Top-1, force_x={fx}"
+        );
+    }
+
+    #[test]
+    fn soft_and_ranked_identical_when_k_covers_all() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        memory.add_splat(Splat::new(
+            Tensor::zeros(&[4], DType::F32, &device).unwrap(),
+            1.0,
+            1.5,
+        ));
+        memory.add_splat(Splat::new(
+            Tensor::new(&[0.5f32, 0.0, 0.0, 0.0], &device).unwrap(),
+            1.0,
+            -0.8,
+        ));
+        let pos = Tensor::new(&[0.2f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let soft: Vec<f32> = memory.query_force_soft(&pos).unwrap().to_vec1().unwrap();
+        let ranked: Vec<f32> = memory
+            .query_force_ranked(&pos, 8, 0, 1.0, 1.0)
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        for (a, b) in soft.iter().zip(ranked.iter()) {
+            assert!(
+                (a - b).abs() < 1e-5,
+                "soft vs ranked-all mismatch: {a} vs {b}"
+            );
+        }
     }
 
     #[test]
@@ -1319,7 +1974,11 @@ mod tests {
             .unwrap();
         assert_eq!(memory.count_prefill_bridges(), 1);
         memory.prune_to_limit(5);
-        assert_eq!(memory.count_prefill_bridges(), 1, "bridge must survive prune");
+        assert_eq!(
+            memory.count_prefill_bridges(),
+            1,
+            "bridge must survive prune"
+        );
         assert_eq!(memory.len(), 5);
     }
 
@@ -1442,7 +2101,11 @@ mod tests {
 
         // Decay should be a no-op for anchors.
         mem.decay_step(0.5);
-        assert_eq!(mem.splats_ref()[0].alpha, 5.0, "anchor alpha must survive decay");
+        assert_eq!(
+            mem.splats_ref()[0].alpha,
+            5.0,
+            "anchor alpha must survive decay"
+        );
     }
 
     #[test]
@@ -1460,5 +2123,205 @@ mod tests {
         assert_eq!(mem.anchor_count(), 2);
         assert_eq!(mem.splats_ref()[0].alpha, 5.0);
         assert_eq!(mem.splats_ref()[1].alpha, -3.0);
+    }
+
+    #[test]
+    fn decode_trail_matches_step_and_survives_save() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        let goal = Tensor::zeros(&[4], DType::F32, &device).unwrap();
+        memory
+            .deposit_prefill_bridge(&goal, 90.0, 0.75, 0.005, 90.0, 0.35, 0xabcdu32)
+            .unwrap();
+        let mu0 = Tensor::new(&[1.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let mu1 = Tensor::new(&[0.0f32, 2.0, 0.0, 0.0], &device).unwrap();
+        let mu2 = Tensor::new(&[0.0f32, 0.0, 3.0, 0.0], &device).unwrap();
+        let n = memory
+            .deposit_decode_trail(0xabcdu32, vec![mu0, mu1, mu2])
+            .unwrap();
+        assert_eq!(n, 3);
+        assert!(memory.has_decode_trail(0xabcd));
+        assert_eq!(memory.decode_trail_len(0xabcd), 3);
+        assert!(!memory.has_decode_trail(0x1111));
+        assert!(memory.matched_trail_mu(0xabcd, 3).unwrap().is_none());
+        assert!(memory.matched_trail_mu(0x1111, 0).unwrap().is_none());
+
+        let s0 = memory.matched_trail_mu(0xabcd, 0).unwrap().unwrap();
+        let s1 = memory.matched_trail_mu(0xabcd, 1).unwrap().unwrap();
+        let v0: Vec<f32> = s0.to_vec1().unwrap();
+        let v1: Vec<f32> = s1.to_vec1().unwrap();
+        assert!((v0[0] - 1.0).abs() < 1e-5 && v0[1].abs() < 1e-5);
+        assert!(v1[0].abs() < 1e-5 && (v1[1] - 2.0).abs() < 1e-5);
+
+        let dir = std::env::temp_dir().join(format!(
+            "hydro_trail_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("splat_memory.safetensors");
+        memory.save(&path).unwrap();
+
+        let mut loaded = SplatMemory::new(device.clone());
+        loaded.load(&path).unwrap();
+        assert_eq!(loaded.decode_trail_len(0xabcd), 3);
+        let l1: Vec<f32> = loaded
+            .matched_trail_mu(0xabcd, 1)
+            .unwrap()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        assert!(
+            l1[0].abs() < 1e-5 && (l1[1] - 2.0).abs() < 1e-5,
+            "reloaded step-1 residual must be the minted trail, got {l1:?}"
+        );
+        let l2: Vec<f32> = loaded
+            .matched_trail_mu(0xabcd, 2)
+            .unwrap()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        assert!((l2[2] - 3.0).abs() < 1e-5);
+        assert!(loaded.matched_trail_mu(0x1111, 0).unwrap().is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn decode_trail_drops_when_bridge_capped() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        for i in 0..3 {
+            let goal = Tensor::new(&[i as f32 * 200.0, 0.0, 0.0, 0.0], &device).unwrap();
+            let fp = 0x1000 + i as u32;
+            memory
+                .deposit_prefill_bridge(&goal, 90.0, 0.75, 0.005, 50.0, 0.35, fp)
+                .unwrap();
+            if let Some(s) = memory.splats.last_mut() {
+                s.created_at = 1000 + i as u64;
+            }
+            let mu = Tensor::new(&[i as f32, 0.0, 0.0, 0.0], &device).unwrap();
+            memory.deposit_decode_trail(fp, vec![mu]).unwrap();
+        }
+        assert!(memory.has_decode_trail(0x1000));
+        let dropped = memory.enforce_max_prefill_bridges(1);
+        assert_eq!(dropped, 2);
+        assert!(!memory.has_decode_trail(0x1000));
+        assert!(memory.has_decode_trail(0x1002));
+    }
+
+    #[test]
+    fn decode_trail_commit_keeps_existing_and_two_fp_roundtrip() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        let goal_a = Tensor::new(&[1.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let goal_b = Tensor::new(&[0.0f32, 1.0, 0.0, 0.0], &device).unwrap();
+        memory
+            .deposit_prefill_bridge(&goal_a, 90.0, 0.75, 0.005, 90.0, 0.35, 0xaaaau32)
+            .unwrap();
+        memory
+            .deposit_prefill_bridge(&goal_b, 90.0, 0.75, 0.005, 90.0, 0.35, 0xbbbbu32)
+            .unwrap();
+
+        let mu_a0 = Tensor::new(&[4.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let mu_a1 = Tensor::new(&[0.0f32, 5.0, 0.0, 0.0], &device).unwrap();
+        let minted = memory
+            .commit_decode_trail(0xaaaa, vec![mu_a0, mu_a1], vec![11, 22])
+            .unwrap();
+        assert_eq!(minted, TrailCommit::Minted(2));
+        assert_eq!(memory.matched_trail_token(0xaaaa, 1), Some(22));
+
+        // Failed/unmatched later write of the same fp must not replace.
+        let mu_fail = Tensor::new(&[9.0f32, 9.0, 9.0, 9.0], &device).unwrap();
+        let kept = memory
+            .commit_decode_trail(0xaaaa, vec![mu_fail], vec![99])
+            .unwrap();
+        assert_eq!(kept, TrailCommit::Kept(2));
+        let still: Vec<f32> = memory
+            .matched_trail_mu(0xaaaa, 1)
+            .unwrap()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        assert!(
+            (still[1] - 5.0).abs() < 1e-5,
+            "keep rule must preserve minted step-1 residual, got {still:?}"
+        );
+        assert_eq!(memory.matched_trail_token(0xaaaa, 1), Some(22));
+
+        let mu_b0 = Tensor::new(&[0.0f32, 0.0, 7.0, 0.0], &device).unwrap();
+        let minted_b = memory
+            .commit_decode_trail(0xbbbb, vec![mu_b0], vec![33])
+            .unwrap();
+        assert_eq!(minted_b, TrailCommit::Minted(1));
+        assert_eq!(memory.matched_trail_token(0xbbbb, 0), Some(33));
+        assert!(memory.matched_trail_mu(0xbbbb, 1).unwrap().is_none());
+        assert_ne!(
+            memory.matched_trail_token(0xaaaa, 0),
+            memory.matched_trail_token(0xbbbb, 0)
+        );
+
+        let dir = std::env::temp_dir().join(format!(
+            "hydro_trail_commit_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("splat_memory.safetensors");
+        memory.save(&path).unwrap();
+        let mut loaded = SplatMemory::new(device.clone());
+        loaded.load(&path).unwrap();
+        assert_eq!(loaded.decode_trail_len(0xaaaa), 2);
+        assert_eq!(loaded.decode_trail_len(0xbbbb), 1);
+        assert_eq!(loaded.matched_trail_token(0xaaaa, 1), Some(22));
+        assert_eq!(loaded.matched_trail_token(0xbbbb, 0), Some(33));
+        let a1: Vec<f32> = loaded
+            .matched_trail_mu(0xaaaa, 1)
+            .unwrap()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let b0: Vec<f32> = loaded
+            .matched_trail_mu(0xbbbb, 0)
+            .unwrap()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        assert!(
+            (a1[1] - 5.0).abs() < 1e-5,
+            "fp A step 1 after roundtrip {a1:?}"
+        );
+        assert!(
+            (b0[2] - 7.0).abs() < 1e-5,
+            "fp B step 0 after roundtrip {b0:?}"
+        );
+        assert!(loaded.matched_trail_mu(0xcccc, 0).unwrap().is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn distinct_fp_bridges_do_not_replace_by_l2() {
+        let device = candle_core::Device::Cpu;
+        let mut memory = SplatMemory::new(device.clone());
+        let goal_a = Tensor::new(&[1.0f32, 0.0, 0.0, 0.0], &device).unwrap();
+        let goal_b = Tensor::new(&[0.0f32, 1.0, 0.0, 0.0], &device).unwrap();
+        memory
+            .deposit_prefill_bridge(&goal_a, 90.0, 0.75, 0.005, 90.0, 0.35, 0xaaaau32)
+            .unwrap();
+        memory
+            .deposit_prefill_bridge(&goal_b, 90.0, 0.75, 0.005, 90.0, 0.35, 0xbbbbu32)
+            .unwrap();
+        assert_eq!(
+            memory.count_prefill_bridges(),
+            2,
+            "two topic fps must keep two bridges even when L2 << replace_dist"
+        );
+        assert!(memory.has_matching_bridge(0xaaaa));
+        assert!(memory.has_matching_bridge(0xbbbb));
     }
 }

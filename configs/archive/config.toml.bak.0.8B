@@ -1,0 +1,68 @@
+# FORCE-OFF ablation profile for Memory Coupling Run D
+# Does NOT replace B4d-q. Use: cp config.force_off.toml config.toml  (then restore)
+# Or: keep as side file when harness supports --config (if not, copy carefully).
+# B4d-q local default
+[physics]
+dt = 0.035
+viscosity_scale = 0.25
+force_cap = 1.395
+splat_sigma = 30.0
+splat_alpha = 1.0
+min_splat_dist = 18.0
+splat_delta_threshold = 90.0
+gradient_topk = 1024
+steer_hidden = true
+# Leave the wound: blend residual back toward baseline (manifold respect / "ghost" pull-back)
+manifold_pullback = 0.32
+splat_lambda_default = 0.03
+# Pain dissipates closer to pleasure (1.0 = same rate). Was 0.7 → pain stuck.
+pain_decay_factor = 0.9
+splat_force_scale = 0.0
+splat_force_max = 0.0
+goal_force_scale = 0.0
+goal_force_max = 0.0
+goal_late_start = 48
+goal_late_span = 30
+goal_late_end = 0.35
+online_splat_interval = 8
+field_wake_mode = "dist_weighted"
+field_wake_k = 1
+field_wake_scale = 0.0
+field_wake_max = 0.0
+field_grad_blend = 0.0
+field_wake_dist_tau = 80.0
+field_logit_alpha = 0.0
+force_ramp_tokens = 15
+force_ramp_start = 0.15
+targeted_splat_only = true
+prefill_micro_dream = false
+pain_recovery_ocean = false
+[generation]
+max_tokens = 65
+temperature = 0.88
+rep_penalty = 1.36
+min_success_tokens = 10
+pleasure_alpha = 0.85
+pain_alpha = -0.35
+default_prompt = "Explain the Physics of Friendship in one short paragraph."
+[memory]
+max_splats = 48
+consolidation_dist = 18.0
+decay_rate = 0.96
+prune_threshold = 0.03
+# Faster mid-run fade (more dissipation, less hard-cap drama)
+online_decay_rate = 0.96
+# Soft backstop — prefer pleasure_answer + decay over aggressive cull
+max_pain_splats = 12
+max_pain_mass = 5.0
+# Heart: after 2 pain deposits in a row → pleasure near goal
+pleasure_answer_after = 2
+pleasure_answer_alpha = 0.55
+pleasure_answer_sigma_scale = 1.2
+[micro_dream]
+entropy_threshold = 3.0
+fixed_interval = 25
+adaptive_interval = 8
+blend_normal = 0.06
+blend_high_entropy = 0.10
+topocot_threshold = 12.0

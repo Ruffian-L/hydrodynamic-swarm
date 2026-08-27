@@ -97,7 +97,10 @@ impl PhysicsBackend for CpuBackend {
     }
 
     fn name(&self) -> &'static str {
-        "CPU"
+        // This adapter delegates to Candle tensors and therefore runs on the
+        // tensor's device (CUDA in Hydro generation). "CPU" here made a healthy
+        // CUDA run print a false backend warning at engine-ready time.
+        "Candle Tensor"
     }
 
     fn field_gradient_topk(

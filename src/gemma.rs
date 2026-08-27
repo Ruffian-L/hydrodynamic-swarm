@@ -21,13 +21,14 @@
 //!   - Token embeddings shared with output projection (tied weights)
 //!   - Embedding scaling by sqrt(hidden_dim)
 
+use crate::hooks::{maybe_apply, HookSite, LayerHook};
 use candle_core::quantized::{gguf_file, QTensor};
 use candle_core::{DType, Device, Module, Result, Tensor};
 use candle_nn::Embedding;
 use candle_transformers::quantized_nn::RmsNorm;
 use std::collections::HashMap;
 
-pub const MAX_SEQ_LEN: usize = 8192;
+pub const MAX_SEQ_LEN: usize = 131072;
 
 // ── QMatMul ────────────────────────────────────────────────────────────────────
 
@@ -434,6 +435,22 @@ impl ModelWeights {
 
     /// Run all transformer layers; returns post-norm hidden state (b, hidden_dim).
     fn run_layers(&mut self, tokens: &Tensor, index_pos: usize) -> Result<Tensor> {
+        self.run_layers_hooked(tokens, index_pos, None)
+    }
+
+    /// `run_layers` with an optional forward-pass physics hook.
+    ///
+    /// `Layer::forward` is opaque here (unlike llama.rs), so only the block boundaries
+    /// are hookable: `PreLayer`, `PostMlp` (== block output) and `FinalNorm`.
+    /// Note the `√hidden_dim` embedding scale below — activations inside this stack are
+    /// NOT in the same space as the pre-`lm_head` residual, which is why hook forces are
+    /// scale-free (see hooks.rs module docs).
+    fn run_layers_hooked(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+        mut hook: Option<&mut dyn LayerHook>,
+    ) -> Result<Tensor> {
         let (_b, seq) = tokens.dims2()?;
         // Compute mask before taking span borrow to avoid borrow conflict
         let mask = if seq == 1 {
@@ -443,18 +460,29 @@ impl ModelWeights {
         };
 
         let _enter = self.span.enter();
+        if let Some(hk) = hook.as_deref_mut() {
+            hk.begin_token(self.layers.len());
+        }
         let mut h = self.tok_embeddings.forward(tokens)?;
         // Gemma embedding scaling: multiply by sqrt(hidden_dim)
         let scale = (self.hidden_dim as f64).sqrt();
         h = (h * scale)?;
 
-        for layer in &mut self.layers {
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            h = maybe_apply(&mut hook, HookSite::PreLayer, i, h)?;
             h = layer.forward(&h, mask.as_ref(), index_pos)?;
+            h = maybe_apply(&mut hook, HookSite::PostMlp, i, h)?;
         }
         // Final output norm
         let h = self.norm.forward(&h)?;
+        let h = maybe_apply(&mut hook, HookSite::FinalNorm, self.layers.len(), h)?;
         // Return last position: [b, hidden_dim] — squeeze seq dim
         h.narrow(1, seq - 1, 1)?.squeeze(1)
+    }
+
+    /// Number of transformer blocks — lets a hook resolve a depth-fraction band.
+    pub fn n_layers(&self) -> usize {
+        self.layers.len()
     }
 
     // ── Public API (matching llama.rs interface) ──────────────────────────────
@@ -479,7 +507,17 @@ impl ModelWeights {
         tokens: &Tensor,
         index_pos: usize,
     ) -> Result<(Tensor, Tensor)> {
-        let hidden = self.run_layers(tokens, index_pos)?;
+        self.forward_with_hidden_hooked(tokens, index_pos, None)
+    }
+
+    /// `forward_with_hidden` with an optional forward-pass physics hook.
+    pub fn forward_with_hidden_hooked(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+        hook: Option<&mut dyn LayerHook>,
+    ) -> Result<(Tensor, Tensor)> {
+        let hidden = self.run_layers_hooked(tokens, index_pos, hook)?;
         let _enter = self.span_output.enter();
         let logits = self.project_hidden_to_logits(&hidden)?;
         Ok((logits, hidden))
@@ -491,6 +529,24 @@ impl ModelWeights {
         self.project_hidden_to_logits(hidden)
     }
 
+    /// Final norm + lm_head — the Jacobian lens's `unembed`.
+    ///
+    /// `project_to_logits` skips the final norm because `run_layers` already applied it.
+    /// The lens transports a *block output* (pre-norm), so the norm belongs here; folding
+    /// RMSNorm into the fitted `J` would stop matching `jlens.protocol.LensModel.unembed`.
+    ///
+    /// Flattens to 2-D first: the tied-weight branch of `project_hidden_to_logits` uses
+    /// `matmul`, which needs equal ranks, so a `[b, seq, d]` residual would fail there.
+    pub fn unembed(&self, hidden: &Tensor) -> Result<Tensor> {
+        let normed = self.norm.forward(hidden)?.contiguous()?;
+        let mut shape = normed.dims().to_vec();
+        let d = *shape.last().expect("residual has a last dim");
+        let logits = self.project_hidden_to_logits(&normed.reshape(((), d))?)?;
+        let vocab = logits.dim(logits.rank() - 1)?;
+        *shape.last_mut().expect("residual has a last dim") = vocab;
+        logits.reshape(shape)
+    }
+
     /// Internal: project hidden → logits, handling tied vs untied weights.
     fn project_hidden_to_logits(&self, hidden: &Tensor) -> Result<Tensor> {
         match &self.output {
@@ -499,8 +555,13 @@ impl ModelWeights {
                 // Tied weights: project through tok_embeddings matrix
                 // hidden: [b, hidden_dim], emb: [vocab, hidden_dim]
                 // logits = hidden @ emb.T
+                //
+                // `contiguous()` on the lhs only: `run_layers` hands us a narrow+squeeze,
+                // which is non-contiguous as soon as batch > 1, and candle's matmul
+                // rejects that. A transposed-contiguous rhs is accepted, so `emb.t()`
+                // stays as it is — copying it would materialise the whole vocab matrix.
                 let emb = self.tok_embeddings.embeddings();
-                hidden.matmul(&emb.t()?)
+                hidden.contiguous()?.matmul(&emb.t()?)
             }
         }
     }
@@ -509,5 +570,14 @@ impl ModelWeights {
     /// Used to build the live Diderot field from model weights.
     pub fn token_embeddings(&self) -> &Tensor {
         self.tok_embeddings.embeddings()
+    }
+
+    /// Clear per-layer attention cache before prefilling a fresh transcript.
+    /// Multi-turn chat re-encodes full history at `index_pos=0`; stale cache
+    /// (or SWA edge cases) must not ride into the next prefill.
+    pub fn clear_kv_cache(&mut self) {
+        for layer in self.layers.iter_mut() {
+            layer.kv_cache = None;
+        }
     }
 }

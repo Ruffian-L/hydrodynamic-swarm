@@ -29,7 +29,6 @@ field_wake_scale = 0.187
 field_wake_max = 25.0
 field_grad_blend = 0.10
 field_wake_dist_tau = 80.0
-field_logit_alpha = 0.0
 force_ramp_tokens = 0
 force_ramp_start = 1.0
 targeted_splat_only = true
@@ -39,6 +38,16 @@ prefill_bridge_scar = true
 prefill_bridge_sigma = 90.0
 prefill_bridge_alpha = 0.75
 prefill_bridge_lambda = 0.005
+prefill_bridge_offset_frac = 0.35
+
+[logit_physics]
+field_alpha = 0.0
+splat_scale = 0.0
+governor_enabled = false
+
+[hooks]
+enabled = false
+
 [generation]
 max_tokens = 65
 temperature = 0.88
@@ -60,4 +69,3 @@ adaptive_interval = 8
 blend_normal = 0.06
 blend_high_entropy = 0.10
 topocot_threshold = 12.0
-prefill_bridge_offset_frac = 0.35

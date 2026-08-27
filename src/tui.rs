@@ -1,292 +1,510 @@
-//! Chat-style TUI for interactive prompt demonstration.
+//! Small live-control TUI used by the chat REPL.
 //!
-//! Usage: `cargo run -- --chat`
-//! Shows a styled prompt and keeps the model loaded for multi-turn generation.
+//! `/tui` enters a temporary alternate-screen panel. Arrow keys select and move
+//! sliders; every change is applied to the already-loaded model session immediately.
+//! The panel deliberately owns no model or physics state: the caller supplies the
+//! current values and a setter callback, which keeps this UI reusable and testable.
 
-use crate::llama::ModelWeights;
-use anyhow::Result;
-use candle_core::Tensor;
-use std::io::{self, Write};
-use tokenizers::Tokenizer;
+use crossterm::cursor::{Hide, MoveTo, Show};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::execute;
+use crossterm::queue;
+use crossterm::style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor};
+use crossterm::terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
+use std::io::{self, Stdout, Write};
 
-use crate::config::Config;
-use crate::dream::micro_dream;
-use crate::niodoo::NiodooEngine;
-use crate::splat::Splat;
+/// One mutable scalar rendered as a slider.
+#[derive(Debug, Clone)]
+pub struct Slider {
+    pub name: String,
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
+    pub step: f32,
+    initial: f32,
+}
 
-// ANSI color codes
-const RESET: &str = "\x1b[0m";
-const BOLD: &str = "\x1b[1m";
-const DIM: &str = "\x1b[2m";
-const CYAN: &str = "\x1b[36m";
-const GOLD: &str = "\x1b[33m";
-const GREEN: &str = "\x1b[32m";
-const GRAY: &str = "\x1b[90m";
+impl Slider {
+    pub fn live(name: &str, value: f32, min: f32, max: f32) -> Self {
+        let min = min.min(max);
+        let max = max.max(min);
+        let value = value.clamp(min, max);
+        Self {
+            name: name.to_string(),
+            value,
+            min,
+            max,
+            step: step_for(name, min, max),
+            initial: value,
+        }
+    }
 
-/// Run the chat TUI.
-pub fn run_chat(
-    llama: &mut ModelWeights,
-    tokenizer: &Tokenizer,
-    engine: &mut NiodooEngine,
-    device: &candle_core::Device,
-    dim: usize,
-    max_tokens: usize,
-    cfg: &Config,
-) -> Result<()> {
-    // Clear screen and show banner
-    print!("\x1b[2J\x1b[H");
-    println!();
-    println!("  {BOLD}{CYAN}============================================{RESET}");
-    println!("  {BOLD}{CYAN}   HYDRODYNAMIC SWARM  --  SplatRAG v1.1{RESET}");
-    println!("  {BOLD}{CYAN}============================================{RESET}");
-    println!("  {DIM}{GRAY}Physics-steered LLM generation engine{RESET}");
-    println!("  {DIM}{GRAY}Llama 3.1 8B + Niodoo field dynamics{RESET}");
-    println!();
-    println!(
-        "  {DIM}{GRAY}Splats in memory: {}{RESET}",
-        engine.memory().len()
-    );
-    println!("  {DIM}{GRAY}Max tokens: {}{RESET}", max_tokens);
-    println!("  {DIM}{GRAY}Commands: /quit, /exit, /reset{RESET}");
-    println!();
+    pub fn fraction(&self) -> f32 {
+        let span = self.max - self.min;
+        if span <= f32::EPSILON {
+            0.0
+        } else {
+            ((self.value - self.min) / span).clamp(0.0, 1.0)
+        }
+    }
 
-    let mut transcript = String::from(
-        "You are Hydrodynamic Swarm, a physics-steered Llama 3.1 system. \
-         Answer conversationally and keep continuity with the user.\n",
-    );
+    pub fn nudge(&mut self, ticks: f32) -> bool {
+        self.set(self.value + self.step * ticks)
+    }
+
+    pub fn set(&mut self, value: f32) -> bool {
+        let mut next = value.clamp(self.min, self.max);
+        if self.step >= 1.0 {
+            next = next.round();
+        }
+        if (next - self.value).abs() <= f32::EPSILON {
+            return false;
+        }
+        self.value = next;
+        true
+    }
+
+    fn reset(&mut self) -> bool {
+        self.set(self.initial)
+    }
+
+    pub fn value_label(&self) -> String {
+        if self.name.ends_with(".on") {
+            if self.value >= 0.5 {
+                "ON".to_string()
+            } else {
+                "OFF".to_string()
+            }
+        } else if self.name == "hook.site" {
+            match self.value.round() as i32 {
+                0 => "pre_layer".to_string(),
+                1 => "post_attn".to_string(),
+                2 => "post_mlp".to_string(),
+                _ => "final_norm".to_string(),
+            }
+        } else if self.step < 0.001 {
+            format!("{:.5}", self.value)
+        } else if self.step < 1.0 {
+            format!("{:.3}", self.value)
+        } else {
+            format!("{:.0}", self.value)
+        }
+    }
+}
+
+fn step_for(name: &str, min: f32, max: f32) -> f32 {
+    match name {
+        "residual.dt" => 0.001,
+        "hook.fraction" => 0.0001,
+        "hook.start" | "hook.end" | "sample.temp" | "sample.rep" => 0.05,
+        "gov.velocity" | "gov.visc_thresh" => 0.005,
+        "splat.scale" => 0.005,
+        "splat.top_m" | "splat.top_k" | "hook.site" => 1.0,
+        name if name.ends_with(".on") => 1.0,
+        "gov.visc_gain" => 0.25,
+        "residual.field" | "residual.splat" | "residual.goal" | "field.alpha" => 0.01,
+        _ => ((max - min) / 100.0).max(0.001),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UiIntent {
+    None,
+    Move(i32),
+    Adjust(i32),
+    NextTab,
+    PreviousTab,
+    SelectTab(usize),
+    Min,
+    Max,
+    ResetOne,
+    ResetAll,
+    Quit,
+}
+
+fn intent_for_key(key: KeyEvent) -> UiIntent {
+    let fast = key
+        .modifiers
+        .intersects(KeyModifiers::SHIFT | KeyModifiers::CONTROL);
+    let amount = if fast { 10 } else { 1 };
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => UiIntent::Move(-1),
+        KeyCode::Down | KeyCode::Char('j') => UiIntent::Move(1),
+        KeyCode::Tab | KeyCode::Char(']') => UiIntent::NextTab,
+        KeyCode::BackTab | KeyCode::Char('[') => UiIntent::PreviousTab,
+        KeyCode::Char('1') => UiIntent::SelectTab(0),
+        KeyCode::Char('2') => UiIntent::SelectTab(1),
+        KeyCode::Char('3') => UiIntent::SelectTab(2),
+        KeyCode::Char('4') => UiIntent::SelectTab(3),
+        KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('-') => UiIntent::Adjust(-amount),
+        KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('+') | KeyCode::Char('=') => {
+            UiIntent::Adjust(amount)
+        }
+        KeyCode::PageDown => UiIntent::Adjust(-10),
+        KeyCode::PageUp => UiIntent::Adjust(10),
+        KeyCode::Home => UiIntent::Min,
+        KeyCode::End => UiIntent::Max,
+        KeyCode::Char('r') => UiIntent::ResetOne,
+        KeyCode::Char('R') => UiIntent::ResetAll,
+        KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => UiIntent::Quit,
+        _ => UiIntent::None,
+    }
+}
+
+const TAB_NAMES: [&str; 4] = ["Residual", "Logit", "Hook", "Sampling"];
+
+fn tab_for_slider(name: &str) -> usize {
+    if name.starts_with("residual.") {
+        0
+    } else if name.starts_with("hook.") {
+        2
+    } else if name.starts_with("sample.") {
+        3
+    } else {
+        1
+    }
+}
+
+fn tab_indices(sliders: &[Slider], tab: usize) -> Vec<usize> {
+    sliders
+        .iter()
+        .enumerate()
+        .filter_map(|(index, slider)| (tab_for_slider(&slider.name) == tab).then_some(index))
+        .collect()
+}
+
+fn move_tab(tab: usize, delta: i32) -> usize {
+    (tab as i32 + delta).rem_euclid(TAB_NAMES.len() as i32) as usize
+}
+
+struct TerminalGuard;
+
+impl TerminalGuard {
+    fn enter(stdout: &mut Stdout) -> io::Result<Self> {
+        terminal::enable_raw_mode()?;
+        if let Err(error) = execute!(stdout, EnterAlternateScreen, Hide) {
+            let _ = terminal::disable_raw_mode();
+            return Err(error);
+        }
+        Ok(Self)
+    }
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        let mut stdout = io::stdout();
+        let _ = execute!(stdout, Show, LeaveAlternateScreen, ResetColor);
+        let _ = terminal::disable_raw_mode();
+    }
+}
+
+/// Open the live slider panel and apply every edit immediately.
+///
+/// Returns the final value of each parameter changed during this visit.
+pub fn run_slider_tui(
+    title: &str,
+    sliders: &mut [Slider],
+    mut apply: impl FnMut(&str, f32) -> bool,
+) -> io::Result<Vec<(String, f32)>> {
+    if sliders.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut stdout = io::stdout();
+    let _guard = TerminalGuard::enter(&mut stdout)?;
+    let mut tab = 0usize;
+    let mut selected = 0usize;
+    let mut offset = 0usize;
+    let mut changed: Vec<(String, f32)> = Vec::new();
+    let mut status = String::from("Changes apply immediately");
 
     loop {
-        // Prompt input
-        print!("  {BOLD}{GREEN}>{RESET} ");
-        io::stdout().flush()?;
+        render(
+            &mut stdout,
+            title,
+            sliders,
+            tab,
+            selected,
+            &mut offset,
+            &status,
+            changed.len(),
+        )?;
 
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let prompt = input.trim();
-
-        if prompt.is_empty() {
+        let Event::Key(key) = event::read()? else {
             continue;
-        }
-        if matches!(prompt, "/quit" | "/exit") {
-            println!("  {DIM}{GRAY}(bye){RESET}");
-            return Ok(());
-        }
-        if prompt == "/reset" {
-            transcript.truncate(0);
-            transcript.push_str(
-                "You are Hydrodynamic Swarm, a physics-steered Llama 3.1 system. \
-                 Answer conversationally and keep continuity with the user.\n",
-            );
-            llama.clear_kv_cache();
-            println!("  {DIM}{GRAY}(chat transcript reset; splat memory kept){RESET}");
+        };
+        if !matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             continue;
         }
 
-        let full_prompt = format!("{transcript}\nUser: {prompt}\nAssistant:");
-
-        println!();
-        println!("  {DIM}{GRAY}--- Encoding prompt ---{RESET}");
-
-        // Encode prompt
-        let encoded = tokenizer
-            .encode(full_prompt.as_str(), true)
-            .map_err(|e| anyhow::anyhow!("encode: {}", e))?;
-        let prompt_ids: Vec<u32> = encoded.get_ids().to_vec();
-
-        println!("  {DIM}{GRAY}{} tokens{RESET}", prompt_ids.len());
-
-        llama.clear_kv_cache();
-
-        // Prefill (respects steer_hidden config like main.rs)
-        let prompt_tensor = Tensor::new(prompt_ids.as_slice(), device)?.unsqueeze(0)?;
-        let (prefill_logits, prefill_hidden) = if cfg.physics.steer_hidden {
-            let (logits, hidden) = llama.forward_with_hidden(&prompt_tensor, 0)?;
-            (logits, Some(hidden))
-        } else {
-            let logits = llama.forward(&prompt_tensor, 0)?;
-            (logits, None)
-        };
-
-        // Goal attractor from prefill
-        let goal_pos = if let Some(ref hidden) = prefill_hidden {
-            hidden.squeeze(0)?
-        } else if prefill_logits.dim(1)? >= dim {
-            prefill_logits.narrow(1, 0, dim)?.squeeze(0)?
-        } else {
-            prefill_logits.squeeze(0)?
-        };
-
-        println!("  {DIM}{GRAY}--- Generating ---{RESET}");
-        println!();
-        print!("  {BOLD}{GOLD}");
-        io::stdout().flush()?;
-
-        // Generation loop -- matches main.rs pattern:
-        // Use prefill logits for step 0, call forward at END of each step for next iteration.
-        let mut raw_logits = prefill_logits;
-        let mut index_pos = prompt_ids.len();
-        let mut generated_tokens: Vec<u32> = Vec::new();
-        #[allow(unused_assignments)]
-        let mut last_steered_pos: Option<Tensor> = None;
-        #[allow(clippy::explicit_counter_loop)]
-        for step in 0..max_tokens {
-            // Physics steering
-            let raw_slice = raw_logits.narrow(1, 0, dim)?;
-            let steer_result = engine.steer(&raw_slice, &goal_pos, step)?;
-            last_steered_pos = Some(steer_result.steered.clone());
-            let steered_slice = steer_result.steered;
-
-            // Micro-dream (adaptive)
-            let steered_slice = if step > 3 {
-                let raw_probs_temp = candle_nn::ops::softmax(&raw_logits, 1)?;
-                let raw_probs_flat: Vec<f32> = raw_probs_temp.squeeze(0)?.to_vec1()?;
-                let sample_n = raw_probs_flat.len().min(dim);
-                let entropy: f32 = raw_probs_flat[..sample_n]
-                    .iter()
-                    .filter(|&&p| p > 1e-10)
-                    .map(|p| -p * p.ln())
-                    .sum();
-
-                let should_dream = (step % cfg.micro_dream.fixed_interval == 0)
-                    || (entropy > cfg.micro_dream.entropy_threshold
-                        && step % cfg.micro_dream.adaptive_interval == 0);
-                if should_dream {
-                    let dream_steps = if entropy > 4.0 {
-                        4
-                    } else if entropy > 3.0 {
-                        3
-                    } else {
-                        2
-                    };
-                    let blend = if entropy > cfg.micro_dream.entropy_threshold {
-                        cfg.micro_dream.blend_high_entropy
-                    } else {
-                        cfg.micro_dream.blend_normal
-                    };
-                    let result =
-                        micro_dream(engine, &steered_slice, &goal_pos, step, dream_steps, blend)?;
-                    result.consolidated
+        match intent_for_key(key) {
+            UiIntent::None => {}
+            UiIntent::Quit => break,
+            UiIntent::NextTab | UiIntent::PreviousTab => {
+                let delta = if matches!(intent_for_key(key), UiIntent::NextTab) {
+                    1
                 } else {
-                    steered_slice
-                }
-            } else {
-                steered_slice
-            };
-
-            // Reconstruct full logits
-            let steered_logits = if raw_logits.dim(1)? > dim {
-                let rest = raw_logits.narrow(1, dim, raw_logits.dim(1)? - dim)?;
-                Tensor::cat(&[&steered_slice, &rest], 1)?
-            } else {
-                steered_slice
-            };
-
-            // Temperature sampling
-            let temperature: f64 = cfg.generation.temperature;
-            let scaled_logits = (&steered_logits / temperature)?;
-            let probs = candle_nn::ops::softmax(&scaled_logits, 1)?;
-            let probs_vec: Vec<f32> = probs.squeeze(0)?.to_vec1()?;
-
-            let mut rng = rand::rng();
-            use rand::RngExt;
-            let roll: f32 = rng.random();
-            let mut cumsum = 0.0f32;
-            let mut next_token: u32 = 0;
-            for (i, p) in probs_vec.iter().enumerate() {
-                cumsum += p;
-                if roll < cumsum {
-                    next_token = i as u32;
-                    break;
+                    -1
+                };
+                tab = move_tab(tab, delta);
+                selected = 0;
+                offset = 0;
+                status = format!("{} controls", TAB_NAMES[tab]);
+            }
+            UiIntent::SelectTab(next) => {
+                tab = next;
+                selected = 0;
+                offset = 0;
+                status = format!("{} controls", TAB_NAMES[tab]);
+            }
+            UiIntent::Move(delta) => {
+                let indices = tab_indices(sliders, tab);
+                selected = move_selection(selected, indices.len(), delta);
+                status = format!("Selected {}", sliders[indices[selected]].name);
+            }
+            UiIntent::Adjust(ticks) => {
+                let indices = tab_indices(sliders, tab);
+                let index = indices[selected];
+                if sliders[index].nudge(ticks as f32) {
+                    apply_slider(&mut sliders[index], &mut apply, &mut changed, &mut status);
                 }
             }
-
-            // Online splat creation
-            let delta = (&steered_logits - &raw_logits)?;
-            let delta_norm: f32 = delta.sqr()?.sum_all()?.to_scalar::<f32>()?.sqrt();
-
-            if step > 5 && delta_norm > cfg.physics.splat_delta_threshold {
-                if let Some(ref pos) = last_steered_pos {
-                    let current_pos = pos.squeeze(0)?;
-                    let too_close = engine
-                        .memory()
-                        .has_nearby(&current_pos, cfg.physics.min_splat_dist)?;
-                    if !too_close {
-                        let splat_sigma = if delta_norm > 30.0 {
-                            70.0
-                        } else if delta_norm > 20.0 {
-                            50.0
-                        } else {
-                            35.0
-                        };
-                        let splat_alpha = (delta_norm / 10.0).clamp(1.0, 5.0);
-                        engine.memory_mut().add_splat(Splat::new(
-                            current_pos,
-                            splat_sigma,
-                            splat_alpha,
-                        ));
+            UiIntent::Min => {
+                let indices = tab_indices(sliders, tab);
+                let index = indices[selected];
+                let min = sliders[index].min;
+                if sliders[index].set(min) {
+                    apply_slider(&mut sliders[index], &mut apply, &mut changed, &mut status);
+                }
+            }
+            UiIntent::Max => {
+                let indices = tab_indices(sliders, tab);
+                let index = indices[selected];
+                let max = sliders[index].max;
+                if sliders[index].set(max) {
+                    apply_slider(&mut sliders[index], &mut apply, &mut changed, &mut status);
+                }
+            }
+            UiIntent::ResetOne => {
+                let indices = tab_indices(sliders, tab);
+                let index = indices[selected];
+                if sliders[index].reset() {
+                    apply_slider(&mut sliders[index], &mut apply, &mut changed, &mut status);
+                }
+            }
+            UiIntent::ResetAll => {
+                for slider in sliders.iter_mut() {
+                    if slider.reset() {
+                        apply_slider(slider, &mut apply, &mut changed, &mut status);
                     }
                 }
+                status = String::from("Reset all controls to panel-entry values");
             }
-
-            generated_tokens.push(next_token);
-
-            // Stream token
-            let decoded = tokenizer
-                .decode(&[next_token], false)
-                .unwrap_or_else(|_| format!("[{}]", next_token));
-            print!("{}", decoded);
-            io::stdout().flush()?;
-
-            // Stop on EOS
-            if cfg.generation.eos_token_ids.contains(&next_token) {
-                break;
-            }
-
-            // Feed next token to get logits for the next step
-            let next_input = Tensor::new(&[next_token], device)?.unsqueeze(0)?;
-            raw_logits = llama.forward(&next_input, index_pos)?;
-            index_pos += 1;
         }
+    }
 
-        let decoded_response = tokenizer
-            .decode(&generated_tokens, true)
-            .unwrap_or_else(|_| String::new());
-        transcript.push_str("\nUser: ");
-        transcript.push_str(prompt);
-        transcript.push_str("\nAssistant: ");
-        transcript.push_str(decoded_response.trim());
-        transcript.push('\n');
+    Ok(changed)
+}
 
-        // Keep the prompt bounded so long chats do not overflow the RoPE/cache window.
-        // Byte-trim must land on UTF-8 char boundaries (multi-byte tokens panic otherwise).
-        let max_transcript_bytes = 12_000;
-        if transcript.len() > max_transcript_bytes {
-            let mut keep_from = transcript.len() - max_transcript_bytes;
-            while keep_from > 0 && !transcript.is_char_boundary(keep_from) {
-                keep_from -= 1;
-            }
-            if let Some(rel) = transcript[keep_from..].find("\nUser:") {
-                let cut = keep_from + rel;
-                // cut is start of "\nUser:" — always char-aligned
-                transcript = format!(
-                    "You are Hydrodynamic Swarm, a physics-steered Llama 3.1 system. \
-                     Answer conversationally and keep continuity with the user.\n{}",
-                    &transcript[cut..]
-                );
+fn apply_slider(
+    slider: &mut Slider,
+    apply: &mut impl FnMut(&str, f32) -> bool,
+    changed: &mut Vec<(String, f32)>,
+    status: &mut String,
+) {
+    if apply(&slider.name, slider.value) {
+        if let Some((_, value)) = changed.iter_mut().find(|(name, _)| *name == slider.name) {
+            *value = slider.value;
+        } else {
+            changed.push((slider.name.clone(), slider.value));
+        }
+        *status = format!("Applied {} = {}", slider.name, slider.value_label());
+    } else {
+        *status = format!("Could not apply {}", slider.name);
+    }
+}
+
+fn move_selection(current: usize, len: usize, delta: i32) -> usize {
+    if len == 0 {
+        return 0;
+    }
+    (current as i32 + delta).rem_euclid(len as i32) as usize
+}
+
+fn render(
+    stdout: &mut Stdout,
+    title: &str,
+    sliders: &[Slider],
+    tab: usize,
+    selected: usize,
+    offset: &mut usize,
+    status: &str,
+    changed_count: usize,
+) -> io::Result<()> {
+    let (width, height) = terminal::size().unwrap_or((100, 30));
+    let visible = height.saturating_sub(7).max(1) as usize;
+    let indices = tab_indices(sliders, tab);
+    if indices.is_empty() {
+        return Ok(());
+    }
+    if selected < *offset {
+        *offset = selected;
+    } else if selected >= *offset + visible {
+        *offset = selected + 1 - visible;
+    }
+    let end = (*offset + visible).min(indices.len());
+    let bar_width = (width as usize).saturating_sub(47).max(8).min(42);
+
+    queue!(
+        stdout,
+        MoveTo(0, 0),
+        Clear(ClearType::All),
+        SetForegroundColor(Color::Cyan),
+        SetAttribute(Attribute::Bold),
+        Print(format!("  {title}\r\n")),
+        ResetColor,
+        SetAttribute(Attribute::Reset),
+        SetForegroundColor(Color::Yellow),
+        Print("  "),
+        Print(
+            TAB_NAMES
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    if index == tab {
+                        format!("[{} {}]", index + 1, name)
+                    } else {
+                        format!(" {} {} ", index + 1, name)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("  "),
+        ),
+        Print("\r\n"),
+        ResetColor,
+        SetForegroundColor(Color::DarkGrey),
+        Print(
+            "  live model controls · Tab/Shift-Tab or [/] switches groups · arrows move/adjust\r\n"
+        ),
+        ResetColor,
+        Print("\r\n")
+    )?;
+
+    for (row, &idx) in indices[*offset..end].iter().enumerate() {
+        let slider = &sliders[idx];
+        let position = *offset + row;
+        let filled = (slider.fraction() * bar_width as f32).round() as usize;
+        let empty = bar_width.saturating_sub(filled);
+        let marker = if position == selected { "▶" } else { " " };
+        let name_color = if position == selected {
+            Color::White
+        } else {
+            Color::Grey
+        };
+        queue!(
+            stdout,
+            SetForegroundColor(name_color),
+            SetAttribute(if position == selected {
+                Attribute::Bold
             } else {
-                transcript = transcript[keep_from..].to_string();
-            }
-        }
+                Attribute::Reset
+            }),
+            Print(format!(" {marker} {:<18} [", slider.name)),
+            SetForegroundColor(Color::Cyan),
+            Print("█".repeat(filled)),
+            SetForegroundColor(Color::DarkGrey),
+            Print("·".repeat(empty)),
+            SetForegroundColor(name_color),
+            Print(format!("] {:>10}\r\n", slider.value_label())),
+            ResetColor,
+            SetAttribute(Attribute::Reset)
+        )?;
+    }
 
-        // Clean up
-        print!("{RESET}");
-        println!();
-        println!();
-        println!(
-            "  {DIM}{GRAY}--- Done: {} tokens generated | splats: {} ---{RESET}",
-            generated_tokens.len(),
-            engine.memory().len()
+    let scroll = if indices.len() > visible {
+        format!("rows {}–{} of {} · ", *offset + 1, end, indices.len())
+    } else {
+        String::new()
+    };
+    queue!(
+        stdout,
+        Print("\r\n"),
+        SetForegroundColor(Color::Yellow),
+        Print(format!("  {status}\r\n")),
+        SetForegroundColor(Color::DarkGrey),
+        Print(format!(
+            "  {scroll}←/→ adjust · PgUp/PgDn ×10 · Home/End · r reset · R reset all\r\n"
+        )),
+        Print(format!(
+            "  Enter/Esc/q close · {} tab · {changed_count} parameter(s) changed\r\n",
+            TAB_NAMES[tab]
+        )),
+        ResetColor
+    )?;
+    stdout.flush()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slider_nudges_clamps_and_resets() {
+        let mut slider = Slider::live("field.alpha", 0.15, 0.0, 1.0);
+        assert_eq!(slider.step, 0.01);
+        assert!(slider.nudge(2.0));
+        assert!((slider.value - 0.17).abs() < 1e-6);
+        slider.set(99.0);
+        assert_eq!(slider.value, 1.0);
+        slider.reset();
+        assert!((slider.value - 0.15).abs() < 1e-6);
+    }
+
+    #[test]
+    fn enum_and_boolean_labels_are_human_readable() {
+        let mut enabled = Slider::live("hook.on", 1.0, 0.0, 1.0);
+        assert_eq!(enabled.value_label(), "ON");
+        enabled.set(0.0);
+        assert_eq!(enabled.value_label(), "OFF");
+
+        let site = Slider::live("hook.site", 2.0, 0.0, 3.0);
+        assert_eq!(site.value_label(), "post_mlp");
+    }
+
+    #[test]
+    fn selection_wraps() {
+        assert_eq!(move_selection(0, 4, -1), 3);
+        assert_eq!(move_selection(3, 4, 1), 0);
+        assert_eq!(move_selection(1, 4, 2), 3);
+    }
+
+    #[test]
+    fn keymap_supports_fast_adjust_and_exit() {
+        let fast_right = KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT);
+        assert_eq!(intent_for_key(fast_right), UiIntent::Adjust(10));
+        let escape = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        assert_eq!(intent_for_key(escape), UiIntent::Quit);
+    }
+
+    #[test]
+    fn tabs_group_controls_and_switch_directly() {
+        let sliders = vec![
+            Slider::live("residual.cap", 1.0, 0.0, 20.0),
+            Slider::live("field.alpha", 0.1, 0.0, 1.0),
+            Slider::live("hook.on", 1.0, 0.0, 1.0),
+            Slider::live("sample.temp", 0.8, 0.0, 2.0),
+        ];
+        assert_eq!(tab_indices(&sliders, 0), vec![0]);
+        assert_eq!(tab_indices(&sliders, 1), vec![1]);
+        assert_eq!(tab_indices(&sliders, 2), vec![2]);
+        assert_eq!(tab_indices(&sliders, 3), vec![3]);
+        assert_eq!(
+            intent_for_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)),
+            UiIntent::NextTab
         );
-        println!();
+        assert_eq!(
+            intent_for_key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::NONE)),
+            UiIntent::SelectTab(3)
+        );
     }
 }

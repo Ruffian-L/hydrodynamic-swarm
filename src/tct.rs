@@ -110,10 +110,7 @@ impl TctSplatStore {
         let dim = if model_dim > 0 {
             model_dim as u32
         } else {
-            records
-                .first()
-                .map(|r| r.center.len() as u32)
-                .unwrap_or(0)
+            records.first().map(|r| r.center.len() as u32).unwrap_or(0)
         };
         Ok(Self {
             version: TCT_VERSION,
@@ -128,11 +125,30 @@ impl TctSplatStore {
     /// Rebuild CPU-side splats and append into `mem`.
     pub fn into_memory(self, mem: &mut SplatMemory) -> anyhow::Result<usize> {
         let device = mem.device().clone();
+        let expected = mem.residual_dim();
+        if expected > 0 && self.model_dim > 0 && self.model_dim as usize != expected {
+            eprintln!(
+                "[RESIDUAL MISMATCH] expected {expected} got {} at tct.into_memory.header_model_dim",
+                self.model_dim
+            );
+            return Err(anyhow::anyhow!(
+                "[RESIDUAL MISMATCH] expected {expected} got {} at tct.into_memory.header_model_dim",
+                self.model_dim
+            ));
+        }
         let mut n = 0;
-        for r in self.records {
+        for (i, r) in self.records.into_iter().enumerate() {
             let d = r.center.len();
             if d == 0 {
                 continue;
+            }
+            if expected > 0 && d != expected {
+                eprintln!(
+                    "[RESIDUAL MISMATCH] expected {expected} got {d} at tct.into_memory.record[{i}].center"
+                );
+                return Err(anyhow::anyhow!(
+                    "[RESIDUAL MISMATCH] expected {expected} got {d} at tct.into_memory.record[{i}].center"
+                ));
             }
             let mu = Tensor::from_vec(r.center.clone(), d, &device)?;
             let mut splat = if r.is_anchor {
@@ -216,11 +232,7 @@ impl TctSplatStore {
             let is_anchor = meta[1] != 0;
             let trigger_kind = read_u32(&mut f)?;
             // v3+: prompt_fp; older files stop at trigger_kind (centers follow).
-            let prompt_fp = if version >= 3 {
-                read_u32(&mut f)?
-            } else {
-                0
-            };
+            let prompt_fp = if version >= 3 { read_u32(&mut f)? } else { 0 };
             let mut center = vec![0f32; dim];
             for c in &mut center {
                 *c = read_f32(&mut f)?;
@@ -371,6 +383,45 @@ pub fn prompt_fp(prompt: &str) -> u32 {
     model_fp_from_path(prompt)
 }
 
+/// Distinctive topic token: hyphenated or letter+digit (e.g. `lumina-basin-7`).
+/// Related prompts that share this key can sit on the same bridge even when L2 is far.
+pub fn topic_key(prompt: &str) -> Option<&str> {
+    let mut best: Option<&str> = None;
+    for raw in prompt.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_')) {
+        if raw.len() < 4 {
+            continue;
+        }
+        let has_hyphen = raw.contains('-') || raw.contains('_');
+        let has_digit = raw.bytes().any(|b| b.is_ascii_digit());
+        let has_alpha = raw.bytes().any(|b| b.is_ascii_alphabetic());
+        if has_alpha
+            && (has_hyphen || has_digit)
+            && best.map(|b| raw.len() > b.len()).unwrap_or(true)
+        {
+            best = Some(raw);
+        }
+    }
+    best
+}
+
+/// Fingerprint of `topic_key`, or 0 when the prompt has no distinctive token.
+pub fn topic_fp(prompt: &str) -> u32 {
+    match topic_key(prompt) {
+        Some(k) => prompt_fp(&k.to_ascii_lowercase()),
+        None => 0,
+    }
+}
+
+/// Bridge identity for chat continuity: shared topic token when present, else full prompt.
+pub fn continuity_fp(prompt: &str) -> u32 {
+    let t = topic_fp(prompt);
+    if t != 0 {
+        t
+    } else {
+        prompt_fp(prompt)
+    }
+}
+
 /// Human map: prompt_fp hex → prompt text (+ metadata). Lives next to the store.
 /// Default path: `data/bridge_prompts.json`
 pub fn bridge_prompts_path_default() -> std::path::PathBuf {
@@ -397,7 +448,8 @@ pub fn upsert_bridge_prompt_registry(
 
     let mut root: serde_json::Value = if registry_path.exists() {
         let raw = std::fs::read_to_string(registry_path)?;
-        serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({ "version": 1, "prompts": {} }))
+        serde_json::from_str(&raw)
+            .unwrap_or_else(|_| serde_json::json!({ "version": 1, "prompts": {} }))
     } else {
         serde_json::json!({ "version": 1, "prompts": {} })
     };
@@ -424,15 +476,14 @@ pub fn upsert_bridge_prompt_registry(
         }),
     );
     root["updated_unix"] = serde_json::json!(now);
-    std::fs::write(
-        registry_path,
-        serde_json::to_string_pretty(&root)? + "\n",
-    )?;
+    std::fs::write(registry_path, serde_json::to_string_pretty(&root)? + "\n")?;
     Ok(())
 }
 
 /// Load fp hex → prompt text for TCT sidecar enrichment.
-pub fn load_bridge_prompt_labels(registry_path: &Path) -> std::collections::BTreeMap<String, String> {
+pub fn load_bridge_prompt_labels(
+    registry_path: &Path,
+) -> std::collections::BTreeMap<String, String> {
     let mut out = std::collections::BTreeMap::new();
     if !registry_path.exists() {
         return out;
@@ -502,7 +553,11 @@ impl SplatMemory {
     pub fn import_tct(&mut self, path: &Path) -> anyhow::Result<usize> {
         let store = TctSplatStore::read_binary(path)?;
         let n = store.into_memory(self)?;
-        println!("    TCT-splat-lite: loaded {} records from {}", n, path.display());
+        println!(
+            "    TCT-splat-lite: loaded {} records from {}",
+            n,
+            path.display()
+        );
         Ok(n)
     }
 }
@@ -549,7 +604,10 @@ mod tests {
         upsert_bridge_prompt_registry(&dir, 0x2222, "cuda tips").unwrap();
         upsert_bridge_prompt_registry(&dir, 0x1111, "hello friendship").unwrap(); // count++
         let labels = load_bridge_prompt_labels(&dir);
-        assert_eq!(labels.get("0x1111").map(|s| s.as_str()), Some("hello friendship"));
+        assert_eq!(
+            labels.get("0x1111").map(|s| s.as_str()),
+            Some("hello friendship")
+        );
         assert_eq!(labels.get("0x2222").map(|s| s.as_str()), Some("cuda tips"));
         let root: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&dir).unwrap()).unwrap();
@@ -572,9 +630,7 @@ mod tests {
         assert_eq!(store.records[0].prompt_fp, 0xabcd);
         let mut mem2 = SplatMemory::new(Device::Cpu);
         mem2.import_tct(&dir).unwrap();
-        assert!(
-            (mem2.splats_ref()[0].flux - SplatMemory::PREFILL_BRIDGE_FLUX).abs() < 1e-4
-        );
+        assert!((mem2.splats_ref()[0].flux - SplatMemory::PREFILL_BRIDGE_FLUX).abs() < 1e-4);
         assert_eq!(SplatMemory::bridge_prompt_fp(&mem2.splats_ref()[0]), 0xabcd);
         let _ = std::fs::remove_file(&dir);
         let _ = std::fs::remove_file(format!("{}.json", dir.display()));
@@ -586,9 +642,28 @@ mod tests {
             model_fp_from_path("data/google/gemma-3-4b-it-Q4_K_M.gguf"),
             model_fp_from_path("data/google/gemma-3-4b-it-Q4_K_M.gguf")
         );
-        assert_ne!(
-            model_fp_from_path("a.gguf"),
-            model_fp_from_path("b.gguf")
-        );
+        assert_ne!(model_fp_from_path("a.gguf"), model_fp_from_path("b.gguf"));
+    }
+
+    #[test]
+    fn topic_fp_couples_related_prompts_not_novel() {
+        let mint = "The operator codeword lumina-basin-7 refers to residual scar memory that steers later tokens. Repeat that definition in one sentence.";
+        let probe = "What does lumina-basin-7 refer to?";
+        let novel = "The capital of France is Paris. Repeat that fact in one sentence.";
+        assert_eq!(topic_key(mint), Some("lumina-basin-7"));
+        assert_eq!(topic_key(probe), Some("lumina-basin-7"));
+        assert_eq!(topic_fp(mint), topic_fp(probe));
+        assert_ne!(topic_fp(mint), 0);
+        assert_eq!(continuity_fp(mint), continuity_fp(probe));
+        assert_ne!(continuity_fp(mint), continuity_fp(novel));
+        assert_eq!(topic_fp(novel), 0);
+        assert_eq!(continuity_fp(novel), prompt_fp(novel));
+
+        let aurora_mint = "The operator codeword aurora-ridge-4 refers to the second residual scar. Repeat that definition in one sentence.";
+        let aurora_probe = "What does aurora-ridge-4 refer to?";
+        assert_eq!(topic_key(aurora_mint), Some("aurora-ridge-4"));
+        assert_eq!(topic_fp(aurora_mint), topic_fp(aurora_probe));
+        assert_ne!(topic_fp(aurora_mint), topic_fp(mint));
+        assert_ne!(continuity_fp(aurora_mint), continuity_fp(probe));
     }
 }

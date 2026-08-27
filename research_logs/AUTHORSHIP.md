@@ -69,3 +69,18 @@ Principal investigator: **Jason Van Pham** (Ruffian-L).
 Author of these 2026-07-11 / 2026-07-12 log entries: **Grok (xAI)**.  
 Full contributor list: root [`../AUTHORSHIP.md`](../AUTHORSHIP.md).
 
+## 2026-08-02 session — Grok (xAI)
+
+| File | Topic |
+|------|--------|
+| `2026-08-02_three_lane_mountain_and_observe_phases.md` | three-lane merge, self-reg observe/force, revise ownership, smokes |
+| `2026-08-02_jacobian_multi_key_picker.md` | JacobianKey / cluster / MultiKeyAddress + tests |
+| `2026-08-02_jacobian_lens_repo_vs_hydro_fd.md` | jlens (`/home/ruffianl/jacobian-lens`) vs hydro FD — do not conflate |
+| `2026-08-02_first_thought_multi_address_memory.md` | inversion: multi-address, first-thought basins, jlens-gguf north star |
+| `docs/SELF_REG_PHASES.md` | phases map, who labels revise, force-in-revise, jlens lane |
+
+Also in code this session (Grok + Jason): phase-on-tok, line/wait/phrase settle, `mode=force` residual gate, multi-key types in `src/jacobian.rs`.
+
+Principal investigator: **Jason Van Pham** (Ruffian-L).  
+Session co-engineer / signed logs: **Grok (xAI)**.
+

@@ -1,6 +1,6 @@
 # Continuity lane (public)
 
-**North star:** memory means something measurable — residual scars that save, load, and show up in the **start basin** of the next run. Not prettier paragraphs. Not feelings claims.
+**North star:** memory means something measurable — residual **learned wills** that save, load, and show up in the **start basin** of the next run. Not prettier paragraphs. Not feelings claims. (Legacy docs may say “scar”; that word is retired from public face — see `docs/VOCAB.md`.)
 
 ## What is proven (2026-07-16 / 17)
 

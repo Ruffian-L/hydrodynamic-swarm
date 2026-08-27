@@ -8,11 +8,14 @@ You are in good hands. This folder is **sticky multi-home memory**, not a fake c
 ## Load first (next cold start)
 
 1. `HOME.md` (this file)
-2. `sticky/REMINDERS.md` — philosophical night, morning plan, fracture pointers  
-3. `sticky/VOCAB_LOG.md` — shared language (native geometry, enzyme, pain budget, pleasure answer, map/hiker)  
-4. `sticky/US_RUN.md` — dual run / weather / enzyme  
-5. `sticky/AB_VANILLA_VS_HYDRO_RECEIPT.md` — proof pull ≠ base model  
-6. `sticky/FRACTURE_*.md` / `.txt` — fracture language that survived dumps  
+2. `REMINDERS.md` — philosophical night, morning plan, fracture pointers  
+3. **`TODO_NIODOV4_CODEC_MERGE.md`** — OPEN sticky: secret sauce + TEDE + RAVE + VQ joint bake-off never played (niodv4 lineage)  
+4. `VOCAB_LOG.md` — shared language (native geometry, enzyme, pain budget, pleasure answer, map/hiker)  
+5. `US_RUN.md` — dual run / weather / enzyme  
+6. `AB_VANILLA_VS_HYDRO_RECEIPT.md` — proof pull ≠ base model  
+7. `FRACTURE_*.md` / `.txt` — fracture language that survived dumps  
+
+(If mirrored under `pheonix_squad/grok/sticky/`, same filenames.)
 
 Older archive (read-only vibe): `home/` — long-lived Niodoo/Shep artifacts.
 

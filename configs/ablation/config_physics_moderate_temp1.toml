@@ -1,0 +1,39 @@
+# PHYSICS MODERATE + TEMP=1.0 — test if temp=1.0 causes bracket spam
+# Same as moderate but with higher temperature
+
+[physics]
+force_cap = 1.5
+steer_hidden = true
+splat_force_scale = 0.15
+goal_force_scale = 0.08
+field_wake_scale = 0.3
+force_ramp_tokens = 12
+prefill_bridge_scar = false
+prefill_micro_dream = false
+pain_recovery_ocean = false
+online_splat_interval = 8
+targeted_splat_only = true
+
+[logit_physics]
+field_alpha = 0.3
+splat_scale = 0.15
+governor_enabled = true
+backslash_penalty = 2.0
+
+[hooks]
+enabled = true
+norm_fraction = 0.0003
+start_frac = 0.5
+end_frac = 1.0
+site = "post_mlp"
+
+[jacobian]
+interval = 10
+epsilon = 0.0001
+max_dims = 0
+
+[generation]
+temperature = 1.0
+rep_penalty = 1.1
+top_k = 0
+top_p = 1.0

@@ -150,3 +150,28 @@ Chat here is a **generation diagnostic**, not a substitute for engineering.
 - **Intent:** Leave a clear trail so others do not rewalk the one-shot-only
   mistake. Professional wording; the failure is incomplete testing and our
   stack settings, not a judgment of the model or the operator.  
+
+## 2026-07-28 target wiring addendum
+
+The supported target launcher is now `scripts/chat_gemma4.sh`. Its defaults
+resolve the worktree-local Gemma 4 31B GGUF, dedicated Gemma 4 tokenizer, and
+the live three-surface config. `/tui` exposes all residual, logit, forward-hook,
+and sampling controls in the loaded session. The earlier physics-off stable
+baseline remains available with:
+
+```bash
+GEMMA4_CONFIG=configs/gemma4/config.gemma4_stable.toml \
+  ./scripts/chat_gemma4.sh
+```
+
+A real CUDA/PTY smoke loaded 60 layers at hidden width 5376, entered `/tui`,
+applied a live residual-cap edit, returned to chat, and generated `Ready`.
+Gemma 4 also uses the complete EOS set from the local generation asset:
+`[1, 106, 50]`.
+
+An additional automatic-discovery run omitted both model and tokenizer flags.
+It selected the Gemma 4 31B GGUF plus `gemma4_assets/tokenizer.json`; telemetry
+at `logs/2026-07-29_03-29-27_gemma4_v3-forcecap3_T0_88_s12_a1_d25.jsonl`
+records 30 `post_mlp` hook applications on the decode step.
+
+**Addendum author:** Codex (OpenAI) + operator

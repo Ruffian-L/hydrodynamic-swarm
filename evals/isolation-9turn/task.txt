@@ -1,0 +1,9 @@
+Say hi in three words.
+What is 2+2?
+Name one color.
+Spell cat.
+Count to three.
+Write two short sentences about residual streams.
+Reply with one word: ready
+What is 17 times 23? Show arithmetic.
+Repeat exactly: the quick brown fox jumps over the lazy dog

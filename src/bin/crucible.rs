@@ -104,7 +104,10 @@ fn main() {
     {
         Ok(file) => file,
         Err(e) => {
-            eprintln!("[crucible] Error: Failed to create log file at {}: {}", log_path, e);
+            eprintln!(
+                "[crucible] Error: Failed to create log file at {}: {}",
+                log_path, e
+            );
             std::process::exit(1);
         }
     };
@@ -150,7 +153,10 @@ fn main() {
         let status = match status {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[crucible] Error: Failed to run binary at {}: {}", binary, e);
+                eprintln!(
+                    "[crucible] Error: Failed to run binary at {}: {}",
+                    binary, e
+                );
                 std::process::exit(1);
             }
         };

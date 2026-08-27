@@ -108,11 +108,14 @@ impl ContinuousField {
     }
 
     /// Build the field directly from a model's token embedding matrix.
-    /// This is the preferred path: no external files, guaranteed alignment
-    /// with the actual model, and no risk of all-zero placeholder data.
+    /// This is the preferred path: no external files, guaranteed dim match
+    /// with the running model (unlike offline universe_*.safetensors from a
+    /// different size — e.g. gemma-lab 26B@2816 must not ground a 4B@2560 run).
     ///
-    /// `embeddings` should be shape (vocab_size, hidden_dim) -- the raw
-    /// `tok_embeddings` tensor from the loaded ModelWeights.
+    /// `embeddings` should be shape (vocab_size, hidden_dim) in **pre-layer**
+    /// space: for Gemma, caller multiplies raw `tok_embeddings` by √hidden_dim
+    /// (same as `run_layers` / `native_embed_mean`). Passing raw rows leaves
+    /// ∇ρ on the wrong shell relative to residual steering.
     pub fn from_embeddings(embeddings: &Tensor, device: &Device) -> Result<Self> {
         let positions = embeddings.to_dtype(DType::F32)?.to_device(device)?;
         let dim = positions.dim(positions.dims().len() - 1)?;

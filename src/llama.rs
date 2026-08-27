@@ -13,13 +13,14 @@
 
 use std::collections::HashMap;
 
+use crate::hooks::{maybe_apply, HookSite, LayerHook};
 use candle_core::quantized::QTensor;
 use candle_core::quantized::{ggml_file, gguf_file};
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Embedding, Module};
 use candle_transformers::quantized_nn::RmsNorm;
 
-pub const MAX_SEQ_LEN: usize = 4096;
+pub const MAX_SEQ_LEN: usize = 131072;
 
 // QMatMul wrapper adding some tracing.
 #[derive(Debug, Clone)]
@@ -473,6 +474,20 @@ impl ModelWeights {
     /// Run the transformer layers and return the final hidden state
     /// (post-norm, last position, pre-lm_head).
     fn run_layers(&mut self, x: &Tensor, index_pos: usize) -> Result<Tensor> {
+        self.run_layers_hooked(x, index_pos, None)
+    }
+
+    /// `run_layers` with an optional forward-pass physics hook.
+    ///
+    /// Llama exposes every sub-block boundary inline, so all four hook sites are live
+    /// here. When `hook` is `None` this is the original function with one extra
+    /// `Option::is_some` test per site.
+    fn run_layers_hooked(
+        &mut self,
+        x: &Tensor,
+        index_pos: usize,
+        mut hook: Option<&mut dyn LayerHook>,
+    ) -> Result<Tensor> {
         let (_b_sz, seq_len) = x.dims2()?;
         let mask = if seq_len == 1 {
             None
@@ -480,26 +495,36 @@ impl ModelWeights {
             Some(self.mask(seq_len, x.device())?)
         };
         let _enter = self.span.enter();
+        if let Some(hk) = hook.as_deref_mut() {
+            hk.begin_token(self.layers.len());
+        }
         let mut layer_in = self.tok_embeddings.forward(x)?;
-        for layer in self.layers.iter_mut() {
-            let x = layer_in;
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            let x = maybe_apply(&mut hook, HookSite::PreLayer, i, layer_in)?;
             let residual = &x;
-            let x = layer.attention_norm.forward(&x)?;
-            let attn = layer.forward_attn(&x, mask.as_ref(), index_pos)?;
+            let xn = layer.attention_norm.forward(&x)?;
+            let attn = layer.forward_attn(&xn, mask.as_ref(), index_pos)?;
             let x = (attn + residual)?;
+            let x = maybe_apply(&mut hook, HookSite::PostAttn, i, x)?;
 
             // MLP
             let _enter = layer.span_mlp.enter();
             let residual = &x;
-            let x = layer.ffn_norm.forward(&x)?;
-            let x = layer.mlp_or_moe.forward(&x)?;
-            let x = (x + residual)?;
-            layer_in = x
+            let xf = layer.ffn_norm.forward(&x)?;
+            let xf = layer.mlp_or_moe.forward(&xf)?;
+            let x = (xf + residual)?;
+            layer_in = maybe_apply(&mut hook, HookSite::PostMlp, i, x)?;
         }
         let x = self.norm.forward(&layer_in)?;
+        let x = maybe_apply(&mut hook, HookSite::FinalNorm, self.layers.len(), x)?;
         // Take last position only -- narrow to length-1, squeeze kills the seq dim
         // Guarantees (b_sz, hidden_dim) -- no phantom seq dim leaking into steering
         x.narrow(1, seq_len - 1, 1)?.squeeze(1)
+    }
+
+    /// Number of transformer blocks — lets a hook resolve a depth-fraction band.
+    pub fn n_layers(&self) -> usize {
+        self.layers.len()
     }
 
     /// Standard forward: returns logits (vocab-sized).
@@ -523,7 +548,17 @@ impl ModelWeights {
         x: &Tensor,
         index_pos: usize,
     ) -> Result<(Tensor, Tensor)> {
-        let hidden = self.run_layers(x, index_pos)?;
+        self.forward_with_hidden_hooked(x, index_pos, None)
+    }
+
+    /// `forward_with_hidden` with an optional forward-pass physics hook.
+    pub fn forward_with_hidden_hooked(
+        &mut self,
+        x: &Tensor,
+        index_pos: usize,
+        hook: Option<&mut dyn LayerHook>,
+    ) -> Result<(Tensor, Tensor)> {
+        let hidden = self.run_layers_hooked(x, index_pos, hook)?;
         let _enter = self.span_output.enter();
         let logits = self.output.forward(&hidden)?;
         Ok((logits, hidden))
@@ -533,6 +568,16 @@ impl ModelWeights {
     /// Useful for projecting steered hidden states back to vocab space.
     pub fn project_to_logits(&self, hidden: &Tensor) -> Result<Tensor> {
         self.output.forward(hidden)
+    }
+
+    /// Final norm + lm_head — the Jacobian lens's `unembed`.
+    ///
+    /// `project_to_logits` deliberately skips the final norm because `run_layers` has
+    /// already applied it. The lens transports a *block output* (pre-norm), so it needs
+    /// the norm here; folding RMSNorm into the fitted `J` instead would stop matching
+    /// `jlens.protocol.LensModel.unembed`. Accepts any rank ending in `d_model`.
+    pub fn unembed(&self, hidden: &Tensor) -> Result<Tensor> {
+        self.output.forward(&self.norm.forward(hidden)?)
     }
 
     /// Access the raw token embedding matrix (vocab_size, hidden_dim).

@@ -23,7 +23,6 @@ use candle_core::{DType, Device, Tensor};
 #[cfg(feature = "with-candle")]
 use candle_transformers::generation::LogitsProcessor;
 #[cfg(feature = "with-candle")]
-use hf_hub::api::sync::Api;
 #[cfg(feature = "with-candle")]
 use std::io::BufReader;
 #[cfg(feature = "with-candle")]
@@ -100,7 +99,7 @@ impl GemmaModel {
         })
     }
 
-    /// Load tokenizer: local file → models/tokenizer.json → HF Hub.
+    /// Load tokenizer from local paths only (no Hub fetch).
     /// Fails loudly if vocab size ≠ 262144.
     fn load_tokenizer(config: &GemmaConfig) -> SwarmResult<Tokenizer> {
         // 1. User-provided explicit path
@@ -114,7 +113,7 @@ impl GemmaModel {
             return Self::validate_tokenizer(tok);
         }
 
-        // 2. Local models/tokenizer.json (offline first)
+        // 2. Local models/tokenizer.json
         let local_tok = std::path::Path::new("models/tokenizer.json");
         if local_tok.exists() {
             info!("Loading local tokenizer: models/tokenizer.json");
@@ -126,24 +125,11 @@ impl GemmaModel {
             return Self::validate_tokenizer(tok);
         }
 
-        // 3. Fetch from HF Hub (requires HF_TOKEN in environment)
-        info!("Fetching Gemma tokenizer from HF Hub (unsloth/embeddinggemma-300m-GGUF)...");
-        let api = Api::new().map_err(|e| {
-            SwarmError::Candle(candle_core::Error::Msg(format!("HF API init: {e}")))
-        })?;
-        let repo = api.model("unsloth/embeddinggemma-300m-GGUF".to_string());
-        let path = repo.get("tokenizer.json").map_err(|e| {
-            SwarmError::Candle(candle_core::Error::Msg(format!(
-                "CRITICAL: HF Hub tokenizer fetch failed: {e}\n\
-                 → Put tokenizer.json in models/tokenizer.json for offline use."
-            )))
-        })?;
-        let tok = Tokenizer::from_file(&path).map_err(|e| {
-            SwarmError::Candle(candle_core::Error::Msg(format!(
-                "Failed to parse downloaded tokenizer: {e}"
-            )))
-        })?;
-        Self::validate_tokenizer(tok)
+        Err(SwarmError::Candle(candle_core::Error::Msg(
+            "No local tokenizer. Set tokenizer_path or place models/tokenizer.json \
+             (offline only — no hf-hub)."
+                .into(),
+        )))
     }
 
     fn validate_tokenizer(tok: Tokenizer) -> SwarmResult<Tokenizer> {
@@ -197,9 +183,7 @@ impl GemmaModel {
         for i in 0..seq_len {
             let tok = tokens.narrow(1, i, 1).map_err(SwarmError::Candle)?;
             // forward_hidden returns [1, hidden_dim] (last/only position)
-            let h = model
-                .forward_hidden(&tok, i)
-                .map_err(SwarmError::Candle)?;
+            let h = model.forward_hidden(&tok, i).map_err(SwarmError::Candle)?;
             hiddens.push(h);
         }
 
@@ -218,9 +202,7 @@ impl GemmaModel {
             .map_err(SwarmError::Candle)?
             .sqrt()
             .map_err(SwarmError::Candle)?;
-        let normed = x_f32
-            .broadcast_div(&norm)
-            .map_err(SwarmError::Candle)?;
+        let normed = x_f32.broadcast_div(&norm).map_err(SwarmError::Candle)?;
         Ok(normed)
     }
 
@@ -250,9 +232,7 @@ impl GemmaModel {
                 .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
                 .map_err(SwarmError::Candle)?;
-            model
-                .forward(&t, offset)
-                .map_err(SwarmError::Candle)?;
+            model.forward(&t, offset).map_err(SwarmError::Candle)?;
             offset += 1;
         }
 
@@ -264,9 +244,7 @@ impl GemmaModel {
                 .map_err(SwarmError::Candle)?
                 .unsqueeze(0)
                 .map_err(SwarmError::Candle)?;
-            let logits = model
-                .forward(&t, offset)
-                .map_err(SwarmError::Candle)?;
+            let logits = model.forward(&t, offset).map_err(SwarmError::Candle)?;
 
             let token_id = logits_proc
                 .sample(&logits.squeeze(0).map_err(SwarmError::Candle)?)

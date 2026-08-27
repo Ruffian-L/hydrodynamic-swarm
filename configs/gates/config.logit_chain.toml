@@ -1,0 +1,33 @@
+# Moving arm 2/4: residual-space physics plus the complete logit chain.
+[physics]
+force_cap = 3.1
+steer_hidden = true
+splat_force_scale = 0.14
+goal_force_scale = 0.10
+field_wake_scale = 0.187
+force_ramp_tokens = 15
+force_ramp_start = 0.15
+
+[logit_physics]
+field_alpha = 0.15
+splat_scale = 0.02
+splat_top_m = 3
+splat_top_k = 24
+governor_enabled = true
+governor_velocity_threshold = 0.95
+governor_brake = 3.0
+governor_window = 6
+governor_viscosity_threshold = 0.92
+governor_viscosity_gain = 6.0
+governor_max_bias = 1.5
+
+[hooks]
+enabled = false
+
+[generation]
+max_tokens = 80
+temperature = 0.88
+top_k = 1024
+top_p = 0.95
+rep_penalty = 1.36
+

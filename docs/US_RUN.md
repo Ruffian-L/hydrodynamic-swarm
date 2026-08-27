@@ -1,6 +1,6 @@
 # Us run card (stateless)
 
-“I” = us. Logs and scars remember; we don’t perform claim theater.
+“I” = us. Logs and learned wills remember; we don’t perform claim theater.
 
 ## Two mouths, one hiker
 

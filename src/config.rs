@@ -9,17 +9,95 @@ use std::path::Path;
 
 /// Top-level configuration for the hydrodynamic swarm.
 #[derive(Debug, Default, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub physics: PhysicsConfig,
+    pub logit_physics: LogitPhysicsConfig,
+    pub hooks: HooksConfig,
     pub generation: GenerationConfig,
     pub memory: MemoryConfig,
     pub micro_dream: MicroDreamConfig,
+    pub algo: AlgoConfig,
+    pub jacobian: JacobianConfig,
+    /// Self-reg phase observe / (later) force — see docs/SELF_REG_PHASES.md
+    pub self_reg: SelfRegConfig,
+}
+
+/// Self-regulation phases: answer → revise → settle.
+///
+/// `observe` labels only. `force` reserved for residual schedule in revise.
+/// Default off = settle clamps only (current multi-turn usability path).
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SelfRegConfig {
+    /// off | observe | force
+    pub mode: String,
+    /// Min answer tokens before revise heuristics can fire.
+    pub min_answer_tokens: usize,
+    /// Entropy rise vs step-0 to flag revise (nats, top-k approx).
+    pub revise_entropy_delta: f32,
+    /// Margin below this (after min_answer_tokens) soft-flags revise.
+    pub revise_margin_max: f32,
+    /// Trailing identical non-empty lines ≥ this → label `revise` (0 = off).
+    /// Catches confident low-entropy thrash (`17 × 10 = 170`×N) that entropy/margin miss.
+    pub revise_line_repeat: usize,
+    /// Trailing identical lines ≥ this → settle clamp stop (0 = off). Default 4.
+    pub settle_line_repeat: usize,
+    /// Min trimmed line length for line-repeat revise/settle (avoid "ok"/"yes" noise).
+    pub line_repeat_min_chars: usize,
+    /// Count of "try again" / Wait-loop blocks before settle clamp (0 = off). Default 3.
+    /// Catches Spell-cat multi-line revise loops that are not identical-line thrash.
+    pub settle_wait_loops: usize,
+    // --- mode=force only: residual schedule while phase==revise; answer stays force-off ---
+    /// Residual force_cap during revise (light for 12B; 0 = skip force application).
+    pub force_cap: f32,
+    pub force_goal_scale: f32,
+    pub force_splat_scale: f32,
+    pub force_field_scale: f32,
+}
+
+impl Default for SelfRegConfig {
+    fn default() -> Self {
+        Self {
+            mode: "off".into(),
+            min_answer_tokens: 3,
+            revise_entropy_delta: 1.2,
+            revise_margin_max: 0.08,
+            revise_line_repeat: 2,
+            settle_line_repeat: 4,
+            line_repeat_min_chars: 6,
+            settle_wait_loops: 3,
+            // Light 12B-ish revise shove (physics_light neighborhood)
+            force_cap: 0.6,
+            force_goal_scale: 0.08,
+            force_splat_scale: 0.05,
+            force_field_scale: 0.05,
+        }
+    }
+}
+
+/// Model identity and explicitly selected size-scaling adapter.
+///
+/// The formula prediction and the Hydro residual-seat application are kept
+/// separate in the scaler receipt. `apply=false` is readout-only.
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AlgoConfig {
+    /// Model size in billions. 0 = infer from the weights filename.
+    pub params_b: f32,
+    /// standard | instruct | chat | thinking | coding. Empty = infer from path.
+    pub model_type: String,
+    /// legacy | 8b-sqrt | piecewise | off
+    pub size_rule: String,
+    /// Manual gain ladder applied after the size/archetype transform.
+    pub gain: f32,
+    /// Whether the selected transform is adapted onto the Hydro residual seat.
+    pub apply: bool,
 }
 
 /// Physics engine parameters.
 #[derive(Debug, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct PhysicsConfig {
     pub dt: f32,
     pub viscosity_scale: f32,
@@ -67,14 +145,21 @@ pub struct PhysicsConfig {
     pub field_grad_blend: f32,
     /// Distance scale for dist_weighted: strength ∝ 1/(1+(d/τ)²).
     pub field_wake_dist_tau: f32,
-    /// Surface logit bias: z += α · normalize(E û_g). 0 = off.
-    /// û_g = unit field force direction from residual steer (same D as emb).
-    pub field_logit_alpha: f32,
     /// Force ramp: first N tokens scale total force from `force_ramp_start` → 1.0.
     /// Early-token gentler force (respect prefill residual geometry). 0 = off.
     pub force_ramp_tokens: usize,
     /// Multiplier at step 0 when ramping (e.g. 0.15).
     pub force_ramp_start: f32,
+    /// When scar potential at the live residual is ≥ this, F_s skips the early
+    /// force ramp so a matching basin can move first tokens. 0 = off (isolation).
+    pub memory_warm_pot: f32,
+    /// Blend steered hidden toward a topic-matched prefill-bridge μ (0 = off).
+    /// Related-prompt return: lm_head reads a residual that sits on the minted scar.
+    pub topic_mix: f32,
+    /// Blend probe logits with `lm_head(matched decode-trail μ[step])` (0 = off).
+    /// Content path: each minted completion token's residual, not a mix-gain sweep.
+    /// Isolation default 0. Falls back to step-0 prefill-bridge μ when no trail.
+    pub topic_logit_mix: f32,
     /// If true, only deposit splats on high-signal steps (δ > thresh OR pain OR strong pleasure).
     /// If false, any non-Skip quality deposit (current default path).
     pub targeted_splat_only: bool,
@@ -95,11 +180,59 @@ pub struct PhysicsConfig {
     /// direction perpendicular to goal. 0 = on-center (F_s≈0 at start by gradient geometry).
     /// ~0.3–0.4 keeps high potential and non-zero step0 F_s.
     pub prefill_bridge_offset_frac: f32,
+    /// Min steps between endocrine fires (path stays ON; this only rates it).
+    pub endocrine_cooldown_steps: usize,
+    /// High-δ endocrine needs top-k entropy above this (nats). Raise = fewer fires.
+    pub endocrine_entropy_min: f32,
+    /// Console: log +will/−will deposits every N steps (always log −will if true below).
+    pub will_log_every: usize,
+    /// If true, always print −will deposits; if false, use will_log_every only.
+    pub will_log_neg_always: bool,
+}
+
+/// Additive physics at the vocabulary distribution.
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LogitPhysicsConfig {
+    /// z += α · normalize(E û_g). 0 = off.
+    pub field_alpha: f32,
+    /// Scar-tissue vocab bias strength. 0 = off.
+    pub splat_scale: f32,
+    /// Max scars contributing in one step.
+    pub splat_top_m: usize,
+    /// Tokens biased per contributing scar.
+    pub splat_top_k: usize,
+    pub governor_enabled: bool,
+    pub governor_velocity_threshold: f32,
+    pub governor_brake: f32,
+    pub governor_window: usize,
+    pub governor_viscosity_threshold: f32,
+    pub governor_viscosity_gain: f32,
+    /// Hard ceiling on any single governor bias, in logit units.
+    pub governor_max_bias: f32,
+    /// Penalty subtracted from the `\` token logit to break the `\` loop collapse. 0 = off.
+    pub backslash_penalty: f32,
+}
+
+/// Scale-free physics inside the transformer stack.
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct HooksConfig {
+    pub enabled: bool,
+    /// pre_layer | post_attn | post_mlp | final_norm
+    pub site: String,
+    /// Inclusive depth band expressed as fractions of total layer count.
+    pub start_frac: f32,
+    pub end_frac: f32,
+    /// Per-application delta norm as a fraction of the local activation norm.
+    pub norm_fraction: f32,
+    /// Optional JSONL trace path. Empty disables tracing.
+    pub trace_out: String,
 }
 
 /// Generation parameters.
 #[derive(Debug, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct GenerationConfig {
     pub max_tokens: usize,
     pub temperature: f64,
@@ -110,12 +243,6 @@ pub struct GenerationConfig {
     pub top_k: usize,
     /// Nucleus sampling threshold in (0, 1]; 1.0 = disabled.
     pub top_p: f32,
-    /// Stop generation after this many identical tokens in a row (chat + one-shot). 0 = off.
-    pub consecutive_repeat_break: usize,
-    /// Block tokens that would complete a repeated n-gram already in the reply. 0 = off.
-    pub no_repeat_ngram: usize,
-    /// If true, multi-turn chat does not append collapsed/looped assistant turns to history.
-    pub drop_collapsed_history: bool,
     pub min_success_tokens: usize,
     pub pleasure_alpha: f32,
     pub pain_alpha: f32,
@@ -123,7 +250,7 @@ pub struct GenerationConfig {
 
 /// Splat memory management.
 #[derive(Debug, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct MemoryConfig {
     pub max_splats: usize,
     pub consolidation_dist: f32,
@@ -147,11 +274,68 @@ pub struct MemoryConfig {
     pub pleasure_answer_alpha: f32,
     /// Width scale for pleasure-answer (multiplies splat_sigma).
     pub pleasure_answer_sigma_scale: f32,
+    /// Scar force aggregation: `"soft"` (legacy sum-all) or `"ranked"` (Top-K picker).
+    /// Soft remains the default so ablation baselines stay bit-identical until enabled.
+    pub memory_force_mode: String,
+    /// Top-K scars allowed to contribute force when `memory_force_mode = "ranked"`.
+    pub memory_pick_k: usize,
+    /// When true (default with ranked): hard-pick only if residual is unsettled;
+    /// settled steps fall back to soft-sum.
+    pub memory_pick_selective: bool,
+    /// Unsettled if top-k entropy (nats) ≥ this.
+    pub memory_pick_entropy_min: f32,
+    /// Unsettled if confidence margin (p1−p2, or p_chosen proxy) ≤ this.
+    pub memory_pick_margin_max: f32,
+    /// Unsettled if ‖goal − pos‖ ≥ this. 0 = residual-L2 gate off.
+    pub memory_pick_residual_l2_min: f32,
+    /// Weight on quality-history term in pick score.
+    pub memory_pick_quality_weight: f32,
+    /// Weight on prompt_fp match term in pick score.
+    pub memory_pick_fp_weight: f32,
+}
+
+/// Jacobian measurement lens configuration.
+///
+/// Measures how hidden-state dimensions map to output logits via finite-difference
+/// perturbation. The "Jacobian lens" is Jason's key — it turns clusters into
+/// perm-addresses by revealing which hidden dimensions drive which outputs.
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JacobianConfig {
+    /// Perturbation magnitude for finite difference. 1e-4 is the sweet spot.
+    pub epsilon: f32,
+    /// Which hook sites to measure at. "final_norm" is primary.
+    pub sites: String,
+    /// Only track top-k output tokens by sensitivity.
+    pub top_k: usize,
+    /// Subsample hidden dimensions (0 = all). >0 = random sample.
+    pub max_dims: usize,
+    /// How often to measure (every N decode steps). 0 = disabled.
+    pub interval: usize,
+    /// Optional trace log path.
+    pub trace_path: String,
+    /// Capture JacobianKey on phase edges (first answer content, revise flip, settle).
+    /// Cheap when max_dims is set (recommend 64–128); full D is slow.
+    pub phase_edge_keys: bool,
+}
+
+impl Default for JacobianConfig {
+    fn default() -> Self {
+        Self {
+            epsilon: 1e-4,
+            sites: "final_norm".into(),
+            top_k: 16,
+            max_dims: 0,
+            interval: 0, // disabled by default
+            trace_path: String::new(),
+            phase_edge_keys: false,
+        }
+    }
 }
 
 /// Micro-dream consolidation tuning.
 #[derive(Debug, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct MicroDreamConfig {
     pub entropy_threshold: f32,
     pub fixed_interval: usize,
@@ -159,6 +343,18 @@ pub struct MicroDreamConfig {
     pub blend_normal: f64,
     pub blend_high_entropy: f64,
     pub topocot_threshold: f32,
+}
+
+impl Default for AlgoConfig {
+    fn default() -> Self {
+        Self {
+            params_b: 0.0,
+            model_type: String::new(),
+            size_rule: "piecewise".into(),
+            gain: 1.0,
+            apply: false,
+        }
+    }
 }
 
 impl Default for PhysicsConfig {
@@ -198,10 +394,11 @@ impl Default for PhysicsConfig {
             field_wake_max: 40.0,
             field_grad_blend: 0.15,
             field_wake_dist_tau: 50.0,
-            // Gentle surface tip; residual physics remains primary
-            field_logit_alpha: 0.15,
             force_ramp_tokens: 12,
             force_ramp_start: 0.20,
+            memory_warm_pot: 0.0,
+            topic_mix: 0.0,
+            topic_logit_mix: 0.0,
             targeted_splat_only: true,
             prefill_micro_dream: false,
             pain_recovery_ocean: false,
@@ -210,6 +407,43 @@ impl Default for PhysicsConfig {
             prefill_bridge_alpha: 0.75,
             prefill_bridge_lambda: 0.005,
             prefill_bridge_offset_frac: 0.35,
+            // Full stack stays ON — these only rate endocrine / console (see IMMUTABLE_RUN_CONTRACT).
+            endocrine_cooldown_steps: 28,
+            endocrine_entropy_min: 3.0,
+            will_log_every: 40,
+            will_log_neg_always: true,
+        }
+    }
+}
+
+impl Default for LogitPhysicsConfig {
+    fn default() -> Self {
+        Self {
+            field_alpha: 0.15,
+            splat_scale: 0.02,
+            splat_top_m: 3,
+            splat_top_k: 24,
+            governor_enabled: true,
+            governor_velocity_threshold: 0.95,
+            governor_brake: 3.0,
+            governor_window: 6,
+            governor_viscosity_threshold: 0.92,
+            governor_viscosity_gain: 6.0,
+            governor_max_bias: 1.5,
+            backslash_penalty: 3.0,
+        }
+    }
+}
+
+impl Default for HooksConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            site: "post_mlp".into(),
+            start_frac: 0.5,
+            end_frac: 1.0,
+            norm_fraction: 0.0005,
+            trace_out: String::new(),
         }
     }
 }
@@ -224,9 +458,6 @@ impl Default for GenerationConfig {
             rep_penalty: 1.25,
             top_k: 0,
             top_p: 1.0,
-            consecutive_repeat_break: 12,
-            no_repeat_ngram: 0,
-            drop_collapsed_history: true,
             min_success_tokens: 15,
             pleasure_alpha: 1.2,
             pain_alpha: -0.6,
@@ -248,6 +479,14 @@ impl Default for MemoryConfig {
             pleasure_answer_after: 2,
             pleasure_answer_alpha: 0.55,
             pleasure_answer_sigma_scale: 1.2,
+            memory_force_mode: "soft".into(),
+            memory_pick_k: 8,
+            memory_pick_selective: true,
+            memory_pick_entropy_min: 2.5,
+            memory_pick_margin_max: 0.15,
+            memory_pick_residual_l2_min: 0.0,
+            memory_pick_quality_weight: 1.0,
+            memory_pick_fp_weight: 1.0,
         }
     }
 }
@@ -334,6 +573,62 @@ impl Config {
             return Err("physics.goal_late_span must be > 0 when goal_late_start is set".into());
         }
 
+        let lp = &self.logit_physics;
+        if !lp.field_alpha.is_finite() || lp.field_alpha < 0.0 {
+            return Err("logit_physics.field_alpha must be finite and >= 0".into());
+        }
+        if !lp.splat_scale.is_finite() || lp.splat_scale < 0.0 {
+            return Err("logit_physics.splat_scale must be finite and >= 0".into());
+        }
+        if lp.splat_top_m == 0 || lp.splat_top_k == 0 {
+            return Err("logit_physics splat_top_m and splat_top_k must be > 0".into());
+        }
+        if !(0.0..=1.0).contains(&lp.governor_velocity_threshold) {
+            return Err("logit_physics.governor_velocity_threshold must be in [0, 1]".into());
+        }
+        if !(0.0..=1.0).contains(&lp.governor_viscosity_threshold) {
+            return Err("logit_physics.governor_viscosity_threshold must be in [0, 1]".into());
+        }
+        if lp.governor_window == 0 {
+            return Err("logit_physics.governor_window must be > 0".into());
+        }
+        if !lp.governor_brake.is_finite()
+            || lp.governor_brake < 0.0
+            || !lp.governor_viscosity_gain.is_finite()
+            || lp.governor_viscosity_gain < 0.0
+            || !lp.governor_max_bias.is_finite()
+            || lp.governor_max_bias < 0.0
+        {
+            return Err("logit_physics governor gains must be finite and >= 0".into());
+        }
+
+        let h = &self.hooks;
+        if !matches!(
+            h.site.trim().to_ascii_lowercase().as_str(),
+            "pre_layer"
+                | "pre"
+                | "post_attn"
+                | "attn"
+                | "post_mlp"
+                | "mlp"
+                | "layer"
+                | "final_norm"
+                | "final"
+        ) {
+            return Err("hooks.site must be pre_layer, post_attn, post_mlp, or final_norm".into());
+        }
+        if !h.start_frac.is_finite()
+            || !h.end_frac.is_finite()
+            || !(0.0..=1.0).contains(&h.start_frac)
+            || !(0.0..=1.0).contains(&h.end_frac)
+            || h.start_frac > h.end_frac
+        {
+            return Err("hooks start_frac/end_frac must satisfy 0 <= start <= end <= 1".into());
+        }
+        if !h.norm_fraction.is_finite() || !(0.0..=0.05).contains(&h.norm_fraction) {
+            return Err("hooks.norm_fraction must be finite and in [0, 0.05]".into());
+        }
+
         let g = &self.generation;
         if g.max_tokens == 0 {
             return Err("generation.max_tokens must be > 0".into());
@@ -347,6 +642,29 @@ impl Config {
         }
         if g.top_p <= 0.0 || g.top_p > 1.0 {
             return Err("generation.top_p must be in (0, 1]".into());
+        }
+
+        let a = &self.algo;
+        if !a.gain.is_finite() || a.gain < 0.0 || a.gain > 4.0 {
+            return Err("algo.gain must be finite and in [0, 4]".into());
+        }
+        if !matches!(
+            a.size_rule.trim().to_ascii_lowercase().as_str(),
+            "legacy"
+                | "3b"
+                | "3b-sqrt"
+                | "8b"
+                | "8b-sqrt"
+                | "sqrt-8b"
+                | "piecewise"
+                | "log-piecewise"
+                | "log-soft"
+                | "current"
+                | "off"
+                | "none"
+                | "manual"
+        ) {
+            return Err("algo.size_rule must be legacy, 8b-sqrt, piecewise, or off".into());
         }
 
         let m = &self.memory;
@@ -364,6 +682,28 @@ impl Config {
         }
         if m.prune_threshold < 0.0 {
             return Err("memory.prune_threshold must be >= 0".into());
+        }
+        let mode = m.memory_force_mode.trim().to_ascii_lowercase();
+        if mode != "soft"
+            && mode != "ranked"
+            && mode != "pick"
+            && mode != "topk"
+            && mode != "top-k"
+            && mode != "top_k"
+        {
+            return Err("memory.memory_force_mode must be \"soft\" or \"ranked\"".into());
+        }
+        if m.memory_pick_k == 0 {
+            return Err("memory.memory_pick_k must be > 0".into());
+        }
+        if m.memory_pick_quality_weight < 0.0 {
+            return Err("memory.memory_pick_quality_weight must be >= 0".into());
+        }
+        if m.memory_pick_fp_weight < 0.0 {
+            return Err("memory.memory_pick_fp_weight must be >= 0".into());
+        }
+        if m.memory_pick_residual_l2_min < 0.0 {
+            return Err("memory.memory_pick_residual_l2_min must be >= 0".into());
         }
 
         let d = &self.micro_dream;
@@ -387,6 +727,86 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    /// Apply one live-control name from the `/tui` / `/set` / Ratatui contract.
+    ///
+    /// Names match `NiodooEngine::set_live_param`, `LogitChain::set_param`, and
+    /// `HookControls::set_param`. Formula-native σ/θ/β are **not** accepted as
+    /// Hydro knobs. Returns false if this Config does not own `name`.
+    pub fn set_live_param(&mut self, name: &str, value: f32) -> bool {
+        match name {
+            "residual.cap" => self.physics.force_cap = value.clamp(0.0, 20.0),
+            "residual.dt" => self.physics.dt = value.clamp(0.001, 0.2),
+            "residual.field" => self.physics.field_wake_scale = value.clamp(0.0, 2.0),
+            "residual.splat" => self.physics.splat_force_scale = value.clamp(0.0, 2.0),
+            "residual.goal" => self.physics.goal_force_scale = value.clamp(0.0, 2.0),
+            "residual.field_max" => self.physics.field_wake_max = value.clamp(0.0, 100.0),
+            "residual.splat_max" => self.physics.splat_force_max = value.clamp(0.0, 100.0),
+            "residual.goal_max" => self.physics.goal_force_max = value.clamp(0.0, 100.0),
+            "force_ramp_tokens" => {
+                self.physics.force_ramp_tokens = value.clamp(0.0, 200.0) as usize;
+            }
+            "force_ramp_start" => self.physics.force_ramp_start = value.clamp(0.0, 1.0),
+            "field.alpha" => self.logit_physics.field_alpha = value.clamp(0.0, 1.0),
+            "splat.scale" => self.logit_physics.splat_scale = value.clamp(0.0, 1.0),
+            "splat.top_m" => {
+                self.logit_physics.splat_top_m = value.clamp(0.0, 16.0) as usize;
+            }
+            "splat.top_k" => {
+                self.logit_physics.splat_top_k = value.clamp(0.0, 128.0) as usize;
+            }
+            "gov.on" => self.logit_physics.governor_enabled = value >= 0.5,
+            "gov.velocity" => {
+                self.logit_physics.governor_velocity_threshold = value.clamp(0.5, 1.0);
+            }
+            "gov.brake" => self.logit_physics.governor_brake = value.clamp(0.0, 15.0),
+            "gov.visc_thresh" => {
+                self.logit_physics.governor_viscosity_threshold = value.clamp(0.5, 1.0);
+            }
+            "gov.visc_gain" => {
+                self.logit_physics.governor_viscosity_gain = value.clamp(0.0, 35.0);
+            }
+            "gov.max_bias" => self.logit_physics.governor_max_bias = value.clamp(0.0, 10.0),
+            "backslash.penalty" | "backslash.pen" => {
+                self.logit_physics.backslash_penalty = value.clamp(0.0, 10.0);
+            }
+            "sample.temp" | "temperature" => {
+                self.generation.temperature = value.clamp(0.0, 2.0) as f64;
+            }
+            "sample.rep" | "rep_penalty" => {
+                self.generation.rep_penalty = value.clamp(1.0, 2.5);
+            }
+            "sample.max" | "max_tokens" => {
+                self.generation.max_tokens = value.clamp(16.0, 8192.0) as usize;
+            }
+            "sample.top_p" | "top_p" => {
+                self.generation.top_p = value.clamp(0.0, 1.0);
+            }
+            "sample.top_k" | "top_k" => {
+                self.generation.top_k = value.clamp(0.0, 256.0) as usize;
+            }
+            "hook.on" => self.hooks.enabled = value >= 0.5,
+            "hook.fraction" | "hook.norm_fraction" => {
+                self.hooks.norm_fraction = value.clamp(0.0, 0.01);
+            }
+            "hook.start" | "hook.start_frac" => {
+                self.hooks.start_frac = value.clamp(0.0, self.hooks.end_frac.max(0.0).min(1.0));
+            }
+            "hook.end" | "hook.end_frac" => {
+                self.hooks.end_frac = value.clamp(self.hooks.start_frac, 1.0);
+            }
+            "hook.site" => {
+                self.hooks.site = match value.round().clamp(0.0, 3.0) as i32 {
+                    0 => "pre_layer".into(),
+                    1 => "post_attn".into(),
+                    2 => "post_mlp".into(),
+                    _ => "final_norm".into(),
+                };
+            }
+            _ => return false,
+        }
+        true
     }
 }
 
@@ -417,8 +837,92 @@ max_tokens = 200
         assert!((cfg.generation.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.generation.max_tokens, 200);
         // Non-specified fields get defaults
-        assert!((cfg.physics.viscosity_scale - 0.15).abs() < 1e-6);
+        assert!((cfg.physics.viscosity_scale - 0.25).abs() < 1e-6);
         assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn unknown_sections_and_keys_are_rejected() {
+        assert!(toml::from_str::<Config>("[model]\npath = \"ignored.gguf\"\n").is_err());
+        assert!(toml::from_str::<Config>("[physics]\nfield_logit_alpha = 0.15\n").is_err());
+    }
+
+    #[test]
+    #[test]
+    fn set_live_param_writes_hydro_seat_not_formula_sigma() {
+        let mut cfg = Config::default();
+        let start_cap = cfg.physics.force_cap;
+        assert!(start_cap > 1.0, "default residual.cap is a Hydro knob, not σ∈[0.04,0.20]");
+        assert!(cfg.set_live_param("residual.cap", 6.5));
+        assert!((cfg.physics.force_cap - 6.5).abs() < 1e-6);
+        assert!(cfg.set_live_param("residual.goal", 0.42));
+        assert!((cfg.physics.goal_force_scale - 0.42).abs() < 1e-6);
+        assert!(cfg.set_live_param("sample.temp", 0.55));
+        assert!((cfg.generation.temperature - 0.55).abs() < 1e-6);
+        assert!(cfg.set_live_param("backslash.pen", 3.0));
+        assert!((cfg.logit_physics.backslash_penalty - 3.0).abs() < 1e-6);
+        assert!(cfg.set_live_param("gov.on", 0.0));
+        assert!(!cfg.logit_physics.governor_enabled);
+        assert!(!cfg.set_live_param("sigma", 0.15), "formula-native σ is not a live Hydro knob");
+        assert!(!cfg.set_live_param("hands.beta", 1.5), "hands live on NiodooEngine, not Config");
+    }
+
+    #[test]
+    fn force_off_disables_all_three_surfaces() {
+        let cfg: Config = toml::from_str(
+            r#"
+[physics]
+force_cap = 0.0
+splat_force_scale = 0.0
+goal_force_scale = 0.0
+field_wake_scale = 0.0
+force_ramp_tokens = 0
+prefill_bridge_scar = false
+
+[logit_physics]
+field_alpha = 0.0
+splat_scale = 0.0
+governor_enabled = false
+
+[hooks]
+enabled = false
+"#,
+        )
+        .unwrap();
+        assert_eq!(cfg.physics.force_cap, 0.0);
+        assert_eq!(cfg.logit_physics.field_alpha, 0.0);
+        assert_eq!(cfg.logit_physics.splat_scale, 0.0);
+        assert!(!cfg.logit_physics.governor_enabled);
+        assert!(!cfg.hooks.enabled);
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn supported_surface_configs_parse_and_validate() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let supported = [
+            "config.example.toml",
+            "config.force_off.toml",
+            "configs/profiles/config.force_off.toml",
+            "configs/profiles/config.ramp_off.toml",
+            "configs/profiles/config.27b.toml",
+            "configs/profiles/config.memory_ranked.toml",
+            "configs/ablation/config_force_off.toml",
+            "configs/ablation/config_sweep_decay.toml",
+            "configs/ablation/config_sweep_lowdecay.toml",
+            "configs/gemma4/config.gemma4_T09.toml",
+            "configs/gemma4/config.gemma4_greedy.toml",
+            "configs/gemma4/config.gemma4_near_vanilla.toml",
+            "configs/gemma4/config.gemma4_stable.toml",
+            "configs/gates/config.residual_only.toml",
+            "configs/gates/config.logit_chain.toml",
+            "configs/gates/config.hooks.toml",
+            "configs/gates/config.three_surface.toml",
+        ];
+        for rel in supported {
+            Config::load(&root.join(rel))
+                .unwrap_or_else(|e| panic!("{rel} must remain a valid live-schema config: {e}"));
+        }
     }
 
     #[test]

@@ -1,63 +1,47 @@
-# Research Entry: [Title]
+# [Clear research title — what was learned or built]
 
-> Commit: `<hash>` | Date: YYYY-MM-DD
+> Date: YYYY-MM-DD · Commit: `<hash>` (optional)
 >
-> **Author:** <name> — if Grok co-wrote: **Grok (xAI)** + operator (Jason/Shepard)
-> Sign every entry. Failures are part of the trail.
+> **Author:** <name> — if Grok co-wrote: **Grok (xAI)** + PI (Jason)
+> Sign every entry. Failures stay in the trail.
+
+**Do not** title logs “Receipt” or “Research Entry: …”. Use a title a stranger can search later.
 
 ---
 
-## Commit Summary
+## Context
 
-- **Message**: <commit message>
-- **Files changed**: <count>
-- **Insertions/Deletions**: +<ins> / -<del>
+One paragraph: why this run or change exists (hypothesis, product stake, or instrument under test).
 
-## What Changed
+## What changed
 
-Describe the architectural and functional changes introduced by this commit.
-Group by component when multiple files changed.
+Architectural / code / config changes. Group by component when useful.
 
-### [Component/File Name]
+### [Component]
 
-- What was modified and why
-- Key code changes (cite specific functions, constants, or logic)
-- How this relates to the architecture in FOUNDATION.md
+- What and why
+- Key functions or knobs
+- Link to related logs (not only raw log paths)
 
-## Physics Impact
+## Method
 
-How does this commit affect the core physics pipeline?
-Reference specific forces, parameters, or dynamics:
+How you measured it (smoke, probe, ablation, human REPL). Commands optional but welcome.
 
-- **Field (field.rs)**: Changes to Gaussian kernel, sigma, probe behavior
-- **Steering (niodoo.rs)**: Changes to dt, viscosity, force composition
-- **Memory (memory.rs/splat.rs)**: Changes to splat creation, decay, query_force
-- **Generation (main.rs)**: Changes to token loop, sampling, logit manipulation
+## Findings
 
-(Omit sections that are not relevant to this commit.)
+What the data or run actually showed. Tables welcome.
 
-## Key Findings
+## Open questions / next
 
-1. **[Finding Title]**
-   - Evidence: <specific values, metrics, or observations from the diff/logs>
-   - Significance: <what this means for the project>
+What is still wet paint. Ordered next brick.
 
-## Experiment Progression
+## Authorship (optional block)
 
-Where does this commit sit in the project timeline?
-
-- **Before**: <previous state/capability>
-- **After**: <new state/capability>
-- **Next**: <what this enables or what should be tested next>
-
-## Open Questions
-
-- [ ] <question or investigation prompted by this commit>
-
-
+```
 ---
 **Authorship**
-- **Author:** 
-- **Date:** 
-- **Note:** Every failed run that is logged is a path someone else does not have to re-walk.
+- **Author:** …
+- **Role:** …
+- **Date written:** YYYY-MM-DD
 ---
+```

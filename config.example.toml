@@ -32,7 +32,6 @@ field_wake_scale = 0.187
 field_wake_max = 25.0
 field_grad_blend = 0.10
 field_wake_dist_tau = 80.0
-field_logit_alpha = 0.0
 force_ramp_tokens = 15
 force_ramp_start = 0.15
 targeted_splat_only = true
@@ -46,6 +45,27 @@ prefill_bridge_lambda = 0.005
 # Soft off-center so step0 F_s ≠ 0 (force is gradient; on-center was exactly 0)
 prefill_bridge_offset_frac = 0.35
 
+[logit_physics]
+field_alpha = 0.15
+splat_scale = 0.02
+splat_top_m = 3
+splat_top_k = 24
+governor_enabled = true
+governor_velocity_threshold = 0.95
+governor_brake = 3.0
+governor_window = 6
+governor_viscosity_threshold = 0.92
+governor_viscosity_gain = 6.0
+governor_max_bias = 1.5
+
+[hooks]
+enabled = true
+site = "post_mlp"
+start_frac = 0.5
+end_frac = 1.0
+norm_fraction = 0.0005
+trace_out = ""
+
 [generation]
 max_tokens = 65
 temperature = 0.88
@@ -55,6 +75,25 @@ pleasure_alpha = 0.85
 pain_alpha = -0.4
 default_prompt = "Explain the Physics of Friendship in one short paragraph."
 
+# Self-reg phases (docs/SELF_REG_PHASES.md): answer | revise | settle.
+# off = settle clamps only. observe = label every tok. force = residual only in revise.
+# revise_line_repeat / settle_line_repeat: identical-line thrash.
+# settle_wait_loops: "try again" / Wait block thrash (Spell-cat class).
+# force_*: applied only when mode=force AND phase=revise (answer stays force-off).
+[self_reg]
+mode = "off"
+min_answer_tokens = 3
+revise_entropy_delta = 1.2
+revise_margin_max = 0.08
+revise_line_repeat = 2
+settle_line_repeat = 4
+line_repeat_min_chars = 6
+settle_wait_loops = 3
+force_cap = 0.6
+force_goal_scale = 0.08
+force_splat_scale = 0.05
+force_field_scale = 0.05
+
 [memory]
 max_splats = 48
 consolidation_dist = 18.0
@@ -62,6 +101,17 @@ decay_rate = 0.96
 prune_threshold = 0.03
 online_decay_rate = 0.975
 max_prefill_bridges = 24
+# Scar force aggregation: "soft" = legacy sum-all (ablation default);
+# "ranked" = Top-K picker (geometry + quality history + prompt_fp match).
+memory_force_mode = "soft"
+memory_pick_k = 8
+# When ranked: hard-pick only if residual unsettled (entropy/margin/optional L2).
+memory_pick_selective = true
+memory_pick_entropy_min = 2.5
+memory_pick_margin_max = 0.15
+memory_pick_residual_l2_min = 0.0
+memory_pick_quality_weight = 1.0
+memory_pick_fp_weight = 1.0
 
 [micro_dream]
 entropy_threshold = 3.0

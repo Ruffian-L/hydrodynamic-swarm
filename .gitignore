@@ -93,8 +93,6 @@ TEAM_GOAL*.md
 research_logs/*HANDOFF*
 research_logs/*SESSION_CATCHUP*
 research_logs/*CONTINUITY_FIRST*
-AGENTS*.md
-AGENTS(jules).md
 .agent/
 .jules/
 .grok/
@@ -116,3 +114,11 @@ taco.db
 
 # script runtime noise
 scripts/logs/
+
+# Local agent dirs stay off GitHub. AGENTS.md is tracked. (research house)
+CLAUDE.md
+Claude.md
+CLAUDE.local.md
+.agent/
+.jules/
+.grok/

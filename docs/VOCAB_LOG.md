@@ -1,5 +1,7 @@
 # Vocab log — hydro × gemma-lab × TermSplat
 
+**Full team map (canonical):** [`docs/VOCAB.md`](VOCAB.md) — preferred terms, force names, picker, files.
+
 Started **2026-07-25** after: universe on disk, endocrine blooms on **native** geometry, TinyEmbed out.
 
 Rule: names should be scannable in a log line. If you can’t spot PASS from the word, rename it.
@@ -100,8 +102,10 @@ Finding or re-anchoring meaning = locating / pulling toward a region of **native
 ### Rot dial / entropy weather
 TermSplat: high H → terminal goes feral; clean → geometry settles. Mirror of swarm micro-dream thresholds (~3 / ~4).
 
-### Splat / scar
-Gaussian memory in field space (+α pleasure / −α pain). Persistence: `splat_memory.safetensors` (+ TCT).
+### Splat / learned will
+Gaussian memory in field space (+α attract / −α repel). **Public name: learned will** (not scar; not poison).  
+Wire/jsonl may still say `scar_*` until schema migration — see `docs/VOCAB.md`.  
+Persistence: `splat_memory.safetensors` (+ TCT).
 
 ### SplatLens
 Eye: `--viz` → `.viz.json` museum. TermSplat `lens` paints the same dump as weather.

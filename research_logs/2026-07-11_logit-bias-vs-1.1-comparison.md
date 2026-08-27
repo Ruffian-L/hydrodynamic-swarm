@@ -1,4 +1,4 @@
-# Research Entry: Field logit bias vs Phase 1.1 — side-by-side
+# Field logit bias vs Phase 1.1 — side-by-side
 
 > **Author:** Grok (xAI) — co-engineering session with Jason / Shepard  
 > **Date:** 2026-07-11  

@@ -1,4 +1,4 @@
-# Research Entry: RAVE codec recovery, lane verdict, and three-tree merge direction
+# RAVE codec recovery, lane verdict, and three-tree merge direction
 
 > Date: 2026-07-21
 >

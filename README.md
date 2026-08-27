@@ -1,15 +1,28 @@
 # Hydrodynamic Swarm
 
-**Local residual-stream physics** for frozen LLMs — per-token vector-field steering + Gaussian **splat memory** that reloads across process restarts.
+**Local residual-stream physics** for frozen LLMs — per-token vector-field steering + Gaussian **learned wills** (splat memory) that reload across process restarts.
 
 **Lead:** Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L))  
-**Built with:** Grok · Claude · ChatGPT / Codex · Gemini — [`AUTHORSHIP.md`](AUTHORSHIP.md) · full table [`CREDITS.md`](CREDITS.md)  
+**Built with (always name them):** Grok (xAI) · Claude (Anthropic) · Gemini (Google) · ChatGPT / Codex (OpenAI) — [`AUTHORSHIP.md`](AUTHORSHIP.md) · full table [`CREDITS.md`](CREDITS.md)  
 **Local team (record):** Shep · Echo · Lumina · Nex — see [`CREDITS.md`](CREDITS.md)  
+**One team, one dream:** sign research logs; keep every mind on the wall even when offline/unpaid — provenance sticky [`docs/grok_home/PROVENANCE_TEAM.md`](docs/grok_home/PROVENANCE_TEAM.md)  
+**First-thought / ontological inversion** (openings over final speech; stance basins): [`docs/jlens-gguf/README.md`](docs/jlens-gguf/README.md) · [`research_logs/2026-08-02_first_thought_multi_address_memory.md`](research_logs/2026-08-02_first_thought_multi_address_memory.md)  
 **Built with Llama / Gemma** — weights terms: [`NOTICE`](NOTICE)
+
+> **IMMUTABLE RUN CONTRACT:** full stack ON — tune, don’t amputate. Ablate only after the orchestra is in tune.  
+> → [`IMMUTABLE_RUN_CONTRACT.md`](IMMUTABLE_RUN_CONTRACT.md) · vocab → [`docs/VOCAB.md`](docs/VOCAB.md)
 
 > **Not** a product chat app · **not** weight fine-tuning · **not** a consciousness claim.  
 > Active research harness (v0.2). Sibling with a tighter correction claim:  
 > [niodoo-hidden-state-steering](https://github.com/Ruffian-L/niodoo-hidden-state-steering).
+
+### Research goal (updated)
+
+**Build a template + residual-physics stack that can go past a normal stop on purpose, so self-regulation (revise / restate / settle) is a first-class generation phase — not junk clamped away by a stop token.**
+
+Most chat stacks treat “past natural end of turn” as degeneration and cut the stream. We treat that regime as **signal**: the model often still holds the task answer, then fails to *exit cleanly* (or attempts revise-and-retry). Residual steering did not *invent* that behavior; it can **expose, schedule, and steer** it. Chat packaging (correct Gemma/Llama turn grammar) is borrowed from mature engines where useful; the research object is phase control + forces, not a prettier REPL alone.
+
+Human multi-turn: `./scripts/talk.sh` · Team multi-turn smoke (same defaults): `./scripts/smoke_convo.sh` → `logs/smoke_convo_latest.txt` · Shared knobs: `scripts/convo_defaults.sh` · Phases + three-lane merge map: [`docs/SELF_REG_PHASES.md`](docs/SELF_REG_PHASES.md) · Multi-turn vs one-shot: `research_logs/2026-07-28_gemma4-multiturn-diagnosis-vs-oneshot.md`
 
 <p align="center">
   <img src="docs/assets/niodoo-terminal.svg" alt="Niodoo terminal mock: niodoo@hydro — SplatLens museum" width="720" />
@@ -26,7 +39,7 @@
 | **Honest research logs** | `research_logs/` + ablation scripts (incl. negative / mixed) |
 | **Epistemic style** | Config-driven, telemetry-first; losses and slow runs stay in the record |
 
-**Splat language:** deposits are **signed memory / reflex marks** in residual space (high- vs low-surprise), not “the model feels pain.” See project notes; older code may still say pleasure/pain as ± labels.
+**Learned wills:** deposits are signed memory in residual space (+will attract / −will repel). Not scars, not poison. Console speaks wills; wire may still say `scar_*` until schema migration.
 
 ## Start here
 
@@ -45,6 +58,15 @@
 - **Museum** = real `.viz.json` run recordings + “what worked / didn’t” cards (`tools/museum/`). Terminal chrome is presentation; the telemetry is real.
 - **Continuity** (memory past process death): [`docs/CONTINUITY.md`](docs/CONTINUITY.md)
 - Full setup: [`SETUP.md`](SETUP.md) · `cp config.example.toml config.toml`
+
+**Talk / smoke parity (preferred):** `./scripts/talk.sh` (human) and
+`./scripts/smoke_convo.sh` (multi-turn auto log) share `scripts/convo_defaults.sh`.
+One-shot smokes are not multi-turn evidence.
+
+For live tuning, start with `--chat` (or `talk.sh`), then `/tui`. The panel
+uses up/down to select, left/right to adjust, `r` to reset the selected value,
+and Enter/Esc/`q` to return to chat. `/phys` prints controls; `/set <name> <value>`
+edits one live. Legacy entry: `./scripts/chat_gemma4.sh` (three-surface / 31B path).
 
 The system intervenes in the Llama 3.1 forward pass at the pre-`lm_head` hidden state, computes a steering update from three sources — a continuous field over the model's own embedding matrix, a memory of Gaussian "splats" deposited on prior trajectories, and a goal attractor from the prompt — and writes the result back into the residual before sampling. The splat memory is persisted as `safetensors` so the generator carries spatial memory of its own history across sessions. No fine-tuning, no LoRA, no architectural change to the base model.
 
@@ -175,7 +197,7 @@ src/
   dream.rs      Offline trajectory replay with Langevin noise
   ridge.rs      Vietoris–Rips H1 collapse detector (early-warning signal)
   gpu.rs        Candle/CUDA tensor ops, batched field gradient
-  tui.rs        Multi-turn chat front end
+  tui.rs        Keyboard slider panel for live model controls
   viz.rs        Per-step JSONL telemetry
   config.rs     TOML config loader
   logger.rs     Session logger; writes via O_CREAT|O_EXCL (no symlink follow)
@@ -268,7 +290,9 @@ cargo test           # 42 unit tests across splat/memory/field/config/gpu
 cargo clippy
 ```
 
-Note: on aarch64 hosts without `fullfp16` (e.g. some Cortex-X925 cores), the `gemm-f16` transitive build can fail. This is upstream in `gemm-common` and unrelated to the project; CUDA paths still work because the GPU kernels do their own f16.
+Note: aarch64 `gemm-f16` needs NEON `fullfp16`. This repo sets
+`[target.aarch64-unknown-linux-gnu] rustflags = ["-C", "target-feature=+fp16"]`
+in [`.cargo/config.toml`](.cargo/config.toml) so plain `cargo build` works.
 
 ---
 

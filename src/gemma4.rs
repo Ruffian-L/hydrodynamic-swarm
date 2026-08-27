@@ -20,12 +20,13 @@
 //! - Attn score scale often 1.0 (env override `GEMMA4_ATTN_SCALE=rsqrt`)
 //! - Final logit softcap from GGUF / HF
 
+use crate::hooks::{maybe_apply, HookSite, LayerHook};
 use candle_core::quantized::{gguf_file, QTensor};
 use candle_core::{DType, Device, Module, Result, Tensor};
 use candle_nn::Embedding;
 use candle_transformers::quantized_nn::RmsNorm;
 
-pub const MAX_SEQ_LEN: usize = 8192;
+pub const MAX_SEQ_LEN: usize = 131072;
 
 // ── QMatMul ───────────────────────────────────────────────────────────────────
 
@@ -155,6 +156,54 @@ fn make_mask(
     Tensor::from_slice(&mask, (q_len, kv_len), device)
 }
 
+// ── John A0 / SWA prefill integrity (static geometry) ─────────────────────────
+
+/// Count unmasked keys per query row under the same rules as [`make_mask`].
+///
+/// Returns one count per query position `0..q_len`. A zero means that query's
+/// softmax has empty support → NaN / pad-class degeneration (mlxcel #401 family).
+pub fn valid_keys_per_query(
+    q_len: usize,
+    kv_len: usize,
+    kv_start: usize,
+    window: Option<usize>,
+) -> Vec<usize> {
+    let mut counts = vec![0usize; q_len];
+    for i in 0..q_len {
+        for j in 0..kv_len {
+            let abs_j = kv_start + j;
+            let future = abs_j > i;
+            let outside_window = match window {
+                Some(w) => abs_j + w <= i,
+                None => false,
+            };
+            if !future && !outside_window {
+                counts[i] += 1;
+            }
+        }
+    }
+    counts
+}
+
+/// Prefill geometry **before** the A0 fix: trim K/V to last `window` then mask
+/// full `q_len`. Empty rows begin at `q_len = window + 1`.
+pub fn legacy_trim_prefill_valid_keys(prefill_len: usize, window: usize) -> Vec<usize> {
+    let kv_len = prefill_len.min(window);
+    let kv_start = prefill_len.saturating_sub(kv_len);
+    valid_keys_per_query(prefill_len, kv_len, kv_start, Some(window))
+}
+
+/// Prefill geometry **after** the A0 fix: keep full K/V; SWA is mask-only.
+/// Every query in a causal prefill has ≥ 1 valid key.
+pub fn fixed_prefill_valid_keys(prefill_len: usize, window: usize) -> Vec<usize> {
+    valid_keys_per_query(prefill_len, prefill_len, 0, Some(window))
+}
+
+/// How many query rows have zero valid keys (empty softmax support).
+pub fn empty_valid_key_rows(counts: &[usize]) -> usize {
+    counts.iter().filter(|&&n| n == 0).count()
+}
+
 // ── Layer ─────────────────────────────────────────────────────────────────────
 
 struct Layer {
@@ -201,7 +250,13 @@ impl Layer {
         }
     }
 
-    fn forward(&mut self, xs: &Tensor, index_pos: usize) -> Result<Tensor> {
+    fn forward(
+        &mut self,
+        xs: &Tensor,
+        index_pos: usize,
+        layer_idx: usize,
+        hook: &mut Option<&mut dyn LayerHook>,
+    ) -> Result<Tensor> {
         let (b, seq, _) = xs.dims3()?;
         let device = xs.device();
 
@@ -259,9 +314,16 @@ impl Layer {
                 }
             }
         };
+        // SWA K/V policy (John A0 / 2026-07-30):
+        // - **Prefill** (`seq > 1`): keep full K/V. Sliding window is enforced by the
+        //   attention mask only. Trimming to the last `w` keys *before* masking left
+        //   early query rows with zero valid keys once prefill_len > w (empty softmax
+        //   support → NaN / pad-class collapse; see mlxcel #401, HF John6666 note).
+        // - **Decode** (`seq == 1`): trim the rotating cache to `w` for memory; the
+        //   single query sits at the end of the window so every retained key is valid.
         let (k, v) = if let Some(w) = self.swa_window {
             let t = k.dim(2)?;
-            if t > w {
+            if seq == 1 && t > w {
                 let start = t - w;
                 (k.narrow(2, start, w)?, v.narrow(2, start, w)?)
             } else {
@@ -274,14 +336,13 @@ impl Layer {
 
         let n_rep = self.n_head / self.n_kv_head.max(1);
         let kv_len = k.dim(2)?;
-        // Absolute position of first key after SWA trim (prefill restarts at index_pos).
+        // Absolute position of first key after any decode-only SWA trim.
         let kv_start = index_pos + seq.saturating_sub(kv_len);
         let k = repeat_kv(k, n_rep)?;
         let v = repeat_kv(v, n_rep)?;
 
-        // Prefill mask must be [q_len, kv_len] (not [q,q]) once SWA trims K/V.
-        // Decode seq==1: single query vs windowed cache — still need causal-ish mask
-        // if kv_len > 1, but all past keys are valid; no future tokens.
+        // Prefill mask: [q_len, kv_len] causal (+ SWA). Full K/V on prefill ⇒ no empty rows.
+        // Decode seq==1: single query vs windowed cache — all past keys are valid.
         let mask = if seq > 1 {
             Some(make_mask(seq, kv_len, kv_start, self.swa_window, device)?)
         } else {
@@ -306,6 +367,7 @@ impl Layer {
         let y = self.attn_out.forward(&y)?;
         let y = self.post_attn_norm.forward(&y)?;
         let h = (y + residual)?;
+        let h = maybe_apply(hook, HookSite::PostAttn, layer_idx, h)?;
 
         // FFN — GELU gate (Gemma 4 dense path; candle-nn 0.9 has no ops::gelu)
         let residual_ffn = &h;
@@ -413,7 +475,12 @@ impl ModelWeights {
         let rope_base_swa = meta_f32(&ct, "gemma4.rope.freq_base_swa", 10_000.0);
         let swa_window = meta_u32(&ct, "gemma4.attention.sliding_window").unwrap_or(1024) as usize;
         // Pattern: true = SWA layer (local), false = full attention
-        let is_swa = meta_bool_array(&ct, "gemma4.attention.sliding_window_pattern", block_count, true);
+        let is_swa = meta_bool_array(
+            &ct,
+            "gemma4.attention.sliding_window_pattern",
+            block_count,
+            true,
+        );
         let _kv_heads_meta = meta_u32_array(
             &ct,
             "gemma4.attention.head_count_kv",
@@ -460,8 +527,7 @@ impl ModelWeights {
                 .as_str(),
             "i" | "interleaved" | "rope_i"
         );
-        let final_logit_softcap =
-            meta_f32(&ct, "gemma4.final_logit_softcapping", 30.0) as f64;
+        let final_logit_softcap = meta_f32(&ct, "gemma4.final_logit_softcapping", 30.0) as f64;
 
         println!(
             "    [Gemma4] blocks={} hidden={} heads={} head_dim_full={} head_dim_swa={} n_rot_full={} n_rot_swa={} swa_win={} rope_full={:.0} rope_swa={:.0} logit_softcap={:.1} attn_scale={} rope_style={}",
@@ -508,7 +574,8 @@ impl ModelWeights {
 
         let tok_embd_q = ct.tensor(reader, "token_embd.weight", device)?;
         let tok_embd = tok_embd_q.dequantize(device)?;
-        let norm = RmsNorm::from_qtensor(ct.tensor(reader, "output_norm.weight", device)?, rms_eps)?;
+        let norm =
+            RmsNorm::from_qtensor(ct.tensor(reader, "output_norm.weight", device)?, rms_eps)?;
         let output = match ct.tensor(reader, "output.weight", device) {
             Ok(t) => Some(QMatMul::from_qtensor(t)?),
             Err(_) => None,
@@ -635,16 +702,43 @@ impl ModelWeights {
     }
 
     fn run_layers(&mut self, tokens: &Tensor, index_pos: usize) -> Result<Tensor> {
+        self.run_layers_hooked(tokens, index_pos, None)
+    }
+
+    /// `run_layers` with an optional forward-pass physics hook.
+    ///
+    /// The sites reached from *this* function are the block boundaries: `PreLayer`, `PostMlp`
+    /// and `FinalNorm`. `PostAttn` is live too — `Layer::forward` takes the hook and fires it
+    /// itself (see the `maybe_apply` inside), so all four `HookSite` variants work on Gemma 4.
+    /// As in gemma.rs, the `√hidden_dim` scale means these activations are not in
+    /// pre-`lm_head` residual space — hook forces are scale-free for that reason.
+    fn run_layers_hooked(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+        mut hook: Option<&mut dyn LayerHook>,
+    ) -> Result<Tensor> {
         let (_b, seq) = tokens.dims2()?;
+        if let Some(hk) = hook.as_deref_mut() {
+            hk.begin_token(self.layers.len());
+        }
         let mut h = self.tok_embeddings.forward(tokens)?;
         let scale = (self.hidden_dim as f64).sqrt();
         h = (h * scale)?;
 
-        for layer in &mut self.layers {
-            h = layer.forward(&h, index_pos)?;
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            h = maybe_apply(&mut hook, HookSite::PreLayer, i, h)?;
+            h = layer.forward(&h, index_pos, i, &mut hook)?;
+            h = maybe_apply(&mut hook, HookSite::PostMlp, i, h)?;
         }
         let h = self.norm.forward(&h)?;
+        let h = maybe_apply(&mut hook, HookSite::FinalNorm, self.layers.len(), h)?;
         h.narrow(1, seq - 1, 1)?.squeeze(1)
+    }
+
+    /// Number of transformer blocks — lets a hook resolve a depth-fraction band.
+    pub fn n_layers(&self) -> usize {
+        self.layers.len()
     }
 
     pub fn forward(&mut self, tokens: &Tensor, index_pos: usize) -> Result<Tensor> {
@@ -657,7 +751,17 @@ impl ModelWeights {
         tokens: &Tensor,
         index_pos: usize,
     ) -> Result<(Tensor, Tensor)> {
-        let hidden = self.run_layers(tokens, index_pos)?;
+        self.forward_with_hidden_hooked(tokens, index_pos, None)
+    }
+
+    /// `forward_with_hidden` with an optional forward-pass physics hook.
+    pub fn forward_with_hidden_hooked(
+        &mut self,
+        tokens: &Tensor,
+        index_pos: usize,
+        hook: Option<&mut dyn LayerHook>,
+    ) -> Result<(Tensor, Tensor)> {
+        let hidden = self.run_layers_hooked(tokens, index_pos, hook)?;
         let logits = self.project_hidden_to_logits(&hidden)?;
         Ok((logits, hidden))
     }
@@ -666,12 +770,34 @@ impl ModelWeights {
         self.project_hidden_to_logits(hidden)
     }
 
+    /// Final norm + lm_head — the Jacobian lens's `unembed`.
+    ///
+    /// `project_to_logits` skips the final norm because `run_layers` already applied it.
+    /// The lens transports a *block output* (pre-norm), so the norm belongs here; folding
+    /// RMSNorm into the fitted `J` would stop matching `jlens.protocol.LensModel.unembed`.
+    ///
+    /// Flattens to 2-D first: the tied-weight branch of `project_hidden_to_logits` uses
+    /// `matmul`, which needs equal ranks, so a `[b, seq, d]` residual would fail there.
+    pub fn unembed(&self, hidden: &Tensor) -> Result<Tensor> {
+        let normed = self.norm.forward(hidden)?.contiguous()?;
+        let mut shape = normed.dims().to_vec();
+        let d = *shape.last().expect("residual has a last dim");
+        let logits = self.project_hidden_to_logits(&normed.reshape(((), d))?)?;
+        let vocab = logits.dim(logits.rank() - 1)?;
+        *shape.last_mut().expect("residual has a last dim") = vocab;
+        logits.reshape(shape)
+    }
+
     fn project_hidden_to_logits(&self, hidden: &Tensor) -> Result<Tensor> {
         let logits = match &self.output {
             Some(out) => out.forward(hidden)?,
             None => {
                 let emb = self.tok_embeddings.embeddings();
-                hidden.matmul(&emb.t()?)?
+                // `run_layers` hands us `narrow(..).squeeze(..)`, which is non-contiguous
+                // as soon as batch > 1, and candle's matmul rejects that. Transposed-
+                // contiguous rhs is fine, so only the lhs needs the copy — never
+                // `emb.t().contiguous()`, which would materialise the whole vocab matrix.
+                hidden.contiguous()?.matmul(&emb.t()?)?
             }
         };
         // HF config: final_logit_softcapping (softcap * tanh(logits/softcap))
@@ -686,5 +812,86 @@ impl ModelWeights {
 
     pub fn token_embeddings(&self) -> &Tensor {
         self.tok_embeddings.embeddings()
+    }
+
+    /// Clear per-layer attention cache before prefilling a fresh transcript.
+    /// Required for multi-turn coherence when each turn re-prefills history.
+    pub fn clear_kv_cache(&mut self) {
+        for layer in self.layers.iter_mut() {
+            layer.kv_cache = None;
+        }
+    }
+}
+
+// ── A0 unit tests (no GPU / no weights) ───────────────────────────────────────
+
+#[cfg(test)]
+mod a0_swa_tests {
+    use super::*;
+
+    const W: usize = 1024;
+
+    #[test]
+    fn john_table_legacy_trim_empty_rows() {
+        // John's arithmetic: empty rows appear immediately above the window.
+        assert_eq!(
+            empty_valid_key_rows(&legacy_trim_prefill_valid_keys(1023, W)),
+            0
+        );
+        assert_eq!(
+            empty_valid_key_rows(&legacy_trim_prefill_valid_keys(1024, W)),
+            0
+        );
+        assert_eq!(
+            empty_valid_key_rows(&legacy_trim_prefill_valid_keys(1025, W)),
+            1
+        );
+        assert_eq!(
+            empty_valid_key_rows(&legacy_trim_prefill_valid_keys(1039, W)),
+            15
+        );
+        assert_eq!(
+            empty_valid_key_rows(&legacy_trim_prefill_valid_keys(2048, W)),
+            1024
+        );
+    }
+
+    #[test]
+    fn a0_fixed_prefill_no_empty_rows_at_boundary() {
+        for len in [1usize, 512, 1023, 1024, 1025, 1039, 2048, 4096] {
+            let counts = fixed_prefill_valid_keys(len, W);
+            let empty = empty_valid_key_rows(&counts);
+            assert_eq!(
+                empty, 0,
+                "prefill_len={len}: expected 0 empty rows, got {empty}"
+            );
+            // Every query has at least itself (causal).
+            assert!(counts.iter().all(|&n| n >= 1));
+            // First query sees only key 0; last query sees min(len, W) keys.
+            assert_eq!(counts[0], 1);
+            assert_eq!(*counts.last().unwrap(), len.min(W));
+        }
+    }
+
+    #[test]
+    fn a0_boundary_lengths_match_john_checklist() {
+        for &len in &[1023usize, 1024, 1025, 1039] {
+            assert_eq!(
+                empty_valid_key_rows(&fixed_prefill_valid_keys(len, W)),
+                0,
+                "A0 gate fail at prefill_len={len}"
+            );
+        }
+    }
+
+    #[test]
+    fn valid_keys_self_consistent_with_window() {
+        let len = 1500;
+        let counts = fixed_prefill_valid_keys(len, W);
+        for (i, &n) in counts.iter().enumerate() {
+            // Causal + SWA: keys in [max(0, i+1-W), i] inclusive → count = min(i+1, W)
+            let expected = (i + 1).min(W);
+            assert_eq!(n, expected, "query {i}");
+        }
     }
 }

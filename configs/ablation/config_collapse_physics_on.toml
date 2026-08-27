@@ -1,0 +1,51 @@
+# Collapse probe — physics ON
+# Same scenarios as isolation baseline, but with steering active.
+# Tests: does physics delay collapse? Change failure mode? Help recovery?
+
+[physics]
+force_cap = 5.0
+steer_hidden = true
+splat_force_scale = 0.25
+goal_force_scale = 0.25
+field_wake_scale = 0.25
+force_ramp_tokens = 6
+prefill_bridge_scar = false
+prefill_micro_dream = false
+pain_recovery_ocean = true
+online_splat_interval = 10
+targeted_splat_only = false
+
+[logit_physics]
+field_alpha = 0.15
+splat_scale = 0.25
+governor_enabled = true
+
+[hooks]
+enabled = true
+
+[jacobian]
+interval = 10
+epsilon = 0.0001
+sites = "final_norm"
+top_k = 16
+max_dims = 0
+trace_path = "logs/collapse_probe_jacobian.log"
+
+[generation]
+max_tokens = 80
+temperature = 0.5
+top_k = 1024
+top_p = 0.95
+rep_penalty = 1.1
+
+[memory]
+memory_force_mode = "soft"
+max_splats = 32
+
+[micro_dream]
+entropy_threshold = 3.0
+fixed_interval = 99999
+adaptive_interval = 1
+blend_normal = 0.0
+blend_high_entropy = 0.5
+topocot_threshold = 2.5

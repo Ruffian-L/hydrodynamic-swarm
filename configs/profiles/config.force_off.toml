@@ -1,37 +1,30 @@
-[model]
-path = "data/google/gemma-3-4b-it-Q4_K_M.gguf"
-variant = "gemma3"
-
+# True three-surface baseline: residual steering, logit physics, and
+# transformer-layer hooks are all disabled.
 [physics]
-sigma = 7.59
-field_wake_scale = 0.0
-goal_force_scale = 0.0
+force_cap = 0.0
+steer_hidden = true
 splat_force_scale = 0.0
-field_logit_bias_alpha = 0.0
+goal_force_scale = 0.0
+field_wake_scale = 0.0
+force_ramp_tokens = 0
+prefill_bridge_scar = false
+prefill_micro_dream = false
+pain_recovery_ocean = false
 
-[steering]
-force_scale = 0.0
-attractor_scale = 0.0
-force_ramp_tokens = 6
+[logit_physics]
+field_alpha = 0.0
+splat_scale = 0.0
+governor_enabled = false
 
-[memory]
-splat_memory_path = "data/splat_memory.safetensors"
-tct_path = "data/splat_memory.tct"
-consolidation_threshold = 5
-dream_replay_bonus = 1.25
-decay_rate = 0.99
-
-[ocean]
+[hooks]
 enabled = false
-dim = 2560
-deposit_every = 4
-force_scale = 0.0
 
 [generation]
-max_tokens = 150
-temperature = 0.9
-top_k = 1024
+max_tokens = 80
+temperature = 0.0
+top_k = 1
+top_p = 1.0
+rep_penalty = 1.0
 
-[logging]
-log_dir = "logs/g3_ablation"
-taco_db = "logs/g3_ablation/taco_baseline.db"
+[memory]
+memory_force_mode = "soft"

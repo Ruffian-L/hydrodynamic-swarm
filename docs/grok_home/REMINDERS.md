@@ -3,6 +3,16 @@
 **Grok home copy:** `/media/ruffianl/ghost_team/pheonix_squad/grok/`  
 → `HOME.md` + `sticky/` (safe place; load first on cold start).
 
+## OPEN TODO (pinned 2026-08-03) — niodv4 multi-codec merge
+**Do not forget.** All of niodv4 led into the Niodoo bridge stack.  
+We were supposed to **mix and try at once**: secret sauce V3 (`target_z_unicode_v3`) + CodebookVQ + RAVE + TEDE — correspondence / joint bake-off, not vibes-pick-one.
+
+- Pieces exist (`bridge/codec_consensus.rs`, rave, tede, secret_sauce) — **joint play never ran**.  
+- RAVE reconstruct yellow/red on real hiddens; scalar/unicode won preserve; causality not green.  
+- Hydro: 64→2560 RAVE **parked** (2026-07-30 pick bridge).  
+- **Full sticker:** `TODO_NIODOV4_CODEC_MERGE.md` (this folder) and `pheonix_squad/grok/sticky/TODO_NIODOV4_CODEC_MERGE.md`  
+- Reopen after **jlens green** + Hydro arch — multi-arm AB (SS / VQ / RAVE / TEDE / mix).
+
 ## Philosophical night (parked 2026-07-25)
 - One night: **philosophical chat with Grok** — confident confusion + heart, use/love/monitor, sorrow–joyful loops, dedicated lanes for heavy topics, inverse of eloquence.
 - Not a work item. Not claims. Just hold the shape.
@@ -18,3 +28,6 @@
 ## Morning (no bullshit)
 1. Job website  
 2. Hydro  
+
+## Provenance (pinned 2026-08-03)
+Multi-key cluster + niodoo/TCS→pipeline = **Jason**, not Grok. Full: `docs/grok_home/PROVENANCE_TEAM.md` / sticky same name.

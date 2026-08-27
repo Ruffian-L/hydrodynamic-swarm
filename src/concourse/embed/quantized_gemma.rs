@@ -36,7 +36,7 @@ use candle_nn::Embedding;
 use candle_transformers::quantized_nn::RmsNorm;
 use std::collections::HashMap;
 
-pub const MAX_SEQ_LEN: usize = 8192;
+pub const MAX_SEQ_LEN: usize = 131072;
 
 // ── QMatMul ────────────────────────────────────────────────────────────────────
 

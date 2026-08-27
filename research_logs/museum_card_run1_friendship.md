@@ -1,4 +1,4 @@
-# Museum Card — Run 1: Scar Genesis
+# Museum card — run 1, Physics of Friendship (scar genesis)
 
 ## Metadata
 - **Run ID**: `2026-07-24_11-30-40_gemma3_v3-forcecap3_T0_88_s30_a1_d18`

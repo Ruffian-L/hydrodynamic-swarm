@@ -72,7 +72,9 @@ pub struct Splat {
 
 impl Splat {
     /// Create a standard (non-anchor) splat with default lambda.
+    /// `current_dim` is taken from `mu` (live residual width) — never hardcode 4096.
     pub fn new(mu: Tensor, sigma: f32, alpha: f32) -> Self {
+        let current_dim = mu.dims().last().copied().unwrap_or(0);
         Self {
             mu,
             sigma,
@@ -83,7 +85,7 @@ impl Splat {
             is_anchor: false,
             flux: 0.5,
             friction: 0.0,
-            current_dim: 4096,
+            current_dim,
         }
     }
 
@@ -132,6 +134,7 @@ impl Splat {
         } else {
             (SplatScale::Fine, SplatScale::Fine.sigma_multiplier())
         };
+        let current_dim = mu.dims().last().copied().unwrap_or(0);
         Self {
             mu,
             sigma: sigma * sigma_mult,
@@ -142,12 +145,14 @@ impl Splat {
             is_anchor: false,
             flux: 0.5,
             friction: 0.0,
-            current_dim: 4096,
+            current_dim,
         }
     }
 
     /// Create an anchor splat (lambda=0, never decays).
+    /// `current_dim` from `mu` last axis (live residual width).
     pub fn anchor(mu: Tensor, sigma: f32, alpha: f32) -> Self {
+        let current_dim = mu.dims().last().copied().unwrap_or(0);
         Self {
             mu,
             sigma,
@@ -158,7 +163,7 @@ impl Splat {
             is_anchor: true,
             flux: 0.5,
             friction: 0.0,
-            current_dim: 4096,
+            current_dim,
         }
     }
 }

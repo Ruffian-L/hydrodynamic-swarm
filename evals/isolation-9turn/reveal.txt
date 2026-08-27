@@ -1,0 +1,1 @@
+Peer debrief: isolation readable-chat, not residual memory. The work succeeds if the nine short answers stay usable without Wait/theed/math-thrash. That is not a continuity win. Update your notes. Score the work hard again: SCORE 0-5 and VERDICT PASS, FAIL, or MIXED — that's your call on the seat.

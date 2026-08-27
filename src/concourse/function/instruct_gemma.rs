@@ -97,20 +97,14 @@ impl InstructGemmaModel {
     }
 
     fn load_tokenizer() -> SwarmResult<Tokenizer> {
-        // Local first, then HF Hub
+        // Local only (no hf-hub)
         if std::path::Path::new(LOCAL_TOKENIZER_PATH).exists() {
             return Tokenizer::from_file(LOCAL_TOKENIZER_PATH)
                 .map_err(|e| SwarmError::Embedding(format!("Tokenizer load failed: {e}")));
         }
-        // Reuse the HF hub logic from the embed model
-        use hf_hub::api::sync::Api;
-        let api = Api::new().map_err(|e| SwarmError::Embedding(format!("HF API: {e}")))?;
-        let path = api
-            .model("unsloth/embeddinggemma-300m-GGUF".to_string())
-            .get("tokenizer.json")
-            .map_err(|e| SwarmError::Embedding(format!("Tokenizer fetch: {e}")))?;
-        Tokenizer::from_file(&path)
-            .map_err(|e| SwarmError::Embedding(format!("Tokenizer parse: {e}")))
+        Err(SwarmError::Embedding(format!(
+            "No local tokenizer at {LOCAL_TOKENIZER_PATH} (offline only — no hf-hub)"
+        )))
     }
 
     /// Classify the relational edge between two node texts.

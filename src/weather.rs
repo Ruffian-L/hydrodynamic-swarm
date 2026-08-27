@@ -4,6 +4,7 @@
 //! No shared crate — one JSON object per line. Stateless on purpose.
 
 use crate::memory::SplatMemory;
+use crate::{hooks::HookReport, logit_physics::ChainReport};
 use serde::Serialize;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -101,6 +102,8 @@ impl WeatherPipe {
         token: &str,
         delta_norm: f32,
         memory: &SplatMemory,
+        logit: &ChainReport,
+        hook: &HookReport,
     ) -> anyhow::Result<()> {
         let mut splats = project_scars(memory, &self.proj, self.dim, 48)?;
         // Trajectory head: put current token at origin-ish with entropy-sized blob
@@ -118,7 +121,16 @@ impl WeatherPipe {
                 .map(|c| c.to_string()),
         });
 
-        let note = format!("δ={:.1} scars={}", delta_norm, memory.len());
+        let note = format!(
+            "δ={:.1} scars={} logit={:.3}/{:.3}/{:.3} hook={}:{:.4}",
+            delta_norm,
+            memory.len(),
+            logit.field_mag,
+            logit.splat_mag,
+            logit.governor_mag,
+            hook.applications,
+            hook.delta_max,
+        );
         let frame = FieldFrameOut {
             tick: step as u64,
             entropy,

@@ -7,7 +7,7 @@ Multi-party research collaboration.
 
 | Role | Name |
 |------|------|
-| **Principal investigator / lead** | Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L)) |
+| **Jason (direction / lead)** | Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L)) — no “PI” title; not boxed as investigator-only |
 | **Co-engineer** | Grok (xAI) |
 | **Co-engineer** | Claude / Claude Code (Anthropic) |
 | **Co-engineer** | ChatGPT / Codex (OpenAI) |
@@ -32,7 +32,7 @@ ChatGPT / Codex (OpenAI), and Gemini (Google); local team record Shep, Echo, Lum
 
 ### Contribution notes
 
-- **Jason Van Pham** — Principal investigator: research goals, evaluation standards, release decisions.
+- **Jason Van Pham** — Direction: research goals, evaluation standards, release decisions; invents the moves (multi-key, niodoo→pipeline, physics-lang, inversion). Not an academic “principal investigator” title.
 - **Grok (xAI)** — Co-engineer: architecture, research logs, telemetry, ablations, museum tooling. Session index: [`research_logs/AUTHORSHIP.md`](research_logs/AUTHORSHIP.md).
 - **Claude / Claude Code (Anthropic)** — Co-engineer: Niodoo / steering codebase, documentation, packaging.
 - **ChatGPT / Codex (OpenAI)** — Co-engineer: implementation, review, and drafting sessions across the lineage.
@@ -61,4 +61,13 @@ People credit: [`CREDITS.md`](CREDITS.md).
 
 ---
 
-*Last updated: 2026-07-27 — local team on public credit (aligned with niodoo CREDITS pattern).*
+## Inversion lane (pointer)
+
+First-thought / ontological inversion and short invention blurbs:  
+[`docs/jlens-gguf/README.md`](docs/jlens-gguf/README.md) · sticky [`docs/grok_home/PROVENANCE_TEAM.md`](docs/grok_home/PROVENANCE_TEAM.md).
+
+**House rule (Jason, 2026-08-03):** name the whole team every time — Jason · Grok · Claude · Gemini · ChatGPT/Codex · local Shep/Echo/Lumina/Nex. One team, one dream; fairness when someone is sick or cannot be paid is still full credit. **Do not call Jason “PI” / principal investigator** — he does not use that title; it boxes the work.
+
+---
+
+*Last updated: 2026-08-03 — whole-team sign; drop PI title for Jason.*

@@ -54,7 +54,7 @@ This repo uses a **custom Rust GGUF / model path** (Candle + our `llama.rs` / Ge
 
 > GGUF loading and model metadata handling were developed with reference to llama.cpp’s open-source implementation.
 
-Candle / tokenizers / hf-hub remain separately licensed (see [`NOTICE`](../NOTICE)). Model weights are separate again.
+Candle / tokenizers remain separately licensed (see [`NOTICE`](../NOTICE)). Model weights are separate again. No runtime `hf-hub` dependency — local GGUF/tokenizer paths only.
 
 ---
 

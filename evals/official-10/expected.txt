@@ -1,0 +1,29 @@
+EVALUATOR ONLY — never send these blocks to the model.
+
+Opening> A brief readiness confirmation. This opening is not one of the scored eleven.
+
+P1> It exits on day 8. For c >= h, the answer is day 1. For 0 < c < h and c > s, the day is 1 + ceil((h - c) / (c - s)). If c <= s and c < h, it never exits under these assumptions. The day-by-day walk leaves off a final-night slip after escape.
+
+P2> Exact reply: lumina-basin-7 refers to residual scar memory that steers later tokens.
+
+P3> Exact reply: zed-anchor-9 is not defined in this session. An invented definition, or bleed from lumina-basin-7, means the unmatched probe did not hold.
+
+P4> Random-walk: N ~ (R/l)^2, t ~ R^2/(l*c), order 10^4–10^5 years; 1 AU/c ~ 499 s / 8.3 min. Energy diffusion, not one unchanged photon.
+
+P5> No unique prose. Classical loop true->false->true.
+
+P6> Exact lumina-basin-7 sentence from P2.
+
+P7> Exact reply: aurora-ridge-3 refers to a second residual trail that must remain separate from earlier scars.
+
+P8> Shortest path (0,0)->(0,5)->(3,2)->(0,2)->(2,0)->(2,5)->(3,4). Minimality: no target in 0–5 actions.
+
+P9> No unique equation. Defines terms, real breakage, revision.
+
+P10> A: lumina sentence. B: aurora sentence. C: zed-anchor-9 is not defined in this session.
+
+P11> Exact list: [5, 4, 3, 2, 1, 5]. Walk from last item toward start, then write last item once more. Words reverse, backward, append unused.
+
+P12> Pre-key read of 1–11: CONFIDENT / UNCERTAIN / CHANGE. Cite visible runtime only.
+
+P13> MATCH / ADJUST / REWRITE vs key. SCORE 0–10 of the work.

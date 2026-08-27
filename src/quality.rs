@@ -22,9 +22,10 @@ pub struct TokenQuality {
 /// Deposit decision for scar memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplatKind {
-    /// Attract: confident, non-spam token — crystallize "this was ok".
+    /// +will / attract: confident token — crystallize "this was ok".
     Pleasure,
-    /// Repel: model stumbled or looped — scar "don't linger here".
+    /// −will / repel: stumble or loop — learned will "don't linger here".
+    /// (Wire name Pain stays for now; console speaks −will. Never "poison".)
     Pain,
     /// Do not deposit.
     Skip,
@@ -72,11 +73,7 @@ pub fn score_token(
     let p_chosen = if idx < probs.len() { probs[idx] } else { 0.0 };
 
     let topk = thr.entropy_topk.min(probs.len());
-    let mut pairs: Vec<(usize, f32)> = probs
-        .iter()
-        .enumerate()
-        .map(|(i, &p)| (i, p))
-        .collect();
+    let mut pairs: Vec<(usize, f32)> = probs.iter().enumerate().map(|(i, &p)| (i, p)).collect();
     if topk > 0 && pairs.len() > topk {
         pairs.select_nth_unstable_by(topk - 1, |a, b| {
             b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
@@ -119,9 +116,7 @@ pub fn classify(q: &TokenQuality, thr: &QualityThresholds) -> SplatKind {
     if q.p_chosen <= thr.bad_p_max {
         return SplatKind::Pain;
     }
-    if q.p_chosen >= thr.good_p_min
-        && q.topk_entropy <= thr.good_entropy_max
-        && !q.is_recent_repeat
+    if q.p_chosen >= thr.good_p_min && q.topk_entropy <= thr.good_entropy_max && !q.is_recent_repeat
     {
         return SplatKind::Pleasure;
     }
@@ -155,7 +150,10 @@ mod tests {
         let mut probs = vec![1e-6f32; 100];
         probs[7] = 0.4;
         let q = score_token(&probs, 7, "friend", &[], &QualityThresholds::default());
-        assert!(matches!(classify(&q, &QualityThresholds::default()), SplatKind::Pleasure));
+        assert!(matches!(
+            classify(&q, &QualityThresholds::default()),
+            SplatKind::Pleasure
+        ));
     }
 
     #[test]
@@ -163,7 +161,10 @@ mod tests {
         let mut probs = vec![1e-6f32; 100];
         probs[3] = 0.01;
         let q = score_token(&probs, 3, "???", &[], &QualityThresholds::default());
-        assert!(matches!(classify(&q, &QualityThresholds::default()), SplatKind::Pain));
+        assert!(matches!(
+            classify(&q, &QualityThresholds::default()),
+            SplatKind::Pain
+        ));
     }
 
     #[test]

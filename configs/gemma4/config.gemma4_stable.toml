@@ -11,16 +11,20 @@ steer_hidden = true
 splat_force_scale = 0.0
 goal_force_scale = 0.0
 field_wake_scale = 0.0
-field_logit_alpha = 0.0
 force_ramp_tokens = 0
 prefill_bridge_scar = false
 
+[logit_physics]
+field_alpha = 0.0
+splat_scale = 0.0
+governor_enabled = false
+
+[hooks]
+enabled = false
+
 [generation]
 max_tokens = 80
-temperature = 0.7
-top_k = 64
-top_p = 0.9
-rep_penalty = 1.3
-consecutive_repeat_break = 10
-no_repeat_ngram = 3
-drop_collapsed_history = true
+temperature = 0.2
+top_k = 40
+top_p = 0.95
+rep_penalty = 1.0

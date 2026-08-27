@@ -17,6 +17,8 @@ use std::path::{Path, PathBuf};
 /// Per-step telemetry entry
 #[derive(Serialize)]
 pub struct StepEntry {
+    /// Immutable equation→profile receipt referenced by this token.
+    pub scaler_receipt_id: String,
     pub step: usize,
     pub token_id: u32,
     pub token_text: String,
@@ -28,11 +30,46 @@ pub struct StepEntry {
     /// Scars currently in memory at this step (for death→reload coupling).
     #[serde(default)]
     pub scars_active: usize,
+    /// Ranked Top-K scar force this step (false = soft-sum).
+    #[serde(default)]
+    pub memory_ranked: bool,
+    // ── Logit-surface physics (src/logit_physics.rs) ──────────────────────
+    /// Peak |bias| from the field engine (== `logit_physics.field_alpha` when it fires).
+    #[serde(default)]
+    pub logit_field_mag: f32,
+    /// Peak |bias| from the per-scar vocab engine.
+    #[serde(default)]
+    pub logit_splat_mag: f32,
+    /// Peak |bias| from the governor (brake + viscosity + minority report).
+    #[serde(default)]
+    pub logit_governor_mag: f32,
+    /// Governor velocity `1 − H/ln|V|`, measured every step even on abstain.
+    /// Sustained high = the distribution is collapsing.
+    #[serde(default)]
+    pub logit_velocity: f32,
+    /// Viscosity applied this step (0 until the entropy window fills).
+    #[serde(default)]
+    pub logit_viscosity: f32,
+    /// How many logit engines emitted a bias this step.
+    #[serde(default)]
+    pub logit_engines_fired: usize,
+    /// Forward-pass hook applications used to produce this step's raw hidden state.
+    #[serde(default)]
+    pub hook_applications: usize,
+    /// Mean L2 norm of scale-free per-layer deltas.
+    #[serde(default)]
+    pub hook_delta_mean: f32,
+    /// Maximum L2 norm of a per-layer delta.
+    #[serde(default)]
+    pub hook_delta_max: f32,
 }
 
 /// Session config snapshot
 #[derive(Serialize)]
 pub struct SessionConfig {
+    /// Full immutable scaler header plus its stable id.
+    pub scaler_receipt_id: String,
+    pub scaler_receipt: serde_json::Value,
     pub prompt: String,
     pub dt: f32,
     pub viscosity: f32,
@@ -86,6 +123,37 @@ pub struct SessionConfig {
     /// Prefill-bridge scars in store at session start (multi-basin continuity).
     #[serde(default)]
     pub n_prefill_bridges: usize,
+    /// Scar force mode: "soft" | "ranked".
+    #[serde(default)]
+    pub memory_force_mode: String,
+    /// Top-K when ranked.
+    #[serde(default)]
+    pub memory_pick_k: usize,
+    /// Selective gate (hard-pick only when unsettled).
+    #[serde(default)]
+    pub memory_pick_selective: bool,
+    /// Runtime logit-surface controls (after CLI overrides).
+    #[serde(default)]
+    pub logit_field_alpha: f32,
+    #[serde(default)]
+    pub logit_splat_scale: f32,
+    #[serde(default)]
+    pub logit_governor_enabled: bool,
+    #[serde(default)]
+    pub logit_governor_brake: f32,
+    #[serde(default)]
+    pub logit_governor_max_bias: f32,
+    /// Runtime forward-hook controls (after CLI overrides).
+    #[serde(default)]
+    pub hook_enabled: bool,
+    #[serde(default)]
+    pub hook_site: String,
+    #[serde(default)]
+    pub hook_start_frac: f32,
+    #[serde(default)]
+    pub hook_end_frac: f32,
+    #[serde(default)]
+    pub hook_norm_fraction: f32,
 }
 
 /// Final session summary
@@ -443,6 +511,7 @@ mod taco_tests {
     fn test_taco_db_in_memory() {
         let db = TacoDb::new_in_memory().unwrap();
         let step = StepEntry {
+            scaler_receipt_id: "test-receipt".into(),
             step: 1,
             token_id: 42,
             token_text: "test".to_string(),
@@ -452,6 +521,16 @@ mod taco_tests {
             splat_force_mag: 0.8,
             goal_force_mag: 0.4,
             scars_active: 0,
+            memory_ranked: false,
+            logit_field_mag: 0.0,
+            logit_splat_mag: 0.0,
+            logit_governor_mag: 0.0,
+            logit_velocity: 0.0,
+            logit_viscosity: 0.0,
+            logit_engines_fired: 0,
+            hook_applications: 0,
+            hook_delta_mean: 0.0,
+            hook_delta_max: 0.0,
         };
         let session_id = "test_session_001";
         db.log_step(session_id, &step).unwrap();

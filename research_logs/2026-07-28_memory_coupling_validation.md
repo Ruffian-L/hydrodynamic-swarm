@@ -1,4 +1,4 @@
-# Research Log — Hydrodynamic Swarm
+# Memory coupling validation — residual wills across reloads
 
 **Project:** Hydrodynamic Swarm (v0.2)  
 **Lead:** Jason Van Pham ([Ruffian-L](https://github.com/Ruffian-L))  

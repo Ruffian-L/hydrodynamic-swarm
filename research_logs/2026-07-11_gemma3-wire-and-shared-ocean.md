@@ -1,4 +1,4 @@
-# Research Entry: Gemma 3 27B live wire + Shared Ocean (Lane A→C)
+# Gemma 3 27B live wire + Shared Ocean (Lane A→C)
 
 **Date:** 2026-07-11  
 **Scope:** hydrodynamic-swarm v0.2
