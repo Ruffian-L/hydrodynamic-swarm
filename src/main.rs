@@ -31,6 +31,7 @@ mod ocean;
 mod picks;
 mod qsma;
 mod quality;
+mod remember_geometry;
 mod remember_store;
 mod repl_tui;
 mod splat;
@@ -266,6 +267,10 @@ fn gemma4_history_clean(raw: &str) -> String {
 
 fn tda_monitor_injection_ready(pieces: &str, pending: bool) -> bool {
     pending && !control_tags::incomplete_control_hand(pieces)
+}
+
+fn host_f32_vec(t: &Tensor) -> Option<Vec<f32>> {
+    t.flatten_all().ok()?.to_vec1::<f32>().ok()
 }
 
 /// Detect "The-\nThe-\n…" or identical short line repeated (forced-length doom).
@@ -2219,6 +2224,14 @@ fn generate_turn_ex(
         };
 
         // Fire hands after a complete tag is in the mouth. Spike never stops.
+        // ORG-H5: ring the residual / pre-unembed hidden every tok. Mint only
+        // on closed <remember> (inside fire_tag). KV drop is not a mint.
+        engine.push_remember_hidden(
+            step,
+            host_f32_vec(&surface_hidden).as_deref(),
+            host_f32_vec(&raw_hidden).as_deref(),
+        );
+        engine.note_remember_pieces(&pieces);
         if tags_on {
             let (stop, applied) =
                 engine.apply_emitted_control(&pieces, &mut tags_seen, Some(&surface_hidden))?;

@@ -11,6 +11,26 @@ Pairing: every action here gets a **why**. Hypothesis form:
 Keep this file short. Longer writeups go in the research log folder
 (one subject, date + title). Agent contract: `AGENTS.md` (tracked).
 
+## 2026-09-03 — ORG-H5 remember-offset sidecar dump
+
+We did: Landed the parked H5 sidecar, not the RememberLine column. `src/remember_geometry.rs` rings S_res (surface hidden) + S_logit (pre-unembed hidden) for 16 toks. Closed `<remember>` dumps 9 offsets × 2 sites into `{seat}.offset_probe.jsonl` + `.f32` bins, `inject=false`. Spike does not mint. KV drop does not mint. Empty ring writes nothing. `HYDRO_REMEMBER_SIDECAR=0` disables. Did not rank offsets. Did not inject. Did not steal ratatui. Did not run a live model (GPU 95%).
+
+We think: if the dump is dormant, C0 mouth equals C1 mouth, and later ranking can pick an offset that beats shuffle.
+
+Next: offline rank matching vs unmatched vs C2/C3 when the card is free. Only then a geometry column.
+
+Research: `research_logs/2026-09-03_org-h5-remember-offset-sidecar.md`
+
+## 2026-09-03 — DREAM-03 hydro TDA is fake (list)
+
+We did: Jason: hydro TDA monitor is a hardcoded-1 fake; look at the TDA sidecar; put it on the list. Hydro `src/tda_monitor.rs` is homemade Rust VR on 6 scalars (entropy/margin/residual_norm/splat_mag/p_top1/step_frac), not residual geometry — H0 collapses toward 1. niodoo-live already runs Python ripser on hidden-state (`scripts/tda_python_monitor.py`, `geometry_source=hidden_state_trajectory+python_ripser`). Hydro never spawns it. Added **DREAM-03** to `ghost_team_groktodos.md` + `docs/PRODUCTION_BACKLOG.md`. Did not wire the sidecar this turn (H5 decode-loop was the paid brick).
+
+We think: the Internal monitor she reads is token-count wearing TDA clothes. Wiring the existing sidecar onto the hidden ring is the fix, not another rust VR.
+
+Next: spawn the ripser sidecar from `--chat`; feed `surface_hidden`; print `geometry_source=`.
+
+Research: `research_logs/2026-09-03_tda-monitor-fake-hardcoded-one.md`
+
 ## 2026-08-27 — John loop-exit vs loop-wording contract
 
 We did: Mapped John's loop-wording vs loop-exit protocol onto live 3surface vs the public chat skip. Chat `generate_turn_ex` now logs `hidden_delta` (‖h'−h‖ after pullback) and `logit_delta` (‖z'−z‖ from residual project only) on `[CHAT DELTA]` and `event=tok`; HUD chat `logit_delta` is filled. Protocol at `docs/experiments/loop-exit-vs-loop-wording.md`. Plumbing runner `scripts/steer_plumbing_check.sh` is written, not executed (GPU busy). Did not run C–F. Did not add a J-derived direction. Did not treat hydro FD or the prefill goal attractor as Anthropic J-space.

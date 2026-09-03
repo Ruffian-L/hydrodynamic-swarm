@@ -16,6 +16,7 @@ use crate::field::ContinuousField;
 use crate::gpu::PhysicsBackend;
 use crate::memory::{MemoryForceMode, MemoryPickConfig, PrimeGovernor, SplatMemory};
 use crate::ocean::SharedOcean;
+use crate::remember_geometry::RememberOffsetProbe;
 use crate::remember_store::RememberStore;
 use candle_core::{Result, Tensor};
 use std::collections::HashMap;
@@ -270,6 +271,8 @@ pub struct NiodooEngine {
     qsma_flux: HashMap<u32, f64>,
     /// Durable remember-store (same JSONL as niodoo partner/remember).
     remember: RememberStore,
+    /// ORG-H5 dormant why-geometry sidecar. Not a RememberLine column.
+    remember_probe: RememberOffsetProbe,
     /// Last steer Δh (for tag-ablation / collapse proof).
     last_delta_h_norm: f32,
     last_qsma_beta: f32,
@@ -333,6 +336,7 @@ impl NiodooEngine {
                 }),
             qsma_flux: HashMap::new(),
             remember: RememberStore::default(),
+            remember_probe: RememberOffsetProbe::default(),
             last_delta_h_norm: 0.0,
             last_qsma_beta: 0.0,
         }
@@ -590,6 +594,35 @@ impl NiodooEngine {
                 self.remember.lines.clear();
             }
         }
+        self.remember_probe
+            .set_sidecar_from_remember_path(&self.remember.path);
+    }
+
+    /// Decode-step residual / pre-unembed hidden for the H5 sidecar ring.
+    pub fn push_remember_hidden(
+        &mut self,
+        step: usize,
+        s_res: Option<&[f32]>,
+        s_logit: Option<&[f32]>,
+    ) {
+        self.remember_probe.push(step, s_res, s_logit);
+    }
+
+    pub fn note_remember_pieces(&mut self, pieces: &str) {
+        self.remember_probe.note_pieces(pieces);
+    }
+
+    /// KV drop is not a why-mint.
+    pub fn on_kv_drop(&mut self) {
+        self.remember_probe.on_kv_drop();
+    }
+
+    pub fn remember_probe_mint_count(&self) -> usize {
+        self.remember_probe.mint_count()
+    }
+
+    pub fn remember_probe_sidecar(&self) -> &Path {
+        self.remember_probe.sidecar_path()
     }
 
     pub fn remember_len(&self) -> usize {
@@ -760,11 +793,27 @@ impl NiodooEngine {
         if let Some(payload) = hit.payload.as_deref() {
             if matches!(hit.tag, ControlTag::Remember | ControlTag::Lock) && !payload.is_empty() {
                 match self.remember.upsert(payload) {
-                    Ok(line) => crate::hud::hud_quiet_println!(
-                        "[REMEMBER] saved {}={}",
-                        line.key,
-                        line.value
-                    ),
+                    Ok(line) => {
+                        crate::hud::hud_quiet_println!(
+                            "[REMEMBER] saved {}={}",
+                            line.key,
+                            line.value
+                        );
+                        match self
+                            .remember_probe
+                            .dump_on_remember_close(&line.key, &line.value)
+                        {
+                            Ok(0) => {}
+                            Ok(n) => crate::hud::hud_quiet_println!(
+                                "[REMEMBER_PROBE] event=remember_offset_probe key={} rows={} inject=0",
+                                line.key,
+                                n
+                            ),
+                            Err(e) => crate::hud::hud_quiet_println!(
+                                "[REMEMBER_PROBE] dump failed: {e}"
+                            ),
+                        }
+                    }
                     Err(e) => crate::hud::hud_quiet_println!("[REMEMBER] save failed: {e}"),
                 }
             }
@@ -1566,6 +1615,66 @@ mod tests {
             Some("runtime_behavior")
         );
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remember_geometry_sidecar_on_close_not_on_spike_or_kv_drop() {
+        let device = Device::Cpu;
+        let dir = std::env::temp_dir().join(format!(
+            "hydro_h5_engine_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("seat_remember.jsonl");
+        let field = ContinuousField::load_dummy(4, 8, &device).unwrap();
+        let memory = SplatMemory::new(device.clone());
+        let mut engine =
+            NiodooEngine::new(field, memory, Box::new(CpuBackend::new()), 0.035, 0.25, 5.0);
+        engine.open_remember_store(&path);
+        let scars0 = engine.memory().len();
+        for i in 0..8 {
+            let v = [(i as f32) + 0.1, 0.2, 0.3, 0.4];
+            let l = [9.0, i as f32, 0.0, 1.0];
+            engine.push_remember_hidden(i, Some(&v), Some(&l));
+        }
+        engine.note_remember_pieces("wait <spike>");
+        let spike = crate::control_tags::TagHit {
+            tag: ControlTag::Spike,
+            payload: None,
+        };
+        assert!(!engine.fire_tag(&spike));
+        assert_eq!(engine.remember_probe_mint_count(), 0);
+        assert!(!engine.remember_probe_sidecar().exists());
+
+        engine.note_remember_pieces("<remember>lumina=why-vector</remember>");
+        let hit = crate::control_tags::TagHit {
+            tag: ControlTag::Remember,
+            payload: Some("lumina=why-vector".into()),
+        };
+        assert!(!engine.fire_tag(&hit));
+        assert_eq!(engine.remember_get("lumina").as_deref(), Some("why-vector"));
+        assert_eq!(engine.remember_probe_mint_count(), 1);
+        assert_eq!(engine.memory().len(), scars0, "sidecar must not write a splat");
+        let sidecar = engine.remember_probe_sidecar().to_path_buf();
+        let body = std::fs::read_to_string(&sidecar).unwrap();
+        assert!(body.contains("remember_offset_probe"));
+        assert!(body.contains("\"inject\":false"));
+        assert!(!body.contains("\"geometry\""));
+        let remember_body = std::fs::read_to_string(&path).unwrap();
+        let line: serde_json::Value = serde_json::from_str(remember_body.lines().next().unwrap()).unwrap();
+        assert!(line.get("geometry").is_none(), "RememberLine stays payload-only");
+        assert_eq!(line["key"], "lumina");
+
+        engine.on_kv_drop();
+        assert_eq!(engine.remember_probe_mint_count(), 1);
+        let bytes = std::fs::metadata(&sidecar).unwrap().len();
+        engine.on_kv_drop();
+        assert_eq!(std::fs::metadata(&sidecar).unwrap().len(), bytes);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
